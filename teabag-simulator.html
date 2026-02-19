@@ -326,7 +326,7 @@ const touchIds = {}; // trackingId → buttonName
 
 // D-pad hit detection (left side bar)
 const DPAD_CX = SIDE_W / 2, DPAD_CY = H * 0.6;
-const DPAD_ARM_W = 28, DPAD_ARM_L = 38, DPAD_HIT_PAD = 6;
+const DPAD_ARM_W = 56, DPAD_ARM_L = 76, DPAD_HIT_PAD = 6;
 function getDpadDir(tx, ty) {
   const dx = tx - DPAD_CX, dy = ty - DPAD_CY;
   const hw = DPAD_ARM_W / 2 + DPAD_HIT_PAD, hl = DPAD_ARM_L + DPAD_HIT_PAD;
@@ -341,7 +341,7 @@ function getDpadDir(tx, ty) {
 const RIGHT_BAR_X = TOTAL_W - SIDE_W;
 const JUMP_CX = RIGHT_BAR_X + SIDE_W * 0.6, JUMP_CY = H * 0.42;
 const BAG_CX = RIGHT_BAR_X + SIDE_W * 0.4, BAG_CY = H * 0.65;
-const ACTION_R = 30, ACTION_HIT_R = 38;
+const ACTION_R = 45, ACTION_HIT_R = 57;
 function getActionBtn(tx, ty) {
   let dx = tx - JUMP_CX, dy = ty - JUMP_CY;
   if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'jump';
@@ -464,7 +464,7 @@ function drawSideBars() {
   if (touch.crouch){ ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - hw, dCY, DPAD_ARM_W, al); }
 
   // Arrow glyphs
-  ctx.fillStyle = '#888'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#888'; ctx.font = 'bold 20px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('\u25C0', dCX - al * 0.6, dCY);
   ctx.fillText('\u25B6', dCX + al * 0.6, dCY);
   ctx.fillText('\u25B2', dCX, dCY - al * 0.6);
@@ -485,7 +485,7 @@ function drawSideBars() {
   ctx.beginPath(); ctx.arc(JUMP_CX, JUMP_CY, ACTION_R, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = 'rgba(74,222,128,0.5)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(JUMP_CX, JUMP_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('JUMP', JUMP_CX, JUMP_CY);
 
   // BAG button
@@ -493,7 +493,7 @@ function drawSideBars() {
   ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace';
   ctx.fillText('BAG', BAG_CX, BAG_CY);
 
   ctx.textBaseline = 'alphabetic';

@@ -26,12 +26,17 @@ const ctx = canvas.getContext('2d');
 const W = 960, H = 540;
 const PX_SCALE = 2;
 const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
-let TOTAL_W = W, SIDE_W = 0;
+let TOTAL_W = W, SIDE_W = 0, GAME_OX = 0;
 if (isMobile) {
   const screenW = Math.max(screen.width, screen.height);
   const screenH = Math.min(screen.width, screen.height);
   TOTAL_W = Math.round(H * (screenW / screenH));
-  SIDE_W = (TOTAL_W - W) / 2;
+  // Fixed 200px sidebars (≈2x S23 Ultra natural sidebar).
+  // Clamp so visible game area is at least 700px wide.
+  SIDE_W = Math.min(200, Math.floor((TOTAL_W - 700) / 2));
+  SIDE_W = Math.max(SIDE_W, 0);
+  // Center the 960-wide game; sidebars paint over the edges.
+  GAME_OX = (TOTAL_W - W) / 2;
 }
 canvas.width = TOTAL_W * PX_SCALE; canvas.height = H * PX_SCALE;
 const UI_S = isMobile ? 1.5 : 1.0;
@@ -331,8 +336,9 @@ function getDpadDir(tx, ty) {
 }
 
 // Action button hit detection (right side bar)
-const JUMP_CX = SIDE_W + W + SIDE_W * 0.6, JUMP_CY = H * 0.42;
-const BAG_CX = SIDE_W + W + SIDE_W * 0.4, BAG_CY = H * 0.65;
+const RIGHT_BAR_X = TOTAL_W - SIDE_W;
+const JUMP_CX = RIGHT_BAR_X + SIDE_W * 0.6, JUMP_CY = H * 0.42;
+const BAG_CX = RIGHT_BAR_X + SIDE_W * 0.4, BAG_CY = H * 0.65;
 const ACTION_R = 30, ACTION_HIT_R = 38;
 function getActionBtn(tx, ty) {
   let dx = tx - JUMP_CX, dy = ty - JUMP_CY;
@@ -468,9 +474,9 @@ function drawSideBars() {
 
   // Right bar background
   ctx.fillStyle = '#111';
-  ctx.fillRect(SIDE_W + W, 0, SIDE_W, H);
+  ctx.fillRect(TOTAL_W - SIDE_W, 0, SIDE_W, H);
   ctx.fillStyle = '#222';
-  ctx.fillRect(SIDE_W + W, 0, 1, H);
+  ctx.fillRect(TOTAL_W - SIDE_W, 0, 1, H);
 
   // JUMP button
   ctx.fillStyle = touch.jump ? 'rgba(74,222,128,0.5)' : 'rgba(74,222,128,0.3)';
@@ -1711,14 +1717,14 @@ function render(dt) {
   ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
 
   if (galleryMode) {
-    ctx.save(); ctx.translate(SIDE_W, 0);
+    ctx.save(); ctx.translate(GAME_OX, 0);
     drawGallery();
     ctx.restore();
     drawSideBars();
     ctx.restore(); return;
   }
   if (gameState === 'title') {
-    ctx.save(); ctx.translate(SIDE_W, 0);
+    ctx.save(); ctx.translate(GAME_OX, 0);
     drawTitleScreen();
     ctx.restore();
     drawSideBars();
@@ -1727,7 +1733,7 @@ function render(dt) {
 
   // Game area with shake + sidebar offset
   ctx.save(); ctx.translate(shake.x, shake.y);
-  ctx.save(); ctx.translate(SIDE_W, 0);
+  ctx.save(); ctx.translate(GAME_OX, 0);
 
   // Sky (day/night cycle)
   const dayPhase = dayTime / DAY_CYCLE;

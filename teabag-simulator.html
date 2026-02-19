@@ -605,9 +605,10 @@ const cam = { x: 0, targetX: 0 };
 // ── Platforms (Smash Bros style) ──
 const platforms = [];
 let platGenRight = -200;
+let platGenLeft = -200;
 const PLAT_COLORS = ['#6B8E6B','#8B7355','#7B6B8E','#5B7B8E','#8E7B5B'];
 
-function generatePlatforms(rightBound) {
+function generatePlatforms(leftBound, rightBound) {
   while (platGenRight < rightBound + 400) {
     if (Math.random() > 0.55) {
       const pw = rand(60, 130);
@@ -616,7 +617,6 @@ function generatePlatforms(rightBound) {
         x: platGenRight + rand(0, 120), y: py, w: pw, h: 6,
         color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
       });
-      // Occasional second tier
       if (Math.random() > 0.7) {
         platforms.push({
           x: platGenRight + rand(20, 100), y: py - rand(50, 80), w: rand(40, 80), h: 6,
@@ -625,6 +625,23 @@ function generatePlatforms(rightBound) {
       }
     }
     platGenRight += randInt(150, 350);
+  }
+  while (platGenLeft > leftBound - 400) {
+    if (Math.random() > 0.55) {
+      const pw = rand(60, 130);
+      const py = GROUND_Y - rand(55, 140);
+      platforms.push({
+        x: platGenLeft - rand(0, 120) - pw, y: py, w: pw, h: 6,
+        color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
+      });
+      if (Math.random() > 0.7) {
+        platforms.push({
+          x: platGenLeft - rand(20, 100) - rand(40, 80), y: py - rand(50, 80), w: rand(40, 80), h: 6,
+          color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
+        });
+      }
+    }
+    platGenLeft -= randInt(150, 350);
   }
 }
 
@@ -649,7 +666,9 @@ const buildings = [];
 const bgBuildings = [];
 const props = [];
 let cityGenRight = -200;
+let cityGenLeft = -200;
 let bgGenRight = -600; // BG needs a wider range due to slower parallax
+let bgGenLeft = -600;
 
 const BUILDING_COLORS = ['#7B8794','#616E7C','#9AA5B4','#52606D','#8896A4','#6B7B8D'];
 const WINDOW_COLOR = '#FFE4A1';
@@ -668,26 +687,49 @@ function genBuilding(x, layer) {
 }
 
 function generateCity(leftBound, rightBound) {
-  // FG buildings (parallax 0.7) — varied spacing with occasional gaps
+  // FG buildings (parallax 0.7) — rightward
   while (cityGenRight < rightBound + 300) {
     buildings.push(genBuilding(cityGenRight, 'fg'));
     if (Math.random() > 0.6) props.push({ type: 'lamp', x: cityGenRight + rand(10, 50) });
     if (Math.random() > 0.75) props.push({ type: 'hydrant', x: cityGenRight + rand(20, 80) });
     if (Math.random() > 0.85) props.push({ type: 'bench', x: cityGenRight + rand(20, 80) });
-    // Varied gaps: mostly snug, sometimes a wider gap (alley/lot)
     const roll = Math.random();
-    if (roll < 0.15) cityGenRight += randInt(160, 240);       // wide gap (empty lot)
-    else if (roll < 0.45) cityGenRight += randInt(90, 160);   // medium gap
-    else cityGenRight += randInt(50, 100);                    // snug
+    if (roll < 0.15) cityGenRight += randInt(160, 240);
+    else if (roll < 0.45) cityGenRight += randInt(90, 160);
+    else cityGenRight += randInt(50, 100);
   }
-  // BG buildings (parallax 0.3) — generate much further out so they don't pop in
+  // FG buildings — leftward
+  while (cityGenLeft > leftBound - 300) {
+    const bw = randInt(60, 140);
+    cityGenLeft -= bw;
+    buildings.push(genBuilding(cityGenLeft, 'fg'));
+    if (Math.random() > 0.6) props.push({ type: 'lamp', x: cityGenLeft + rand(10, 50) });
+    if (Math.random() > 0.75) props.push({ type: 'hydrant', x: cityGenLeft + rand(20, 80) });
+    if (Math.random() > 0.85) props.push({ type: 'bench', x: cityGenLeft + rand(20, 80) });
+    const roll = Math.random();
+    if (roll < 0.15) cityGenLeft -= randInt(160, 240);
+    else if (roll < 0.45) cityGenLeft -= randInt(90, 160);
+    else cityGenLeft -= randInt(50, 100);
+  }
+  // BG buildings (parallax 0.3) — rightward
   const bgRightBound = rightBound / 0.3 + 800;
   while (bgGenRight < bgRightBound) {
     bgBuildings.push(genBuilding(bgGenRight, 'bg'));
     const roll = Math.random();
-    if (roll < 0.2) bgGenRight += randInt(140, 240);          // wide gap
-    else if (roll < 0.5) bgGenRight += randInt(70, 140);      // medium gap
-    else bgGenRight += randInt(35, 80);                       // snug cluster
+    if (roll < 0.2) bgGenRight += randInt(140, 240);
+    else if (roll < 0.5) bgGenRight += randInt(70, 140);
+    else bgGenRight += randInt(35, 80);
+  }
+  // BG buildings — leftward
+  const bgLeftBound = leftBound / 0.3 - 800;
+  while (bgGenLeft > bgLeftBound) {
+    const bw = randInt(50, 120);
+    bgGenLeft -= bw;
+    bgBuildings.push(genBuilding(bgGenLeft, 'bg'));
+    const roll = Math.random();
+    if (roll < 0.2) bgGenLeft -= randInt(140, 240);
+    else if (roll < 0.5) bgGenLeft -= randInt(70, 140);
+    else bgGenLeft -= randInt(35, 80);
   }
 }
 
@@ -1693,9 +1735,11 @@ function update(dt) {
     const spawnX = side > 0 ? screenRight + rand(120, 250) : screenLeft - rand(120, 250);
     spawnNPC(spawnX);
   }
-  // Also spawn ahead of a sprinting player
-  if (p.isSprinting && activeNPCs.filter(n => n.x > p.x && n.x < p.x + 500).length < 2 && npcs.length < MAX_NPCS) {
-    spawnNPC(p.x + rand(400, 600));
+  // Also spawn ahead of a sprinting player (in their facing direction)
+  if (p.isSprinting && npcs.length < MAX_NPCS) {
+    const dir = p.facing;
+    const ahead = activeNPCs.filter(n => dir > 0 ? (n.x > p.x && n.x < p.x + 500) : (n.x < p.x && n.x > p.x - 500));
+    if (ahead.length < 2) spawnNPC(p.x + dir * rand(400, 600));
   }
 
   // ── Camera ──
@@ -1704,7 +1748,7 @@ function update(dt) {
 
   // ── Generation ──
   generateCity(cam.x - 400, cam.x + W + 400);
-  generatePlatforms(cam.x + W + 400);
+  generatePlatforms(cam.x - 400, cam.x + W + 400);
 
   dayTime = (dayTime + dt) % DAY_CYCLE;
   updateBirds(dt);
@@ -2131,7 +2175,7 @@ function loop(timestamp) {
 // Init
 for (let i = 0; i < 5; i++) spawnNPC(rand(100, 700));
 generateCity(-500, 1500);
-generatePlatforms(1500);
+generatePlatforms(-500, 1500);
 // Seed initial cars on the road
 for (let i = 0; i < 8; i++) {
   const def = pickCarDef();

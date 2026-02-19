@@ -1,0 +1,8 @@
+node_modules/
+package.json
+package-lock.json
+character-editor.html
+sprite-packer.html
+sprite-reference.html
+npc designs/
+sprites/

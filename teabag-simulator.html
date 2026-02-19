@@ -38,6 +38,8 @@ if (isMobile) {
   // Center the 960-wide game; sidebars paint over the edges.
   GAME_OX = (TOTAL_W - W) / 2;
 }
+// How far sidebars overlap the game area on each side
+const HUD_INSET = Math.max(0, SIDE_W - GAME_OX);
 canvas.width = TOTAL_W * PX_SCALE; canvas.height = H * PX_SCALE;
 const UI_S = isMobile ? 1.5 : 1.0;
 function resize() {
@@ -1276,8 +1278,8 @@ function drawGallery() {
 
   // Nav arrows
   ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(28 * UI_S)}px monospace`; ctx.textAlign = 'center';
-  ctx.fillText('\u25C0', 30, H / 2);
-  ctx.fillText('\u25B6', W - 30, H / 2);
+  ctx.fillText('\u25C0', 30 + HUD_INSET, H / 2);
+  ctx.fillText('\u25B6', W - 30 - HUD_INSET, H / 2);
 
   // Controls
   const galCtrlW = Math.round(400 * UI_S);
@@ -1845,17 +1847,18 @@ function render(dt) {
   }
 
   // ── HUD ──
+  const hudL = 10 + HUD_INSET; // left edge, shifted inward past sidebar overlap
   const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
   const hudFont = Math.round(14 * UI_S);
   const hudTextY = hudY + Math.round(23 * UI_S);
 
   const scoreW = Math.round(160 * UI_S);
-  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, hudY, scoreW, hudH, hudR);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, hudY, scoreW, hudH, hudR);
   ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
-  ctx.fillText(`SCORE: ${score}`, 20, hudTextY);
+  ctx.fillText(`SCORE: ${score}`, hudL + 10, hudTextY);
 
   // Teabag KO counter
-  const koX = 10 + scoreW + 10;
+  const koX = hudL + scoreW + 10;
   const koW = Math.round(100 * UI_S);
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, koX, hudY, koW, hudH, hudR);
   drawTeabag(koX + Math.round(20 * UI_S), hudY + Math.round(17 * UI_S), 0.8 * UI_S, 1);
@@ -1917,10 +1920,10 @@ function render(dt) {
       return pos;
     });
     totalW += padX - gap;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, trkBotY - trkH, totalW, trkH, 6);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, trkBotY - trkH, totalW, trkH, 6);
     ctx.textAlign = 'center';
     for (const { t, cx } of positions) {
-      const tx = 10 + cx;
+      const tx = hudL + cx;
       ctx.font = `bold ${trkFont}px monospace`;
       ctx.fillStyle = t.color; ctx.fillText(t.label, tx, trkBotY - Math.round(16 * UI_S));
       ctx.fillStyle = '#fff'; ctx.font = `bold ${trkNumFont}px monospace`;
@@ -2067,7 +2070,7 @@ function drawTitleScreen() {
   ctx.fillText('by heyheywoah + claude opus', W / 2, H * 0.77);
 
   // Clawd — pixel mascot dancing in bottom-right
-  const clawdX = W - 50, clawdBaseY = H - 28;
+  const clawdX = W - 50 - HUD_INSET, clawdBaseY = H - 28;
   const bounce = Math.sin(t * 4) * 3;
   const lean = Math.sin(t * 2) * 0.08;
   const legPhase = t * 5;

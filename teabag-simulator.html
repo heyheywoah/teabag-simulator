@@ -25,16 +25,33 @@ const ctx = canvas.getContext('2d');
 // ── Resolution ──
 const W = 960, H = 540;
 const PX_SCALE = 2;
-canvas.width = W * PX_SCALE; canvas.height = H * PX_SCALE;
+const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
+let TOTAL_W = W, SIDE_W = 0;
+if (isMobile) {
+  const screenW = Math.max(screen.width, screen.height);
+  const screenH = Math.min(screen.width, screen.height);
+  TOTAL_W = Math.round(H * (screenW / screenH));
+  SIDE_W = (TOTAL_W - W) / 2;
+}
+canvas.width = TOTAL_W * PX_SCALE; canvas.height = H * PX_SCALE;
+const UI_S = isMobile ? 1.5 : 1.0;
 function resize() {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const s = Math.min(vw / W, vh / H);
-  canvas.style.width = (W * s) + 'px';
-  canvas.style.height = (H * s) + 'px';
+  if (isMobile) {
+    canvas.style.width = vw + 'px';
+    canvas.style.height = vh + 'px';
+  } else {
+    const s = Math.min(vw / W, vh / H);
+    canvas.style.width = (W * s) + 'px';
+    canvas.style.height = (H * s) + 'px';
+  }
 }
 resize();
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 100));
+if (isMobile && screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock('landscape').catch(() => {});
+}
 
 // ── Utility ──
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -296,29 +313,45 @@ function crouchDown() { return isDown('S') || keys['Space'] || touch.crouch; }
 function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
-const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || ('ontouchstart' in window);
 let showTouch = isMobile;
 const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, anyActive: false };
 const touchIds = {}; // trackingId → buttonName
 
-// Button layout computed in drawTouchControls based on orientation
-let touchBtns = {};
+// D-pad hit detection (left side bar)
+const DPAD_CX = SIDE_W / 2, DPAD_CY = H * 0.6;
+const DPAD_ARM_W = 28, DPAD_ARM_L = 38, DPAD_HIT_PAD = 6;
+function getDpadDir(tx, ty) {
+  const dx = tx - DPAD_CX, dy = ty - DPAD_CY;
+  const hw = DPAD_ARM_W / 2 + DPAD_HIT_PAD, hl = DPAD_ARM_L + DPAD_HIT_PAD;
+  const inHBar = Math.abs(dx) <= hl && Math.abs(dy) <= hw;
+  const inVBar = Math.abs(dx) <= hw && Math.abs(dy) <= hl;
+  if (!inHBar && !inVBar) return null;
+  if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'left' : 'right';
+  return dy < 0 ? 'up' : 'down';
+}
+
+// Action button hit detection (right side bar)
+const JUMP_CX = SIDE_W + W + SIDE_W * 0.6, JUMP_CY = H * 0.42;
+const BAG_CX = SIDE_W + W + SIDE_W * 0.4, BAG_CY = H * 0.65;
+const ACTION_R = 30, ACTION_HIT_R = 38;
+function getActionBtn(tx, ty) {
+  let dx = tx - JUMP_CX, dy = ty - JUMP_CY;
+  if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'jump';
+  dx = tx - BAG_CX; dy = ty - BAG_CY;
+  if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'teabag';
+  return null;
+}
 
 function getTouchBtn(x, y) {
-  for (const [name, b] of Object.entries(touchBtns)) {
-    if (b.shape === 'circle') {
-      const dx = x - b.cx, dy = y - b.cy;
-      if (dx * dx + dy * dy <= b.r * b.r) return name;
-    } else {
-      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return name;
-    }
-  }
-  return null;
+  if (!isMobile) return null;
+  const dir = getDpadDir(x, y);
+  if (dir) return dir;
+  return getActionBtn(x, y);
 }
 
 function touchToLogical(tx, ty) {
   const rect = canvas.getBoundingClientRect();
-  return [(tx - rect.left) / rect.width * W, (ty - rect.top) / rect.height * H];
+  return [(tx - rect.left) / rect.width * TOTAL_W, (ty - rect.top) / rect.height * H];
 }
 
 function handleTouchStart(e) {
@@ -326,12 +359,6 @@ function handleTouchStart(e) {
   touch.anyActive = true;
   for (const t of e.changedTouches) {
     const [x, y] = touchToLogical(t.clientX, t.clientY);
-    // Check toggle button first
-    if (gameState === 'playing') {
-      const tb = getToggleBtnPos();
-      const dx = x - tb.cx, dy = y - tb.cy;
-      if (dx * dx + dy * dy <= TOGGLE_R * TOGGLE_R) { showTouch = !showTouch; return; }
-    }
     const btn = getTouchBtn(x, y);
     if (btn) {
       touchIds[t.identifier] = btn;
@@ -393,83 +420,74 @@ canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
 
-// Toggle touch controls with T key
+// Toggle touch controls with T key (desktop only)
 window.addEventListener('keydown', e => {
   if (e.code === 'KeyT' && gameState === 'playing') showTouch = !showTouch;
 });
 
-function computeTouchLayout() {
-  const isLand = W > H || (window.innerWidth > window.innerHeight);
-  const pad = 12;
-  const btnR = isLand ? 28 : 24;
-  const dpadR = isLand ? 22 : 18;
-  const dpadSpread = isLand ? 36 : 30;
+// ── Side Bar Rendering (mobile only) ──
+function drawSideBars() {
+  if (!isMobile || SIDE_W <= 0) return;
 
-  // D-pad on the left
-  const dpadCX = pad + dpadSpread + dpadR + 10;
-  const dpadCY = H - pad - dpadSpread - dpadR - 10;
+  // Left bar background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, SIDE_W, H);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(SIDE_W - 1, 0, 1, H);
 
-  // Action buttons on the right
-  const actX = W - pad - btnR - 10;
-  const actY1 = H - pad - btnR * 2 - 20; // jump (top)
-  const actY2 = H - pad - btnR - 5;        // teabag (bottom)
+  // D-pad cross
+  const dCX = DPAD_CX, dCY = DPAD_CY;
+  const hw = DPAD_ARM_W / 2, al = DPAD_ARM_L;
 
-  touchBtns = {
-    left:   { shape: 'circle', cx: dpadCX - dpadSpread, cy: dpadCY, r: dpadR, label: '◀', color: 'rgba(255,255,255,0.15)' },
-    right:  { shape: 'circle', cx: dpadCX + dpadSpread, cy: dpadCY, r: dpadR, label: '▶', color: 'rgba(255,255,255,0.15)' },
-    up:     { shape: 'circle', cx: dpadCX, cy: dpadCY - dpadSpread, r: dpadR, label: '▲', color: 'rgba(255,255,255,0.15)' },
-    down:   { shape: 'circle', cx: dpadCX, cy: dpadCY + dpadSpread, r: dpadR, label: '▼', color: 'rgba(255,255,255,0.15)' },
-    jump:   { shape: 'circle', cx: actX, cy: actY1, r: btnR, label: 'JUMP', color: 'rgba(74,222,128,0.25)' },
-    teabag: { shape: 'circle', cx: actX - btnR * 2 - 10, cy: actY2, r: btnR, label: 'BAG', color: 'rgba(251,191,36,0.25)' },
-  };
-}
+  // Cross shape background
+  ctx.fillStyle = '#222';
+  ctx.fillRect(dCX - al, dCY - hw, al * 2, DPAD_ARM_W);
+  ctx.fillRect(dCX - hw, dCY - al, DPAD_ARM_W, al * 2);
 
-// Toggle button (always visible on mobile so they can show/hide controls)
-const TOGGLE_R = 14;
-function getToggleBtnPos() { return { cx: W - TOGGLE_R - 8, cy: TOGGLE_R + 8 }; }
+  // Cross shape border
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.strokeRect(dCX - al, dCY - hw, al * 2, DPAD_ARM_W);
+  ctx.strokeRect(dCX - hw, dCY - al, DPAD_ARM_W, al * 2);
 
-function drawTouchToggle() {
-  if (!isMobile) return;
-  const { cx, cy } = getToggleBtnPos();
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.beginPath(); ctx.arc(cx, cy, TOGGLE_R, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(cx, cy, TOGGLE_R, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(showTouch ? '👆' : '👆', cx, cy);
-  // Draw a small slash through when hidden
-  if (!showTouch) {
-    ctx.strokeStyle = 'rgba(255,80,80,0.7)';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(cx - 7, cy + 7); ctx.lineTo(cx + 7, cy - 7); ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  ctx.textBaseline = 'alphabetic';
-}
+  // Active highlights
+  if (touch.left)  { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - al, dCY - hw, al, DPAD_ARM_W); }
+  if (touch.right) { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX, dCY - hw, al, DPAD_ARM_W); }
+  if (touch.jump)  { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - hw, dCY - al, DPAD_ARM_W, al); }
+  if (touch.crouch){ ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - hw, dCY, DPAD_ARM_W, al); }
 
-function drawTouchControls() {
-  if (!showTouch) return;
-  computeTouchLayout();
+  // Arrow glyphs
+  ctx.fillStyle = '#888'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('\u25C0', dCX - al * 0.6, dCY);
+  ctx.fillText('\u25B6', dCX + al * 0.6, dCY);
+  ctx.fillText('\u25B2', dCX, dCY - al * 0.6);
+  ctx.fillText('\u25BC', dCX, dCY + al * 0.6);
 
-  for (const [name, b] of Object.entries(touchBtns)) {
-    const active = (name === 'left' && touch.left) || (name === 'right' && touch.right) ||
-                   (name === 'up' && touch.jump) || (name === 'down' && touch.crouch) ||
-                   (name === 'jump' && touch.jump) || (name === 'teabag' && touch.crouch);
+  // Sprint hint
+  ctx.fillStyle = '#555'; ctx.font = '8px monospace'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('2x TAP: SPRINT', dCX, dCY + al + 18);
 
-    ctx.globalAlpha = active ? 0.6 : 0.35;
-    ctx.fillStyle = active ? 'rgba(255,255,255,0.3)' : b.color;
-    ctx.beginPath(); ctx.arc(b.cx, b.cy, b.r, 0, Math.PI * 2); ctx.fill();
+  // Right bar background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(SIDE_W + W, 0, SIDE_W, H);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(SIDE_W + W, 0, 1, H);
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.arc(b.cx, b.cy, b.r, 0, Math.PI * 2); ctx.stroke();
+  // JUMP button
+  ctx.fillStyle = touch.jump ? 'rgba(74,222,128,0.5)' : 'rgba(74,222,128,0.3)';
+  ctx.beginPath(); ctx.arc(JUMP_CX, JUMP_CY, ACTION_R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(74,222,128,0.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(JUMP_CX, JUMP_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('JUMP', JUMP_CX, JUMP_CY);
 
-    ctx.fillStyle = '#fff'; ctx.font = `bold ${b.r > 24 ? 10 : 8}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(b.label, b.cx, b.cy);
-  }
-  ctx.globalAlpha = 1;
+  // BAG button
+  ctx.fillStyle = touch.crouch ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.3)';
+  ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace';
+  ctx.fillText('BAG', BAG_CX, BAG_CY);
+
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -567,7 +585,7 @@ function drawPopups() {
       const scale = 1.0 + (1 - p.life / p.maxLife) * 0.3;
       drawTeabag(p.x - cam.x, p.y, scale, alpha);
     } else {
-      ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center'; ctx.fillText(p.text, p.x - cam.x, p.y);
+      ctx.globalAlpha = alpha; ctx.fillStyle = p.color; ctx.font = `bold ${Math.round(18 * UI_S)}px monospace`; ctx.textAlign = 'center'; ctx.fillText(p.text, p.x - cam.x, p.y);
     }
   }
   ctx.globalAlpha = 1;
@@ -1208,9 +1226,9 @@ function drawGallery() {
   const baseY = H * 0.65;
 
   // Title
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(22 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText(gt.label.toUpperCase(), W / 2, 40);
-  ctx.fillStyle = '#666'; ctx.font = '13px monospace';
+  ctx.fillStyle = '#666'; ctx.font = `${Math.round(13 * UI_S)}px monospace`;
   ctx.fillText(`${galleryIndex + 1} / ${GALLERY_TYPES.length}  \u2022  ${gt.w}\u00d7${gt.h}px`, W / 2, 58);
   if (gt.opts.npcType) {
     ctx.fillStyle = '#888'; ctx.fillText(`type: ${gt.opts.npcType}`, W / 2, 74);
@@ -1218,7 +1236,7 @@ function drawGallery() {
 
   // Standing (left)
   const gf = galleryFlip;
-  ctx.fillStyle = '#444'; ctx.font = '10px monospace';
+  ctx.fillStyle = '#444'; ctx.font = `${Math.round(10 * UI_S)}px monospace`;
   ctx.fillText('IDLE', W * 0.22, baseY + 30);
   ctx.save(); ctx.translate(W * 0.22, baseY); ctx.scale(scale, scale);
   drawCharacter(0, 0, gt.w, gt.h, {
@@ -1251,14 +1269,15 @@ function drawGallery() {
   ctx.restore();
 
   // Nav arrows
-  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(28 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText('\u25C0', 30, H / 2);
   ctx.fillText('\u25B6', W - 30, H / 2);
 
   // Controls
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(ctx, W/2 - 200, H - 28, 400, 22, 4);
-  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-  ctx.fillText('A/D or \u2190/\u2192 to browse  \u2022  F to flip  \u2022  TAB to return', W / 2, H - 13);
+  const galCtrlW = Math.round(400 * UI_S);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(ctx, W/2 - galCtrlW/2, H - Math.round(28 * UI_S), galCtrlW, Math.round(22 * UI_S), 4);
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(11 * UI_S)}px monospace`; ctx.textAlign = 'center';
+  ctx.fillText('A/D or \u2190/\u2192 to browse  \u2022  F to flip  \u2022  TAB to return', W / 2, H - Math.round(13 * UI_S));
 }
 
 // ── Player ──
@@ -1689,10 +1708,26 @@ function update(dt) {
 // ── Render ──
 function render(dt) {
   const shake = getShakeOffset(dt);
-  ctx.save(); ctx.scale(PX_SCALE, PX_SCALE); ctx.translate(shake.x, shake.y);
+  ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
 
-  if (galleryMode) { drawGallery(); ctx.restore(); return; }
-  if (gameState === 'title') { drawTitleScreen(); ctx.restore(); return; }
+  if (galleryMode) {
+    ctx.save(); ctx.translate(SIDE_W, 0);
+    drawGallery();
+    ctx.restore();
+    drawSideBars();
+    ctx.restore(); return;
+  }
+  if (gameState === 'title') {
+    ctx.save(); ctx.translate(SIDE_W, 0);
+    drawTitleScreen();
+    ctx.restore();
+    drawSideBars();
+    ctx.restore(); return;
+  }
+
+  // Game area with shake + sidebar offset
+  ctx.save(); ctx.translate(shake.x, shake.y);
+  ctx.save(); ctx.translate(SIDE_W, 0);
 
   // Sky (day/night cycle)
   const dayPhase = dayTime / DAY_CYCLE;
@@ -1768,14 +1803,14 @@ function render(dt) {
       if ((npc.state === 'panicking' || npc.state === 'walking') && npc.health < npc.maxHealth) {
         const lblDef = CHAR_BY_NAME[npc.npcType];
         const isBigNPC = lblDef.isSpecial;
-        const barW = isBigNPC ? 44 : 30, barH = 4;
+        const barW = (isBigNPC ? 44 : 30) * UI_S, barH = 4 * UI_S;
         const barX = sx - barW / 2, barY = GROUND_Y - npc.h - 18;
         ctx.fillStyle = '#333'; ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
         const hpPct = npc.health / npc.maxHealth;
         ctx.fillStyle = hpPct > 0.5 ? '#48BB78' : hpPct > 0.25 ? '#ECC94B' : '#F56565';
         ctx.fillRect(barX, barY, barW * hpPct, barH);
         if (lblDef.labelText) {
-          ctx.fillStyle = lblDef.labelColor; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+          ctx.fillStyle = lblDef.labelColor; ctx.font = `bold ${Math.round(9 * UI_S)}px monospace`; ctx.textAlign = 'center';
           ctx.fillText(lblDef.labelText, sx, barY - 3);
         }
       }
@@ -1804,32 +1839,41 @@ function render(dt) {
   }
 
   // ── HUD ──
-  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, 10, 160, 36, 6);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(`SCORE: ${score}`, 20, 33);
+  const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
+  const hudFont = Math.round(14 * UI_S);
+  const hudTextY = hudY + Math.round(23 * UI_S);
+
+  const scoreW = Math.round(160 * UI_S);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, hudY, scoreW, hudH, hudR);
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+  ctx.fillText(`SCORE: ${score}`, 20, hudTextY);
 
   // Teabag KO counter
-  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 180, 10, 100, 36, 6);
-  drawTeabag(200, 27, 0.8, 1);
-  ctx.fillStyle = '#FF6B6B'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(`x ${totalKOs}`, 215, 33);
+  const koX = 10 + scoreW + 10;
+  const koW = Math.round(100 * UI_S);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, koX, hudY, koW, hudH, hudR);
+  drawTeabag(koX + Math.round(20 * UI_S), hudY + Math.round(17 * UI_S), 0.8 * UI_S, 1);
+  ctx.fillStyle = '#FF6B6B'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+  ctx.fillText(`x ${totalKOs}`, koX + Math.round(35 * UI_S), hudTextY);
 
   // Air streak
   if (player.airStreak > 0) {
     const streakPulse = 1 + Math.sin(performance.now() / 150) * 0.08;
-    ctx.fillStyle = 'rgba(0,200,150,0.5)'; roundRect(ctx, 290, 10, 130, 36, 6);
-    ctx.fillStyle = '#00FFAA'; ctx.font = `bold ${Math.round(14 * streakPulse)}px monospace`; ctx.textAlign = 'left';
-    ctx.fillText(`AIR x${player.airStreak}`, 300, 33);
+    const streakX = koX + koW + 10;
+    const streakW = Math.round(130 * UI_S);
+    ctx.fillStyle = 'rgba(0,200,150,0.5)'; roundRect(ctx, streakX, hudY, streakW, hudH, hudR);
+    ctx.fillStyle = '#00FFAA'; ctx.font = `bold ${Math.round(hudFont * streakPulse)}px monospace`; ctx.textAlign = 'left';
+    ctx.fillText(`AIR x${player.airStreak}`, streakX + 10, hudTextY);
     // Mini teabags for streak count
     for (let i = 0; i < Math.min(player.airStreak, 5); i++) {
-      drawTeabag(385 + i * 12, 27, 0.4, 0.8);
+      drawTeabag(streakX + Math.round(95 * UI_S) + i * Math.round(12 * UI_S), hudY + Math.round(17 * UI_S), 0.4 * UI_S, 0.8);
     }
   }
 
   if (player.combo > 0 && player.comboTimer > 0) {
     ctx.globalAlpha = Math.min(1, player.comboTimer);
-    ctx.fillStyle = '#FFD700'; ctx.font = `bold ${20 + player.combo * 2}px monospace`; ctx.textAlign = 'center';
-    ctx.fillText(`${player.combo}x COMBO`, W / 2, 50); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round((20 + player.combo * 2) * UI_S)}px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(`${player.combo}x COMBO`, W / 2, Math.round(50 * UI_S)); ctx.globalAlpha = 1;
   }
 
   // Center screen big KO announcement
@@ -1839,7 +1883,7 @@ function render(dt) {
     const alpha = centerKO.timer < 0.4 ? centerKO.timer / 0.4 : 1; // fade out
     ctx.globalAlpha = alpha;
     ctx.fillStyle = centerKO.color;
-    ctx.font = `bold ${Math.round(42 * scale)}px monospace`;
+    ctx.font = `bold ${Math.round(42 * UI_S * scale)}px monospace`;
     ctx.textAlign = 'center';
     ctx.fillText(centerKO.text, W / 2, H * 0.38);
     // Shadow for readability
@@ -1853,38 +1897,41 @@ function render(dt) {
   // KO tracker (bottom left)
   const activeTrackers = trackerTypes.filter(t => getTrackerCount(t) > 0);
   if (activeTrackers.length > 0) {
-    // Measure widths for variable-length names
-    ctx.font = 'bold 9px monospace';
-    const padX = 12, gap = 10;
+    const trkFont = Math.round(9 * UI_S), trkNumFont = Math.round(12 * UI_S);
+    const trkH = Math.round(30 * UI_S), trkBotY = H - Math.round(12 * UI_S);
+    ctx.font = `bold ${trkFont}px monospace`;
+    const padX = Math.round(12 * UI_S), gap = Math.round(10 * UI_S);
     let totalW = padX;
     const positions = activeTrackers.map(t => {
       const lw = ctx.measureText(t.label).width;
       const nw = ctx.measureText(`${getTrackerCount(t)}`).width;
-      const colW = Math.max(lw, nw, 20);
+      const colW = Math.max(lw, nw, Math.round(20 * UI_S));
       const pos = { t, cx: totalW + colW / 2, colW };
       totalW += colW + gap;
       return pos;
     });
     totalW += padX - gap;
-    ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, H - 42, totalW, 30, 6);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, 10, trkBotY - trkH, totalW, trkH, 6);
     ctx.textAlign = 'center';
     for (const { t, cx } of positions) {
       const tx = 10 + cx;
-      ctx.font = 'bold 9px monospace';
-      ctx.fillStyle = t.color; ctx.fillText(t.label, tx, H - 28);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace';
-      ctx.fillText(`${getTrackerCount(t)}`, tx, H - 16);
+      ctx.font = `bold ${trkFont}px monospace`;
+      ctx.fillStyle = t.color; ctx.fillText(t.label, tx, trkBotY - Math.round(16 * UI_S));
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${trkNumFont}px monospace`;
+      ctx.fillText(`${getTrackerCount(t)}`, tx, trkBotY - Math.round(4 * UI_S));
     }
   }
 
-  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
-  ctx.fillText('WASD/Arrows: Move+Jump (2x!) | Double-tap dir: Sprint | \u2193/Space: Crouch | T: Touch UI', W - 10, H - 10);
+  if (!isMobile) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('WASD/Arrows: Move+Jump (2x!) | Double-tap dir: Sprint | \u2193/Space: Crouch | T: Touch UI', W - 10, H - 10);
+  }
 
-  // Mobile overlay
-  drawTouchControls();
-  drawTouchToggle();
+  ctx.restore(); // undo SIDE_W translate
+  ctx.restore(); // undo shake translate
 
-  ctx.restore();
+  drawSideBars();
+  ctx.restore(); // undo scale
 }
 
 // ── Mountains (super slow parallax) ──
@@ -1981,12 +2028,12 @@ function drawTitleScreen() {
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
 
   // Title
-  ctx.fillStyle = '#FFD700'; ctx.font = 'bold 56px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(56 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText('TEABAG', W / 2, H * 0.15);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 36px monospace';
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(36 * UI_S)}px monospace`;
   ctx.fillText('SIMULATOR', W / 2, H * 0.23);
 
-  ctx.fillStyle = '#9CA3AF'; ctx.font = '14px monospace';
+  ctx.fillStyle = '#9CA3AF'; ctx.font = `${Math.round(14 * UI_S)}px monospace`;
   ctx.fillText('A game of dubious moral character', W / 2, H * 0.30);
 
   // Characters in the middle band
@@ -2001,7 +2048,7 @@ function drawTitleScreen() {
   drawCharacter(W * 0.5, charY - 42, 24, 46, { facing: 1, color: '#3B82F6', skinColor: '#FBBF6B', hairColor: '#3D2B1F', isCrouching: Math.sin(t * 8) > 0, breathing: Math.sin(t * 2) * 1.5, blinkTimer: 3 });
 
   // Controls below characters
-  ctx.fillStyle = '#6B7280'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#6B7280'; ctx.font = `${Math.round(11 * UI_S)}px monospace`; ctx.textAlign = 'center';
   if (isMobile) {
     ctx.fillText('D-pad: Move | Double-tap: Sprint | Jump + Bag buttons', W / 2, H * 0.68);
   } else {
@@ -2010,7 +2057,7 @@ function drawTitleScreen() {
   }
 
   // Credits
-  ctx.fillStyle = '#6B7280'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#6B7280'; ctx.font = `${Math.round(10 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText('by heyheywoah + claude opus', W / 2, H * 0.77);
 
   // Clawd — pixel mascot dancing in bottom-right
@@ -2051,18 +2098,14 @@ function drawTitleScreen() {
   ctx.restore();
 
   // Clawd label
-  ctx.fillStyle = '#9CA3AF'; ctx.font = 'bold 8px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#9CA3AF'; ctx.font = `bold ${Math.round(8 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText('clawd', clawdX, H - 8);
 
   // Start prompt
   if (Math.sin(titleBlink * 3) > 0) {
-    ctx.fillStyle = '#FFD700'; ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(18 * UI_S)}px monospace`;
     ctx.fillText(isMobile ? 'TAP TO START' : 'PRESS ENTER TO START', W / 2, H * 0.82);
   }
-
-  // Show touch controls on title too
-  if (showTouch) drawTouchControls();
-  drawTouchToggle();
 }
 
 // ── Main Loop ──

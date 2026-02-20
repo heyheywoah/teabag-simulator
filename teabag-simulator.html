@@ -651,7 +651,7 @@ function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
 let showTouch = isMobile;
-const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, upJust: false, downJust: false, leftJust: false, rightJust: false, bagJust: false, pauseJust: false };
+const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, upJust: false, downJust: false, leftJust: false, rightJust: false, bagJust: false, pauseJust: false, upHeld: false, downHeld: false, bagHeld: false };
 const touchIds = {}; // trackingId → buttonName
 
 // D-pad hit detection (left side bar) — 4 circle buttons in diamond layout
@@ -757,10 +757,10 @@ function applyTouch(btn, down) {
     }
     if (!down && !touch.left) touch.sprint = false;
   }
-  else if (btn === 'up') { if (down) touch.upJust = true; }
-  else if (btn === 'down') { if (down) touch.downJust = true; if (gameState === 'playing') touch.crouch = down; }
+  else if (btn === 'up') { touch.upHeld = down; if (down) touch.upJust = true; }
+  else if (btn === 'down') { touch.downHeld = down; if (down) touch.downJust = true; if (gameState === 'playing') touch.crouch = down; }
   else if (btn === 'jump') { touch.jump = down; if (down) touch.jumpJust = true; }
-  else if (btn === 'teabag') { if (down) touch.bagJust = true; if (gameState === 'playing') touch.crouch = down; }
+  else if (btn === 'teabag') { touch.bagHeld = down; if (down) touch.bagJust = true; if (gameState === 'playing') touch.crouch = down; }
   else if (btn === 'pause') { if (down) touch.pauseJust = true; }
 }
 
@@ -788,8 +788,8 @@ function drawSideBars() {
   const dpadBtns = [
     { dir: 'left',  glyph: '\u25C0', active: touch.left },
     { dir: 'right', glyph: '\u25B6', active: touch.right },
-    { dir: 'up',    glyph: '\u25B2', active: touch.jump },
-    { dir: 'down',  glyph: '\u25BC', active: touch.crouch },
+    { dir: 'up',    glyph: '\u25B2', active: touch.upHeld },
+    { dir: 'down',  glyph: '\u25BC', active: touch.downHeld },
   ];
   for (const btn of dpadBtns) {
     const pos = DPAD_POS[btn.dir];
@@ -820,7 +820,7 @@ function drawSideBars() {
   ctx.fillText('JUMP', JUMP_CX, JUMP_CY);
 
   // BAG button
-  ctx.fillStyle = touch.crouch ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.3)';
+  ctx.fillStyle = touch.bagHeld ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.3)';
   ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = 'rgba(251,191,36,0.5)'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
@@ -3539,17 +3539,21 @@ function drawZonePicker() {
   ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(28 * UI_S)}px monospace`; ctx.textAlign = 'center';
   ctx.fillText('SELECT ZONE', W / 2, H * 0.12);
 
-  const cardW = Math.round(120 * UI_S), cardH = Math.round(160 * UI_S);
+  // 3-card carousel within HUD bounds
+  const margin = 50 + HUD_INSET;
+  const usableW = W - margin * 2;
   const gap = Math.round(15 * UI_S);
-  const totalW = ZONES.length * cardW + (ZONES.length - 1) * gap;
-  const startX = W / 2 - totalW / 2;
+  const cardW = Math.round((usableW - gap * 2) / 3);
+  const cardH = Math.round(160 * UI_S);
+  const cy = H * 0.48;
+  const n = ZONES.length;
 
-  for (let i = 0; i < ZONES.length; i++) {
+  for (let offset = -1; offset <= 1; offset++) {
+    const i = ((zonePickerIndex + offset) % n + n) % n;
     const zone = ZONES[i];
-    const cx = startX + i * (cardW + gap) + cardW / 2;
-    const cy = H * 0.48;
-    const selected = zonePickerIndex === i;
+    const selected = offset === 0;
     const locked = !unlockedZones.includes(zone.id);
+    const cx = W / 2 + offset * (cardW + gap);
 
     // Card background
     ctx.fillStyle = selected ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.04)';
@@ -3560,9 +3564,8 @@ function drawZonePicker() {
       ctx.strokeRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH);
     }
 
-    if (locked) {
-      ctx.globalAlpha = 0.3;
-    }
+    if (locked) ctx.globalAlpha = 0.3;
+    else if (!selected) ctx.globalAlpha = 0.6;
 
     // Zone color swatch
     ctx.fillStyle = zone.displayColor;
@@ -3577,7 +3580,6 @@ function drawZonePicker() {
       ctx.fillStyle = '#FF6B6B';
       ctx.font = `bold ${Math.round(14 * UI_S)}px monospace`;
       ctx.fillText('LOCKED', cx, cy + cardH * 0.3);
-      ctx.globalAlpha = 1;
     } else {
       ctx.fillStyle = '#48BB78';
       ctx.font = `${Math.round(8 * UI_S)}px monospace`;
@@ -3587,15 +3589,15 @@ function drawZonePicker() {
     ctx.globalAlpha = 1;
   }
 
-  // Nav hints
+  // Nav arrows at edges of usable area
   ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(24 * UI_S)}px monospace`;
-  ctx.fillText('\u25C0', startX - 25, H * 0.48);
-  ctx.fillText('\u25B6', startX + totalW + 25, H * 0.48);
+  ctx.fillText('\u25C0', margin + 10, cy);
+  ctx.fillText('\u25B6', W - margin - 10, cy);
 
   const t = performance.now() / 1000;
   ctx.fillStyle = '#555'; ctx.font = `${Math.round(11 * UI_S)}px monospace`;
   if (Math.sin(t * 3) > 0) {
-    ctx.fillText(isMobile ? 'L/R: Browse | JUMP: Select | DOWN: Back' : 'A/D: Browse | ENTER: Select | ESC: Back', W / 2, H * 0.88);
+    ctx.fillText(isMobile ? 'L/R: Browse | JUMP: Select | BAG: Back' : 'A/D: Browse | ENTER: Select | ESC: Back', W / 2, H * 0.88);
   }
 }
 

@@ -2695,11 +2695,11 @@ function triggerPrestige() {
   spawnStars(player.x, player.y - 30, 20);
 }
 
-function update(dt) {
+function updateMenuState(dt) {
   if (gameState === 'title') {
     titleBlink += dt;
     if (Object.values(keys).some(v => v) || touch.jumpJust) gameState = 'modeselect';
-    return;
+    return true;
   }
 
   if (gameState === 'modeselect') {
@@ -2719,7 +2719,7 @@ function update(dt) {
         gameState = 'zonepicker';
       }
     }
-    return;
+    return true;
   }
 
   if (gameState === 'zonepicker') {
@@ -2742,49 +2742,49 @@ function update(dt) {
     if (justPressed['Escape'] || touch.bagJust) {
       gameState = 'modeselect';
     }
-    return;
+    return true;
   }
 
-  if (gameState === 'paused') {
-    if (wasPressed('W') || touch.upJust) {
-      pauseSelection = (pauseSelection + 4 - 1) % 4;
-      playSFX('menuNav');
-    }
-    if (wasPressed('S') || touch.downJust) {
-      pauseSelection = (pauseSelection + 1) % 4;
-      playSFX('menuNav');
-    }
-    if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
-      gameState = 'playing';
-    }
-    if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
-      if (pauseSelection === 0) { playSFX('menuSelect'); gameState = 'playing'; }
-      else if (pauseSelection === 1) { // SFX Vol down/toggle mute
-        sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuSelect');
-      }
-      else if (pauseSelection === 2) { playSFX('menuSelect'); } // test volume
-      else if (pauseSelection === 3) { playSFX('menuSelect'); gameState = 'modeselect'; menuSelection = 0; }
-    }
-    // Left/Right adjusts volume on SFX row
-    if (pauseSelection === 1 || pauseSelection === 2) {
-      if (wasPressed('A') || touch.leftJust) {
-        if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-        if (pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
-      }
-      if (wasPressed('D') || touch.rightJust) {
-        if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-        if (pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
-      }
-    }
-    return;
-  }
+  return false;
+}
 
-  // Playing - check for pause
-  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
-    gameState = 'paused'; pauseSelection = 0;
-    return;
-  }
+function updatePauseState() {
+  if (gameState !== 'paused') return false;
 
+  if (wasPressed('W') || touch.upJust) {
+    pauseSelection = (pauseSelection + 4 - 1) % 4;
+    playSFX('menuNav');
+  }
+  if (wasPressed('S') || touch.downJust) {
+    pauseSelection = (pauseSelection + 1) % 4;
+    playSFX('menuNav');
+  }
+  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
+    gameState = 'playing';
+  }
+  if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
+    if (pauseSelection === 0) { playSFX('menuSelect'); gameState = 'playing'; }
+    else if (pauseSelection === 1) { // SFX Vol down/toggle mute
+      sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuSelect');
+    }
+    else if (pauseSelection === 2) { playSFX('menuSelect'); } // test volume
+    else if (pauseSelection === 3) { playSFX('menuSelect'); gameState = 'modeselect'; menuSelection = 0; }
+  }
+  // Left/Right adjusts volume on SFX row
+  if (pauseSelection === 1 || pauseSelection === 2) {
+    if (wasPressed('A') || touch.leftJust) {
+      if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+      if (pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
+    }
+    if (wasPressed('D') || touch.rightJust) {
+      if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+      if (pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
+    }
+  }
+  return true;
+}
+
+function updatePlayerState(dt) {
   const p = player;
   const onNPC = p.mountedNPC !== null;
 
@@ -3036,6 +3036,10 @@ function update(dt) {
       vx: -p.facing * rand(40, 100), vy: rand(-10, 10), life: 0.15, maxLife: 0.15, size: rand(1, 2), color: '#fff' });
   }
 
+  return p;
+}
+
+function updateNPCState(dt, p) {
   // ── NPC Update ──
   for (let i = npcs.length - 1; i >= 0; i--) {
     const npc = npcs[i];
@@ -3125,7 +3129,9 @@ function update(dt) {
       if (bNpc.panicState && bNpc.armsWave) bNpc.panicPhase += dt * 8;
     }
   }
+}
 
+function updateWorldState(dt, p) {
   // ── Camera ──
   cam.targetX = p.x - W * 0.35;
   cam.x = lerp(cam.x, cam.targetX, dt * 4);
@@ -3168,51 +3174,58 @@ function update(dt) {
   updatePopups(dt);
 }
 
-// ── Render ──
-function render(dt) {
-  const shake = getShakeOffset(dt);
-  ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
+function updatePlayingState(dt) {
+  // Playing - check for pause
+  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
+    gameState = 'paused'; pauseSelection = 0;
+    return;
+  }
 
+  const p = updatePlayerState(dt);
+  updateNPCState(dt, p);
+  updateWorldState(dt, p);
+}
+
+function update(dt) {
+  if (updateMenuState(dt)) return;
+  if (updatePauseState()) return;
+  updatePlayingState(dt);
+}
+
+// ── Render ──
+function renderFrontScreen() {
   if (galleryMode) {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawGallery();
     ctx.restore();
     drawSideBars();
-    ctx.restore(); return;
+    return true;
   }
   if (gameState === 'title') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawTitleScreen();
     ctx.restore();
     drawSideBars();
-    ctx.restore(); return;
+    return true;
   }
   if (gameState === 'modeselect') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawModeSelect();
     ctx.restore();
     drawSideBars();
-    ctx.restore(); return;
+    return true;
   }
   if (gameState === 'zonepicker') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawZonePicker();
     ctx.restore();
     drawSideBars();
-    ctx.restore(); return;
+    return true;
   }
+  return false;
+}
 
-  // Game area with shake + sidebar offset
-  ctx.save(); ctx.translate(shake.x, shake.y);
-  ctx.save(); ctx.translate(GAME_OX, 0);
-
-  // Sky (day/night cycle)
-  const dayPhase = dayTime / DAY_CYCLE;
-  const sky = getDayValues(dayPhase);
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, sky.top); grad.addColorStop(0.5, sky.mid); grad.addColorStop(1, sky.bot);
-  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-
+function renderWorldLayer(sky) {
   // Stars
   if (sky.stars > 0) {
     const t = performance.now() / 1000;
@@ -3238,8 +3251,6 @@ function render(dt) {
   for (const car of cars) drawCar(car);
 
   // Platforms & bus stop structures (NPCs drawn after sidewalk)
-  const playerSX = player.x - cam.x;
-  const playerSY = player.y;
   for (const plat of platforms) {
     const sx = plat.x - cam.x;
     if (sx + plat.w > -50 && sx < W + 50) {
@@ -3300,6 +3311,11 @@ function render(dt) {
       drawGroundPattern(gzB.id, gzB, gzT);
     }
   }
+}
+
+function renderEntityLayer() {
+  const playerSX = player.x - cam.x;
+  const playerSY = player.y;
 
   // Bus stop NPCs (drawn after sidewalk so legs aren't covered)
   for (const plat of platforms) {
@@ -3376,7 +3392,9 @@ function render(dt) {
 
   drawParticles();
   drawPopups();
+}
 
+function renderOverlayLayer(sky) {
   // Night ambient overlay (darkens everything below HUD)
   if (sky.amb > 0) {
     ctx.globalAlpha = sky.amb * 0.6;
@@ -3557,6 +3575,27 @@ function render(dt) {
     ctx.fillText(zt.zoneName.toUpperCase(), W / 2, H * 0.25);
     ctx.globalAlpha = 1;
   }
+}
+
+function render(dt) {
+  const shake = getShakeOffset(dt);
+  ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
+
+  if (renderFrontScreen()) { ctx.restore(); return; }
+
+  // Game area with shake + sidebar offset
+  ctx.save(); ctx.translate(shake.x, shake.y);
+  ctx.save(); ctx.translate(GAME_OX, 0);
+
+  // Sky (day/night cycle)
+  const dayPhase = dayTime / DAY_CYCLE;
+  const sky = getDayValues(dayPhase);
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, sky.top); grad.addColorStop(0.5, sky.mid); grad.addColorStop(1, sky.bot);
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+  renderWorldLayer(sky);
+  renderEntityLayer();
+  renderOverlayLayer(sky);
 
   ctx.restore(); // undo SIDE_W translate
   ctx.restore(); // undo shake translate

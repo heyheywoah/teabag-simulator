@@ -91,7 +91,7 @@ const MAX_NPCS = 10;
 const ZONES = [
   {
     id: 'downtown', name: 'Downtown', displayColor: '#3182CE',
-    width: 4000,
+    width: 12000,
     buildingColors: ['#7B8794','#616E7C','#9AA5B4','#52606D','#8896A4','#6B7B8D'],
     accentColors: ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5'],
     platColors: ['#6B8E6B','#8B7355','#7B6B8E','#5B7B8E','#8E7B5B'],
@@ -106,7 +106,7 @@ const ZONES = [
   },
   {
     id: 'shopping', name: 'Shopping District', displayColor: '#D69E2E',
-    width: 3500,
+    width: 12000,
     buildingColors: ['#C8B896','#B8A67E','#D4C4A0','#A89878','#BCA86E','#D0B880'],
     accentColors: ['#E53E3E','#FF6B6B','#FFD700','#FF8C42','#FF69B4','#00CED1'],
     platColors: ['#C8A870','#B89860','#D4B888','#A88850','#BCA060'],
@@ -121,7 +121,7 @@ const ZONES = [
   },
   {
     id: 'park', name: 'Park', displayColor: '#38A169',
-    width: 3500,
+    width: 12000,
     buildingColors: ['#6B8E6B','#5A7E5A','#7B9E7B','#4A6E4A','#88AA88','#3D6B3D'],
     accentColors: ['#38A169','#48BB78','#68D391','#2F855A','#9AE6B4','#276749'],
     platColors: ['#6B8E6B','#5A7E5A','#4A7E4A','#88AA88','#3D7B3D'],
@@ -136,7 +136,7 @@ const ZONES = [
   },
   {
     id: 'redlight', name: 'Red Light District', displayColor: '#D53F8C',
-    width: 3000,
+    width: 12000,
     buildingColors: ['#3D1F4E','#4A2060','#2D1040','#5A2878','#3A1848','#4D2868'],
     accentColors: ['#FF1493','#FF00FF','#FF69B4','#00FFFF','#FF4500','#FFD700'],
     platColors: ['#5A2878','#4A1868','#6A3888','#3A0858','#7A4898'],
@@ -151,7 +151,7 @@ const ZONES = [
   },
   {
     id: 'industrial', name: 'Industrial', displayColor: '#C05621',
-    width: 4000,
+    width: 12000,
     buildingColors: ['#6B6B6B','#5A5A5A','#7B7B7B','#4A4A4A','#8A8A8A','#555555'],
     accentColors: ['#DD6B20','#E8A020','#FFD700','#F0A030','#C05621','#E07020'],
     platColors: ['#8A8A6A','#7A7A5A','#6A6A4A','#9A9A7A','#5A5A3A'],
@@ -166,7 +166,7 @@ const ZONES = [
   },
   {
     id: 'suburbs', name: 'Suburbs', displayColor: '#68D391',
-    width: 4500,
+    width: 12000,
     buildingColors: ['#E8D8C4','#D4C4B0','#F0E0CC','#C8B8A4','#DCC8B4','#ECD4C0'],
     accentColors: ['#E53E3E','#3182CE','#38A169','#805AD5','#DD6B20','#D69E2E'],
     platColors: ['#A8C898','#98B888','#88A878','#B8D8A8','#78A868'],
@@ -2369,6 +2369,15 @@ function triggerPrestige() {
   }
   currentZoneIndex = 0;
   currentZone = ZONES[0];
+  // Clear old world geometry so new zones generate fresh
+  buildings.length = 0; bgBuildings.length = 0;
+  props.length = 0; platforms.length = 0;
+  const startX = player.x;
+  cityGenRight = startX - 200; cityGenLeft = startX - 200;
+  bgGenRight = (startX - 200) / 0.3 - 800; bgGenLeft = (startX - 200) / 0.3 - 800;
+  platGenRight = startX - 200; platGenLeft = startX - 200;
+  generateCity(cam.x - 500, cam.x + W + 500);
+  generatePlatforms(cam.x - 500, cam.x + W + 500);
   generateSilhouettes();
   centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: 3.0 };
   addShake(12, 0.5);
@@ -3219,29 +3228,26 @@ function render(dt) {
 const bgSilhouettes = {};
 
 function generateSilhouettes() {
-  bgSilhouettes.skyscrapers = [];
-  for (let i = 0; i < 40; i++) bgSilhouettes.skyscrapers.push({ x: i * 160 - 500 + rand(-30, 30), w: rand(30, 60), h: rand(120, 280), color: `rgba(60,70,90,${rand(0.3, 0.5)})` });
-  bgSilhouettes.storefronts = [];
-  for (let i = 0; i < 40; i++) bgSilhouettes.storefronts.push({ x: i * 150 - 500 + rand(-20, 20), w: rand(60, 120), h: rand(60, 120), color: `rgba(140,120,80,${rand(0.25, 0.4)})` });
-  bgSilhouettes.treeline = [];
-  for (let i = 0; i < 50; i++) bgSilhouettes.treeline.push({ x: i * 120 - 500 + rand(-30, 30), r: rand(30, 60), type: Math.random() > 0.4 ? 'round' : 'triangle', color: `rgba(40,100,50,${rand(0.3, 0.5)})` });
+  // Silhouette heights must exceed bgBuildingHeightRange to peek above BG layer
+  bgSilhouettes.skyscrapers = []; // BG max 380 → silhouettes 300-420
+  for (let i = 0; i < 40; i++) bgSilhouettes.skyscrapers.push({ x: i * 160 - 500 + rand(-30, 30), w: rand(30, 60), h: rand(300, 420), color: `rgba(60,70,90,${rand(0.3, 0.5)})` });
+  bgSilhouettes.storefronts = []; // BG max 200 → silhouettes 160-260
+  for (let i = 0; i < 40; i++) bgSilhouettes.storefronts.push({ x: i * 150 - 500 + rand(-20, 20), w: rand(60, 120), h: rand(160, 260), color: `rgba(140,120,80,${rand(0.25, 0.4)})` });
+  bgSilhouettes.treeline = []; // BG max 250 → tree r 140-200 (top at baseY - r*1.5 = up to 330)
+  for (let i = 0; i < 50; i++) bgSilhouettes.treeline.push({ x: i * 120 - 500 + rand(-30, 30), r: rand(140, 200), type: Math.random() > 0.4 ? 'round' : 'triangle', color: `rgba(40,100,50,${rand(0.3, 0.5)})` });
   const neonColors = ['#FF1493','#00FFFF','#FF4500','#FFD700','#FF00FF'];
-  bgSilhouettes.neon_buildings = [];
-  for (let i = 0; i < 40; i++) bgSilhouettes.neon_buildings.push({ x: i * 155 - 500 + rand(-25, 25), w: rand(40, 80), h: rand(100, 220), color: `rgba(30,15,40,${rand(0.35, 0.5)})`, dots: Array.from({length: randInt(2, 6)}, () => ({ dx: rand(0.1, 0.9), dy: rand(0.1, 0.9), color: neonColors[randInt(0, neonColors.length - 1)] })) });
-  bgSilhouettes.factory = [];
-  for (let i = 0; i < 35; i++) bgSilhouettes.factory.push({ x: i * 180 - 500 + rand(-30, 30), w: rand(50, 100), h: rand(80, 200), hasStack: Math.random() > 0.5, stackH: rand(40, 80), color: `rgba(70,70,70,${rand(0.3, 0.5)})` });
-  bgSilhouettes.houses = [];
-  for (let i = 0; i < 45; i++) bgSilhouettes.houses.push({ x: i * 140 - 500 + rand(-25, 25), w: rand(40, 70), h: rand(40, 80), roofH: rand(15, 30), color: `rgba(120,100,80,${rand(0.25, 0.4)})` });
+  bgSilhouettes.neon_buildings = []; // BG max 300 → silhouettes 240-360
+  for (let i = 0; i < 40; i++) bgSilhouettes.neon_buildings.push({ x: i * 155 - 500 + rand(-25, 25), w: rand(40, 80), h: rand(240, 360), color: `rgba(30,15,40,${rand(0.35, 0.5)})`, dots: Array.from({length: randInt(2, 6)}, () => ({ dx: rand(0.1, 0.9), dy: rand(0.1, 0.9), color: neonColors[randInt(0, neonColors.length - 1)] })) });
+  bgSilhouettes.factory = []; // BG max 320 → silhouettes 250-380
+  for (let i = 0; i < 35; i++) bgSilhouettes.factory.push({ x: i * 180 - 500 + rand(-30, 30), w: rand(50, 100), h: rand(250, 380), hasStack: Math.random() > 0.5, stackH: rand(40, 80), color: `rgba(70,70,70,${rand(0.3, 0.5)})` });
+  bgSilhouettes.houses = []; // BG max 160 → silhouettes 120-200
+  for (let i = 0; i < 45; i++) bgSilhouettes.houses.push({ x: i * 140 - 500 + rand(-25, 25), w: rand(40, 70), h: rand(120, 200), roofH: rand(15, 30), color: `rgba(120,100,80,${rand(0.25, 0.4)})` });
 }
 generateSilhouettes();
 
-function drawZoneSilhouettes() {
-  const style = currentZone.bgStyle;
-  const shapes = bgSilhouettes[style];
-  if (!shapes) return;
-  const baseY = GROUND_Y - 30;
-  const wrapW = W + 1200;
-
+function drawSilhouetteSet(shapes, style, baseY, wrapW, alpha) {
+  if (!shapes || alpha <= 0) return;
+  ctx.globalAlpha = alpha;
   for (const s of shapes) {
     const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
     if (sx < -300 || sx > W + 300) continue;
@@ -3275,10 +3281,10 @@ function drawZoneSilhouettes() {
       ctx.fillStyle = s.color;
       ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
       for (const dot of s.dots) {
-        ctx.fillStyle = dot.color; ctx.globalAlpha = 0.4;
+        ctx.fillStyle = dot.color; ctx.globalAlpha = alpha * 0.4;
         ctx.beginPath(); ctx.arc(sx + s.w * dot.dx, baseY - s.h + s.h * dot.dy, 2, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = alpha;
     } else if (style === 'factory') {
       ctx.fillStyle = s.color;
       ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
@@ -3299,6 +3305,27 @@ function drawZoneSilhouettes() {
       ctx.lineTo(sx + s.w + 4, baseY - s.h);
       ctx.closePath(); ctx.fill();
     }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawZoneSilhouettes() {
+  const baseY = GROUND_Y - 30;
+  const wrapW = W + 1200;
+  const leftZone = getZoneAtX(cam.x).zone;
+  const rightZone = getZoneAtX(cam.x + W).zone;
+
+  if (leftZone.bgStyle === rightZone.bgStyle) {
+    // Same style across screen — draw at full alpha
+    drawSilhouetteSet(bgSilhouettes[leftZone.bgStyle], leftZone.bgStyle, baseY, wrapW, 1);
+  } else {
+    // Cross-fade between zone silhouettes near boundary
+    const boundaryX = getZoneAtX(cam.x).layout.endX;
+    const camCenter = cam.x + W / 2;
+    const fadeW = 600; // world units to blend over
+    const t = clamp((camCenter - (boundaryX - fadeW / 2)) / fadeW, 0, 1);
+    drawSilhouetteSet(bgSilhouettes[leftZone.bgStyle], leftZone.bgStyle, baseY, wrapW, 1 - t);
+    drawSilhouetteSet(bgSilhouettes[rightZone.bgStyle], rightZone.bgStyle, baseY, wrapW, t);
   }
 }
 

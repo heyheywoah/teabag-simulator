@@ -232,10 +232,12 @@ function getZoneAtX(worldX) {
       return { index: i, zone: ZONE_BY_ID[layout.zoneId], layout };
     }
   }
-  // Out of range — cycle through zones (handles BG-space coordinates after prestige)
+  // Before first zone — clamp to first
   const first = zoneLayout[0], last = zoneLayout[zoneLayout.length - 1];
+  if (worldX < first.startX) return { index: 0, zone: ZONE_BY_ID[first.zoneId], layout: first };
+  // Past last zone — cycle (handles BG-space coordinates after prestige)
   const totalWidth = last.endX - first.startX;
-  const offset = ((worldX - first.startX) % totalWidth + totalWidth) % totalWidth;
+  const offset = (worldX - first.startX) % totalWidth;
   const wrapped = first.startX + offset;
   for (let i = 0; i < zoneLayout.length; i++) {
     const layout = zoneLayout[i];
@@ -243,7 +245,7 @@ function getZoneAtX(worldX) {
       return { index: i, zone: ZONE_BY_ID[layout.zoneId], layout };
     }
   }
-  return { index: 0, zone: ZONE_BY_ID[zoneLayout[0].zoneId], layout: zoneLayout[0] };
+  return { index: 0, zone: ZONE_BY_ID[first.zoneId], layout: first };
 }
 
 // ── Zone Blending (shared by silhouettes, ground, color grading) ──

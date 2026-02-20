@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teabag-sim-v1';
+const CACHE_NAME = 'teabag-sim-v2';
 const ASSETS = [
   './',
   './teabag-simulator.html',

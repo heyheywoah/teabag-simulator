@@ -759,7 +759,7 @@ function applyTouch(btn, down) {
     }
     if (!down && !touch.left) touch.sprint = false;
   }
-  else if (btn === 'up') { touch.jump = down; if (down) { touch.jumpJust = true; touch.upJust = true; } }
+  else if (btn === 'up') { touch.jump = down; if (down) { touch.upJust = true; if (gameState === 'playing') touch.jumpJust = true; } }
   else if (btn === 'down') { touch.crouch = down; if (down) touch.downJust = true; }
   else if (btn === 'jump') { touch.jump = down; if (down) touch.jumpJust = true; }
   else if (btn === 'teabag') touch.crouch = down;

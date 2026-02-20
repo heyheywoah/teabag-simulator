@@ -72,8 +72,8 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 // ── Constants ──
 const GROUND_Y = H - 70;
 const GRAVITY = 1600;
-const PLAYER_SPEED = 180;
-const SPRINT_MULT = 1.85;
+const PLAYER_SPEED = 225;
+const SPRINT_MULT = 2.31;
 const JUMP_FORCE = -520;
 const COYOTE_TIME = 0.08;
 const JUMP_BUFFER = 0.1;
@@ -91,7 +91,7 @@ const MAX_NPCS = 10;
 const ZONES = [
   {
     id: 'downtown', name: 'Downtown', displayColor: '#3182CE',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#7B8794','#616E7C','#9AA5B4','#52606D','#8896A4','#6B7B8D'],
     accentColors: ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5'],
     platColors: ['#6B8E6B','#8B7355','#7B6B8E','#5B7B8E','#8E7B5B'],
@@ -106,7 +106,7 @@ const ZONES = [
   },
   {
     id: 'shopping', name: 'Shopping District', displayColor: '#D69E2E',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#C8B896','#B8A67E','#D4C4A0','#A89878','#BCA86E','#D0B880'],
     accentColors: ['#E53E3E','#FF6B6B','#FFD700','#FF8C42','#FF69B4','#00CED1'],
     platColors: ['#C8A870','#B89860','#D4B888','#A88850','#BCA060'],
@@ -121,7 +121,7 @@ const ZONES = [
   },
   {
     id: 'park', name: 'Park', displayColor: '#38A169',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#6B8E6B','#5A7E5A','#7B9E7B','#4A6E4A','#88AA88','#3D6B3D'],
     accentColors: ['#38A169','#48BB78','#68D391','#2F855A','#9AE6B4','#276749'],
     platColors: ['#6B8E6B','#5A7E5A','#4A7E4A','#88AA88','#3D7B3D'],
@@ -136,7 +136,7 @@ const ZONES = [
   },
   {
     id: 'redlight', name: 'Red Light District', displayColor: '#D53F8C',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#3D1F4E','#4A2060','#2D1040','#5A2878','#3A1848','#4D2868'],
     accentColors: ['#FF1493','#FF00FF','#FF69B4','#00FFFF','#FF4500','#FFD700'],
     platColors: ['#5A2878','#4A1868','#6A3888','#3A0858','#7A4898'],
@@ -151,7 +151,7 @@ const ZONES = [
   },
   {
     id: 'industrial', name: 'Industrial', displayColor: '#C05621',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#6B6B6B','#5A5A5A','#7B7B7B','#4A4A4A','#8A8A8A','#555555'],
     accentColors: ['#DD6B20','#E8A020','#FFD700','#F0A030','#C05621','#E07020'],
     platColors: ['#8A8A6A','#7A7A5A','#6A6A4A','#9A9A7A','#5A5A3A'],
@@ -166,7 +166,7 @@ const ZONES = [
   },
   {
     id: 'suburbs', name: 'Suburbs', displayColor: '#68D391',
-    width: 12000,
+    width: 13000,
     buildingColors: ['#E8D8C4','#D4C4B0','#F0E0CC','#C8B8A4','#DCC8B4','#ECD4C0'],
     accentColors: ['#E53E3E','#3182CE','#38A169','#805AD5','#DD6B20','#D69E2E'],
     platColors: ['#A8C898','#98B888','#88A878','#B8D8A8','#78A868'],
@@ -194,6 +194,7 @@ let zoneTransitionAnim = null; // { timer, maxTimer, zoneName, color }
 let unlockedZones = ['downtown'];
 let bestPrestige = 0;
 let allTimeKOs = 0;
+let bestChainCombo = 0;
 
 // Load persisted data
 try {
@@ -201,11 +202,12 @@ try {
   if (saved.unlockedZones) unlockedZones = saved.unlockedZones;
   if (saved.bestPrestige) bestPrestige = saved.bestPrestige;
   if (saved.allTimeKOs) allTimeKOs = saved.allTimeKOs;
+  if (saved.bestChainCombo) bestChainCombo = saved.bestChainCombo;
 } catch(e) {}
 
 function saveProgress() {
   try {
-    localStorage.setItem('teabag_save', JSON.stringify({ unlockedZones, bestPrestige, allTimeKOs }));
+    localStorage.setItem('teabag_save', JSON.stringify({ unlockedZones, bestPrestige, allTimeKOs, bestChainCombo }));
   } catch(e) {}
 }
 
@@ -2241,7 +2243,7 @@ const player = {
   lastCrouchTime: 0, crouchCycleActive: false, combo: 0, comboTimer: 0,
   onPlatform: null, dropThrough: false, dropFromY: 0, prevY: GROUND_Y,
   jumpCount: 0,
-  airStreak: 0, airStreakBest: 0, onRealGround: false,
+  chainCombo: 0, chainTimer: 0, onRealGround: false,
 };
 
 // ── NPCs ──
@@ -2360,7 +2362,7 @@ function startGame() {
   player.coyoteTimer = 0; player.jumpBuffer = 0; player.mountedNPC = null;
   player.lastCrouchTime = 0; player.crouchCycleActive = false; player.combo = 0; player.comboTimer = 0;
   player.onPlatform = null; player.dropThrough = false; player.dropFromY = 0; player.prevY = GROUND_Y;
-  player.jumpCount = 0; player.airStreak = 0; player.airStreakBest = 0; player.onRealGround = false;
+  player.jumpCount = 0; player.chainCombo = 0; player.chainTimer = 0; player.onRealGround = false;
   npcs.length = 0; buildings.length = 0; bgBuildings.length = 0;
   props.length = 0; platforms.length = 0; cars.length = 0;
   particles.length = 0; popups.length = 0;
@@ -2606,8 +2608,6 @@ function update(dt) {
       if (p.vy > 200) { spawnDust(p.x, GROUND_Y, 4, '#aaa'); p.squashX = 0.75; }
       p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.dropThrough = false; p.jumpCount = 0;
       p.onRealGround = true;
-      // Ground ends air streak + combo
-      if (p.airStreak > 0) { p.airStreakBest = Math.max(p.airStreakBest, p.airStreak); p.airStreak = 0; }
       p.combo = 0; p.comboTimer = 0;
     } else if (!p.onPlatform) {
       p.onGround = false;
@@ -2652,20 +2652,22 @@ function update(dt) {
             if (isDown('D')) dismountDir += 1;
             p.vx = dismountDir * 180;
             if (dismountDir !== 0) p.facing = dismountDir;
-            p.airStreak++;
+            p.chainCombo++;
+            p.chainTimer = 3.0;
+            if (p.chainCombo > bestChainCombo) { bestChainCombo = p.chainCombo; saveProgress(); }
             const koDef = CHAR_BY_NAME[npc.npcType];
             const isBigKO = koDef.isSpecial;
             spawnStars(npc.x, npc.y - npc.h, isBigKO ? 12 : 8);
             addShake(isBigKO ? 14 : 8, isBigKO ? 0.4 : 0.25);
-            const streakMult = p.airStreak > 1 ? p.airStreak : 1;
+            const chainMult = p.chainCombo > 1 ? p.chainCombo : 1;
             const baseScore = koDef.koScore ? koDef.koScore + p.combo * 100 : 100 + p.combo * 50;
-            score += baseScore * streakMult;
+            score += baseScore * chainMult;
             // Center screen big KO announcement for special types
             if (koDef.koText) centerKO = { text: koDef.koText, color: koDef.koColor, timer: 1.5 };
             // Teabag icon spawned as special particle
             popups.push({ x: npc.x, y: npc.y - npc.h - 25, text: null, teabag: true, life: 1.2, maxLife: 1.2 });
-            if (p.airStreak > 1) {
-              spawnPopup(npc.x, npc.y - npc.h - 60, `AIR x${p.airStreak}!`, '#00FFAA');
+            if (p.chainCombo > 1) {
+              spawnPopup(npc.x, npc.y - npc.h - 60, `CHAIN x${p.chainCombo}!`, '#00FFAA');
             }
             totalKOs++;
             allTimeKOs++;
@@ -2688,11 +2690,12 @@ function update(dt) {
           p.vy = 0; p.onGround = true; p.onPlatform = null;
           // Don't reset combo on mount — air combos can continue!
           p.crouchCycleActive = false; p.jumpCount = 0;
-          p.onRealGround = false; // mounted on NPC = still "airborne" for streak
+          p.onRealGround = false;
+          if (p.chainTimer > 0) p.chainTimer = 3.0; // refresh timer on mount
           spawnDust(npc.x, headY, 3, '#fff'); addShake(3, 0.1);
-          // Platform/air aerial bonus
-          if (wasAerial) {
-            const bonus = 50 * (p.airStreak + 1);
+          // Aerial bonus (mounted while chain active)
+          if (wasAerial && p.chainCombo > 0) {
+            const bonus = 50 * (p.chainCombo + 1);
             score += bonus;
             spawnPopup(npc.x, headY - 40, `AERIAL +${bonus}`, '#00DDFF');
           }
@@ -2705,6 +2708,8 @@ function update(dt) {
 
   // Combo timer — pauses while airborne (platform/NPC counts as air)
   if (p.comboTimer > 0 && p.onRealGround) { p.comboTimer -= dt; if (p.comboTimer <= 0) p.combo = 0; }
+  // Chain combo timer — must mount another NPC within 3s of a KO
+  if (p.chainTimer > 0 && !p.mountedNPC) { p.chainTimer -= dt; if (p.chainTimer <= 0) { p.chainCombo = 0; } }
   // Center KO announcement timer
   if (centerKO) { centerKO.timer -= dt; if (centerKO.timer <= 0) centerKO = null; }
 
@@ -3113,41 +3118,44 @@ function render(dt) {
   const hudL = 10 + HUD_INSET; // left edge, shifted inward past sidebar overlap
   const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
   const hudFont = Math.round(14 * UI_S);
-  const hudTextY = hudY + Math.round(23 * UI_S);
+  const hudMidY = hudY + hudH / 2;
+  const hudTextY = hudMidY + 1; // nudge text down 1px for visual centering with monospace
 
   const scoreW = Math.round(160 * UI_S);
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, hudY, scoreW, hudH, hudR);
-  ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`SCORE: ${score}`, hudL + 10, hudTextY);
-
-  // X position counter
-  const xHudY = hudY + hudH + 4;
-  const xW = scoreW;
-  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, xHudY, xW, hudH, hudR);
-  ctx.fillStyle = '#9CA3AF'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
-  ctx.fillText(`X: ${Math.round(player.x)}`, hudL + 10, xHudY + Math.round(23 * UI_S));
 
   // Teabag KO counter
   const koX = hudL + scoreW + 10;
   const koW = Math.round(100 * UI_S);
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, koX, hudY, koW, hudH, hudR);
-  drawTeabag(koX + Math.round(20 * UI_S), hudY + Math.round(17 * UI_S), 0.8 * UI_S, 1);
-  ctx.fillStyle = '#FF6B6B'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+  drawTeabag(koX + Math.round(20 * UI_S), hudMidY + 2, 0.8 * UI_S, 1);
+  ctx.fillStyle = '#FF6B6B'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`x ${totalKOs}`, koX + Math.round(35 * UI_S), hudTextY);
 
-  // Air streak
-  if (player.airStreak > 0) {
-    const streakPulse = 1 + Math.sin(performance.now() / 150) * 0.08;
-    const streakX = koX + koW + 10;
-    const streakW = Math.round(130 * UI_S);
-    ctx.fillStyle = 'rgba(0,200,150,0.5)'; roundRect(ctx, streakX, hudY, streakW, hudH, hudR);
-    ctx.fillStyle = '#00FFAA'; ctx.font = `bold ${Math.round(hudFont * streakPulse)}px monospace`; ctx.textAlign = 'left';
-    ctx.fillText(`AIR x${player.airStreak}`, streakX + 10, hudTextY);
-    // Mini teabags for streak count
-    for (let i = 0; i < Math.min(player.airStreak, 5); i++) {
-      drawTeabag(streakX + Math.round(95 * UI_S) + i * Math.round(12 * UI_S), hudY + Math.round(17 * UI_S), 0.4 * UI_S, 0.8);
+  // Chain combo
+  { const chainX = koX + koW + 10;
+    const chainW = Math.round(160 * UI_S);
+    ctx.fillStyle = player.chainCombo > 0 ? 'rgba(0,200,150,0.5)' : 'rgba(0,0,0,0.4)';
+    roundRect(ctx, chainX, hudY, chainW, hudH, hudR);
+    ctx.textBaseline = 'middle';
+    if (player.chainCombo > 0) {
+      const pulse = 1 + Math.sin(performance.now() / 150) * 0.08;
+      ctx.fillStyle = '#00FFAA'; ctx.font = `bold ${Math.round(hudFont * pulse)}px monospace`; ctx.textAlign = 'left';
+      ctx.fillText(`CHAIN x${player.chainCombo}`, chainX + 10, hudTextY);
+      // Timer bar
+      const barW = chainW - 20, barH = 3;
+      const barY = hudY + hudH - 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(chainX + 10, barY, barW, barH);
+      ctx.fillStyle = player.chainTimer > 1 ? '#00FFAA' : '#FF6B6B';
+      ctx.fillRect(chainX + 10, barY, barW * (player.chainTimer / 3), barH);
+    } else {
+      ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+      ctx.fillText(`BEST CHAIN: ${bestChainCombo}`, chainX + 10, hudTextY);
     }
   }
+  ctx.textBaseline = 'alphabetic';
 
   if (player.combo > 0 && player.comboTimer > 0) {
     ctx.globalAlpha = Math.min(1, player.comboTimer);
@@ -3211,18 +3219,22 @@ function render(dt) {
     const zFont = Math.round(10 * UI_S);
     const zY = H - Math.round(50 * UI_S);
     const zText = currentZone.name;
-    ctx.font = `bold ${zFont}px monospace`; ctx.textAlign = 'left';
+    ctx.font = `bold ${zFont}px monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const tw = ctx.measureText(zText).width;
     const zPad = Math.round(8 * UI_S);
+    const zW = tw + zPad * 2;
+    const zH = zFont + zPad;
+    const zTop = zY - zFont;
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    roundRect(ctx, hudL, zY - zFont, tw + zPad * 2, zFont + zPad, 4);
+    roundRect(ctx, hudL, zTop, zW, zH, 4);
     ctx.fillStyle = currentZone.displayColor;
-    ctx.fillText(zText, hudL + zPad, zY);
+    ctx.fillText(zText, hudL + zW / 2, zTop + zH / 2);
     // Prestige indicator
     if (gameMode === 'campaign' && prestigeLevel > 0) {
-      ctx.fillStyle = '#FFD700';
-      ctx.fillText(`P${prestigeLevel}`, hudL + zPad + tw + 8, zY);
+      ctx.fillStyle = '#FFD700'; ctx.textAlign = 'left';
+      ctx.fillText(`P${prestigeLevel}`, hudL + zW + 6, zTop + zH / 2);
     }
+    ctx.textBaseline = 'alphabetic';
   }
 
   // Zone transition animation (big centered zone name)

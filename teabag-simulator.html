@@ -446,6 +446,22 @@ const TUNING = Object.freeze({
     cameraFollowLerp: 4,
     campaignLeftSoftWallPad: 500,
     generationMargin: 400,
+    startXOffsetCampaign: 200,
+    startXOffsetEndless: 200,
+    bootstrapGenSeedPad: 200,
+    bootstrapGenerationMargin: 500,
+    bootstrapNPCCount: 5,
+    bootstrapNPCSpawnBack: 200,
+    bootstrapNPCSpawnAhead: 500,
+    bootstrapCarCount: 8,
+    bootstrapCarSpawnBack: 200,
+    bootstrapCarSpawnAhead: 400,
+    startDayTime: 75,
+    prestigeAnnouncementDuration: 3.0,
+    prestigeShakeAmount: 12,
+    prestigeShakeDuration: 0.5,
+    prestigeStarsYOffset: 30,
+    prestigeStarsCount: 20,
   }),
   uiTiming: Object.freeze({
     postFXNightAlphaScale: 0.6,
@@ -2730,10 +2746,13 @@ let zonePickerIndex = 0;
 
 // ── Update ──
 function startGame() {
+  const wt = TUNING.world;
   initZoneLayout();
   generateSilhouettes();
   // Reset everything
-  player.x = gameMode === 'campaign' ? zoneLayout[0].startX + 200 : 200;
+  player.x = gameMode === 'campaign'
+    ? zoneLayout[0].startX + wt.startXOffsetCampaign
+    : wt.startXOffsetEndless;
   player.y = GROUND_Y; player.vx = 0; player.vy = 0;
   player.facing = 1; player.onGround = false; player.isCrouching = false;
   player.isSprinting = false; player.wasSprinting = false;
@@ -2748,26 +2767,35 @@ function startGame() {
   score = 0; totalKOs = 0; centerKO = null;
   for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
   const startX = player.x;
-  cityGenRight = startX - 200; cityGenLeft = startX - 200;
-  bgGenRight = startX - 200; bgGenLeft = startX - 200;
-  platGenRight = startX - 200; platGenLeft = startX - 200;
-  cam.x = startX - W * 0.35; cam.targetX = cam.x;
+  cityGenRight = startX - wt.bootstrapGenSeedPad; cityGenLeft = startX - wt.bootstrapGenSeedPad;
+  bgGenRight = startX - wt.bootstrapGenSeedPad; bgGenLeft = startX - wt.bootstrapGenSeedPad;
+  platGenRight = startX - wt.bootstrapGenSeedPad; platGenLeft = startX - wt.bootstrapGenSeedPad;
+  cam.x = startX - W * wt.cameraLeadFactor; cam.targetX = cam.x;
   currentZone = getZoneAtX(startX).zone;
   currentZoneIndex = getZoneAtX(startX).index;
-  generateCity(cam.x - 500, cam.x + W + 500);
-  generatePlatforms(cam.x - 500, cam.x + W + 500);
-  for (let i = 0; i < 5; i++) spawnNPC(startX + rand(-200, 500));
-  for (let i = 0; i < 8; i++) {
+  generateCity(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
+  generatePlatforms(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
+  for (let i = 0; i < wt.bootstrapNPCCount; i++) {
+    spawnNPC(startX + rand(-wt.bootstrapNPCSpawnBack, wt.bootstrapNPCSpawnAhead));
+  }
+  for (let i = 0; i < wt.bootstrapCarCount; i++) {
     const def = pickCarDef();
     const dir = Math.random() > 0.5 ? 1 : -1;
     const color = def.name === 'bus' ? ['#D69E2E','#E53E3E','#2B6CB0'][randInt(0,2)] : CAR_COLORS[randInt(0, CAR_COLORS.length - 1)];
-    cars.push({ x: startX + rand(-200, W + 400), dir, speed: rand(def.spdMin, def.spdMax), def, color });
+    cars.push({
+      x: startX + rand(-wt.bootstrapCarSpawnBack, W + wt.bootstrapCarSpawnAhead),
+      dir,
+      speed: rand(def.spdMin, def.spdMax),
+      def,
+      color,
+    });
   }
-  dayTime = 75;
+  dayTime = wt.startDayTime;
   gameState = 'playing';
 }
 
 function triggerPrestige() {
+  const wt = TUNING.world;
   prestigeLevel++;
   if (prestigeLevel > bestPrestige) bestPrestige = prestigeLevel;
   // Unlock all zones for endless
@@ -2788,16 +2816,16 @@ function triggerPrestige() {
   buildings.length = 0; bgBuildings.length = 0;
   props.length = 0; platforms.length = 0;
   const startX = player.x;
-  cityGenRight = startX - 200; cityGenLeft = startX - 200;
-  bgGenRight = startX - 200; bgGenLeft = startX - 200;
-  platGenRight = startX - 200; platGenLeft = startX - 200;
-  generateCity(cam.x - 500, cam.x + W + 500);
-  generatePlatforms(cam.x - 500, cam.x + W + 500);
+  cityGenRight = startX - wt.bootstrapGenSeedPad; cityGenLeft = startX - wt.bootstrapGenSeedPad;
+  bgGenRight = startX - wt.bootstrapGenSeedPad; bgGenLeft = startX - wt.bootstrapGenSeedPad;
+  platGenRight = startX - wt.bootstrapGenSeedPad; platGenLeft = startX - wt.bootstrapGenSeedPad;
+  generateCity(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
+  generatePlatforms(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
   generateSilhouettes();
   playSFX('prestige');
-  centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: 3.0 };
-  addShake(12, 0.5);
-  spawnStars(player.x, player.y - 30, 20);
+  centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: wt.prestigeAnnouncementDuration };
+  addShake(wt.prestigeShakeAmount, wt.prestigeShakeDuration);
+  spawnStars(player.x, player.y - wt.prestigeStarsYOffset, wt.prestigeStarsCount);
 }
 
 function updateTitleMenuState(dt) {

@@ -87,6 +87,160 @@ const NPC_DESPAWN_DIST = 700;
 const MIN_NPCS_ON_SCREEN = 3;
 const MAX_NPCS = 10;
 
+// ── Zone / Biome Definitions ──
+const ZONES = [
+  {
+    id: 'downtown', name: 'Downtown', displayColor: '#3182CE',
+    width: 4000,
+    buildingColors: ['#7B8794','#616E7C','#9AA5B4','#52606D','#8896A4','#6B7B8D'],
+    accentColors: ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5'],
+    platColors: ['#6B8E6B','#8B7355','#7B6B8E','#5B7B8E','#8E7B5B'],
+    skyTint: null,
+    propTypes: ['lamp','hydrant','bench'],
+    propWeights: { lamp: 40, hydrant: 25, bench: 15 },
+    allowBusStops: true,
+    npcPool: ['normal','small','tall','muscle','sumo','giant','chad','karen','babushka','gymgirl','baller','gothmommy'],
+    bgStyle: 'skyscrapers',
+    bgBuildingHeightRange: [180, 380],
+    sidewalkColor: '#9CA3AF', sidewalkLineColor: '#7B8794', groundColor: '#6B7280',
+  },
+  {
+    id: 'shopping', name: 'Shopping District', displayColor: '#D69E2E',
+    width: 3500,
+    buildingColors: ['#C8B896','#B8A67E','#D4C4A0','#A89878','#BCA86E','#D0B880'],
+    accentColors: ['#E53E3E','#FF6B6B','#FFD700','#FF8C42','#FF69B4','#00CED1'],
+    platColors: ['#C8A870','#B89860','#D4B888','#A88850','#BCA060'],
+    skyTint: null,
+    propTypes: ['lamp','sign','awning_pole','bench'],
+    propWeights: { lamp: 25, sign: 30, awning_pole: 30, bench: 15 },
+    allowBusStops: false,
+    npcPool: ['normal','small','tall','karen','shopaholic','influencer'],
+    bgStyle: 'storefronts',
+    bgBuildingHeightRange: [100, 200],
+    sidewalkColor: '#C8B896', sidewalkLineColor: '#A89878', groundColor: '#B8A67E',
+  },
+  {
+    id: 'park', name: 'Park', displayColor: '#38A169',
+    width: 3500,
+    buildingColors: ['#6B8E6B','#5A7E5A','#7B9E7B','#4A6E4A','#88AA88','#3D6B3D'],
+    accentColors: ['#38A169','#48BB78','#68D391','#2F855A','#9AE6B4','#276749'],
+    platColors: ['#6B8E6B','#5A7E5A','#4A7E4A','#88AA88','#3D7B3D'],
+    skyTint: null,
+    propTypes: ['tree','bush','fountain','bench'],
+    propWeights: { tree: 35, bush: 30, fountain: 5, bench: 30 },
+    allowBusStops: false,
+    npcPool: ['normal','small','tall','jogger','dog_walker','gymgirl','baller','sundress_girl'],
+    bgStyle: 'treeline',
+    bgBuildingHeightRange: [120, 250],
+    sidewalkColor: '#8BAA7B', sidewalkLineColor: '#6B8A5B', groundColor: '#7B9A6B',
+  },
+  {
+    id: 'redlight', name: 'Red Light District', displayColor: '#D53F8C',
+    width: 3000,
+    buildingColors: ['#3D1F4E','#4A2060','#2D1040','#5A2878','#3A1848','#4D2868'],
+    accentColors: ['#FF1493','#FF00FF','#FF69B4','#00FFFF','#FF4500','#FFD700'],
+    platColors: ['#5A2878','#4A1868','#6A3888','#3A0858','#7A4898'],
+    skyTint: 'rgba(100,20,80,0.08)',
+    propTypes: ['lamp','neon_sign'],
+    propWeights: { lamp: 40, neon_sign: 60 },
+    allowBusStops: false,
+    npcPool: ['normal','small','tall','club_dude','party_girl','bouncer','gothmommy'],
+    bgStyle: 'neon_buildings',
+    bgBuildingHeightRange: [150, 300],
+    sidewalkColor: '#6B4878', sidewalkLineColor: '#5A3868', groundColor: '#4A2858',
+  },
+  {
+    id: 'industrial', name: 'Industrial', displayColor: '#C05621',
+    width: 4000,
+    buildingColors: ['#6B6B6B','#5A5A5A','#7B7B7B','#4A4A4A','#8A8A8A','#555555'],
+    accentColors: ['#DD6B20','#E8A020','#FFD700','#F0A030','#C05621','#E07020'],
+    platColors: ['#8A8A6A','#7A7A5A','#6A6A4A','#9A9A7A','#5A5A3A'],
+    skyTint: 'rgba(180,160,40,0.12)',
+    propTypes: ['lamp','pipe','barrel','smokestack_small'],
+    propWeights: { lamp: 20, pipe: 30, barrel: 30, smokestack_small: 20 },
+    allowBusStops: false,
+    npcPool: ['normal','small','tall','hard_hat','forklift_phil','muscle'],
+    bgStyle: 'factory',
+    bgBuildingHeightRange: [160, 320],
+    sidewalkColor: '#8A8A7A', sidewalkLineColor: '#6A6A5A', groundColor: '#7A7A6A',
+  },
+  {
+    id: 'suburbs', name: 'Suburbs', displayColor: '#68D391',
+    width: 4500,
+    buildingColors: ['#E8D8C4','#D4C4B0','#F0E0CC','#C8B8A4','#DCC8B4','#ECD4C0'],
+    accentColors: ['#E53E3E','#3182CE','#38A169','#805AD5','#DD6B20','#D69E2E'],
+    platColors: ['#A8C898','#98B888','#88A878','#B8D8A8','#78A868'],
+    skyTint: null,
+    propTypes: ['lamp','mailbox','fence_segment','garden_bush'],
+    propWeights: { lamp: 15, mailbox: 25, fence_segment: 35, garden_bush: 25 },
+    allowBusStops: false,
+    npcPool: ['normal','small','tall','soccer_mom','mailman','lawn_dad','karen'],
+    bgStyle: 'houses',
+    bgBuildingHeightRange: [80, 160],
+    sidewalkColor: '#C8C0B0', sidewalkLineColor: '#A8A090', groundColor: '#B8B0A0',
+  },
+];
+const ZONE_BY_ID = {};
+for (const z of ZONES) ZONE_BY_ID[z.id] = z;
+
+// ── Zone State ──
+let zoneLayout = [];
+let currentZoneIndex = 0;
+let currentZone = ZONES[0];
+let gameMode = 'campaign';
+let endlessZoneId = 'downtown';
+let prestigeLevel = 0;
+let zoneTransitionAnim = null; // { timer, maxTimer, zoneName, color }
+let unlockedZones = ['downtown'];
+let bestPrestige = 0;
+let allTimeKOs = 0;
+
+// Load persisted data
+try {
+  const saved = JSON.parse(localStorage.getItem('teabag_save') || '{}');
+  if (saved.unlockedZones) unlockedZones = saved.unlockedZones;
+  if (saved.bestPrestige) bestPrestige = saved.bestPrestige;
+  if (saved.allTimeKOs) allTimeKOs = saved.allTimeKOs;
+} catch(e) {}
+
+function saveProgress() {
+  try {
+    localStorage.setItem('teabag_save', JSON.stringify({ unlockedZones, bestPrestige, allTimeKOs }));
+  } catch(e) {}
+}
+
+function initZoneLayout() {
+  zoneLayout = [];
+  if (gameMode === 'endless') {
+    const zone = ZONE_BY_ID[endlessZoneId] || ZONES[0];
+    zoneLayout.push({ zoneId: zone.id, startX: -999999, endX: 999999 });
+  } else {
+    let x = -500;
+    for (const zone of ZONES) {
+      zoneLayout.push({ zoneId: zone.id, startX: x, endX: x + zone.width });
+      x += zone.width;
+    }
+  }
+  currentZoneIndex = 0;
+  currentZone = ZONE_BY_ID[zoneLayout[0].zoneId];
+}
+
+function getZoneAtX(worldX) {
+  for (let i = 0; i < zoneLayout.length; i++) {
+    const layout = zoneLayout[i];
+    if (worldX >= layout.startX && worldX < layout.endX) {
+      return { index: i, zone: ZONE_BY_ID[layout.zoneId], layout };
+    }
+  }
+  // Past the last zone in campaign → prestige trigger
+  if (gameMode === 'campaign' && zoneLayout.length > 0) {
+    const last = zoneLayout[zoneLayout.length - 1];
+    if (worldX >= last.endX) return { index: -1, zone: ZONE_BY_ID[last.zoneId], layout: last };
+  }
+  // Before first zone — return first
+  return { index: 0, zone: ZONE_BY_ID[zoneLayout[0].zoneId], layout: zoneLayout[0] };
+}
+
 // ── Character Definitions (single source of truth for all NPC types) ──
 const BASE_W = 24, BASE_H = 46;
 const CHARACTER_DEFS = [
@@ -178,6 +332,7 @@ const CHARACTER_DEFS = [
     healthMin: 150, healthMax: 250, spawnWeight: 4,
     isBig: false, isSpecial: true, bareArm: false,
     exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85,
     koText: "MANAGER'D", koColor: '#84CC16', koScore: 400,
     labelText: 'KAREN', labelColor: '#84CC16', trackerColor: '#84CC16',
   },
@@ -200,6 +355,7 @@ const CHARACTER_DEFS = [
     healthMin: 180, healthMax: 300, spawnWeight: 3,
     isBig: false, isSpecial: true, bareArm: true,
     exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85,
     koText: 'NO REPS LEFT', koColor: '#FF1493', koScore: 450,
     labelText: 'GYM GIRL', labelColor: '#FF1493', trackerColor: '#FF1493',
   },
@@ -216,14 +372,164 @@ const CHARACTER_DEFS = [
   },
   {
     name: 'gothmommy', label: 'Goth Mommy', abbrev: 'GTH',
-    color: '#1A1A2E', skinColor: '#F5E6D3', hairColor: '#0A0A0A', hairStyle: 'longgoth',
+    color: '#2D2D50', skinColor: '#F5E6D3', hairColor: '#0A0A0A', hairStyle: 'longgoth',
     eyeColor: '#8B5CF6', legColor: '#3D2B1F',
     wScale: 1.35, hScale: 1.25,
     healthMin: 300, healthMax: 500, spawnWeight: 2,
     isBig: true, isSpecial: true, bareArm: true,
     exposedShoulders: true, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 1.25,
     koText: 'MOMMY ISSUES', koColor: '#8B5CF6', koScore: 600,
     labelText: 'GOTH MOMMY', labelColor: '#8B5CF6', trackerColor: '#8B5CF6',
+  },
+  // ── Zone-Specific NPCs (spawnWeight: 0 = zone pool only) ──
+  {
+    name: 'shopaholic', label: 'Shopaholic', abbrev: 'SHP',
+    color: '#FF69B4', skinColor: '#F0C8A0', hairColor: '#DAA520', hairStyle: 'long',
+    eyeColor: null, legColor: '#4A5568',
+    wScale: 0.95, hScale: 1.0,
+    healthMin: 80, healthMax: 140, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85,
+    koText: 'RETAIL THERAPY', koColor: '#FF69B4', koScore: 200,
+    labelText: null, labelColor: null, trackerColor: '#FF69B4',
+  },
+  {
+    name: 'influencer', label: 'Influencer', abbrev: 'INF',
+    color: '#00CED1', skinColor: '#FFDBAC', hairColor: '#1A1A2E', hairStyle: 'bun',
+    eyeColor: null, legColor: '#2C2C3E',
+    wScale: 0.9, hScale: 0.95,
+    healthMin: 60, healthMax: 100, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 1.0,
+    koText: 'CANCELLED', koColor: '#00CED1', koScore: 180,
+    labelText: null, labelColor: null, trackerColor: '#00CED1',
+  },
+  {
+    name: 'jogger', label: 'Jogger', abbrev: 'JOG',
+    color: '#48BB78', skinColor: '#D4956B', hairColor: '#8B4513', hairStyle: 'headband',
+    eyeColor: null, legColor: '#2D3748',
+    wScale: 0.95, hScale: 1.1,
+    healthMin: 120, healthMax: 200, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: true,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: "CAN'T RUN NOW", koColor: '#48BB78', koScore: 250,
+    labelText: null, labelColor: null, trackerColor: '#48BB78',
+  },
+  {
+    name: 'dog_walker', label: 'Dog Walker', abbrev: 'DOG',
+    color: '#805AD5', skinColor: '#FBBF6B', hairColor: '#3D2B1F', hairStyle: 'ponytail',
+    eyeColor: null, legColor: '#4A5568',
+    wScale: 0.95, hScale: 1.0,
+    healthMin: 80, healthMax: 130, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: 'OFF LEASH', koColor: '#805AD5', koScore: 200,
+    labelText: null, labelColor: null, trackerColor: '#805AD5',
+  },
+  {
+    name: 'club_dude', label: 'Club Dude', abbrev: 'CLB',
+    color: '#1A1A2E', skinColor: '#C68642', hairColor: '#1A1A1A', hairStyle: 'spiky',
+    eyeColor: null, legColor: '#2D3748',
+    wScale: 1.1, hScale: 1.1,
+    healthMin: 150, healthMax: 250, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: 'LAST CALL', koColor: '#FF1493', koScore: 300,
+    labelText: null, labelColor: null, trackerColor: '#FF1493',
+  },
+  {
+    name: 'party_girl', label: 'Party Girl', abbrev: 'PTY',
+    color: '#FF1493', skinColor: '#F5E6D3', hairColor: '#DAA520', hairStyle: 'long',
+    eyeColor: null, legColor: '#2C2C3E',
+    wScale: 0.9, hScale: 0.95,
+    healthMin: 70, healthMax: 120, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85, hasDress: true, shortDress: true,
+    koText: 'PARTY OVER', koColor: '#FF69B4', koScore: 180,
+    labelText: null, labelColor: null, trackerColor: '#FF69B4',
+  },
+  {
+    name: 'sundress_girl', label: 'Sundress Girl', abbrev: 'SUN',
+    color: '#87CEEB', skinColor: '#F5E6D3', hairColor: '#DAA520', hairStyle: 'long',
+    eyeColor: null, legColor: '#2C2C3E',
+    wScale: 0.9, hScale: 0.95,
+    healthMin: 50, healthMax: 90, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85, hasDress: true,
+    koText: 'FLOWER POWER', koColor: '#87CEEB', koScore: 150,
+    labelText: null, labelColor: null, trackerColor: '#87CEEB',
+  },
+  {
+    name: 'bouncer', label: 'Bouncer', abbrev: 'BNC',
+    color: '#1A1A2E', skinColor: '#8D5524', hairColor: '#1A1A1A', hairStyle: 'buzz',
+    eyeColor: null, legColor: '#1A1A2E',
+    wScale: 1.5, hScale: 1.2,
+    healthMin: 400, healthMax: 600, spawnWeight: 0,
+    isBig: true, isSpecial: true, bareArm: false,
+    exposedShoulders: false, angryBrows: true, randomizeVisuals: false,
+    koText: "YOU'RE OUT", koColor: '#FF4500', koScore: 700,
+    labelText: 'BOUNCER', labelColor: '#FF4500', trackerColor: '#FF4500',
+  },
+  {
+    name: 'hard_hat', label: 'Hard Hat', abbrev: 'HRD',
+    color: '#DD6B20', skinColor: '#D4956B', hairColor: '#3D2B1F', hairStyle: 'buzz',
+    eyeColor: null, legColor: '#4A4A3A',
+    wScale: 1.1, hScale: 1.1,
+    healthMin: 180, healthMax: 280, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: 'CLOCKED OUT', koColor: '#DD6B20', koScore: 300,
+    labelText: null, labelColor: null, trackerColor: '#DD6B20',
+  },
+  {
+    name: 'forklift_phil', label: 'Forklift Phil', abbrev: 'FRK',
+    color: '#B7791F', skinColor: '#C68642', hairColor: '#2C2C2C', hairStyle: 'buzz',
+    eyeColor: null, legColor: '#4A4A3A',
+    wScale: 1.4, hScale: 1.15,
+    healthMin: 250, healthMax: 400, spawnWeight: 0,
+    isBig: true, isSpecial: true, bareArm: true,
+    exposedShoulders: true, angryBrows: true, randomizeVisuals: false,
+    koText: 'FORKED', koColor: '#B7791F', koScore: 550,
+    labelText: 'FORKLIFT', labelColor: '#B7791F', trackerColor: '#B7791F',
+  },
+  {
+    name: 'soccer_mom', label: 'Soccer Mom', abbrev: 'MOM',
+    color: '#E53E3E', skinColor: '#F0C8A0', hairColor: '#8B4513', hairStyle: 'ponytail',
+    eyeColor: null, legColor: '#4A5568',
+    wScale: 1.05, hScale: 1.0,
+    healthMin: 130, healthMax: 220, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    feminineBody: true, bustScale: 0.85,
+    koText: 'NO CARPOOL', koColor: '#E53E3E', koScore: 250,
+    labelText: null, labelColor: null, trackerColor: '#E53E3E',
+  },
+  {
+    name: 'mailman', label: 'Mailman', abbrev: 'MAIL',
+    color: '#3182CE', skinColor: '#FBBF6B', hairColor: '#2C2C2C', hairStyle: 'short',
+    eyeColor: null, legColor: '#2D3748',
+    wScale: 1.0, hScale: 1.05,
+    healthMin: 100, healthMax: 180, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: 'RETURN TO SENDER', koColor: '#3182CE', koScore: 220,
+    labelText: null, labelColor: null, trackerColor: '#3182CE',
+  },
+  {
+    name: 'lawn_dad', label: 'Lawn Dad', abbrev: 'DAD',
+    color: '#38A169', skinColor: '#D4956B', hairColor: '#9CA3AF', hairStyle: 'short',
+    eyeColor: null, legColor: '#8B7355',
+    wScale: 1.15, hScale: 1.05,
+    healthMin: 150, healthMax: 250, spawnWeight: 0,
+    isBig: false, isSpecial: false, bareArm: false,
+    exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
+    koText: 'OFF MY LAWN', koColor: '#38A169', koScore: 280,
+    labelText: null, labelColor: null, trackerColor: '#38A169',
   },
 ];
 const CHAR_BY_NAME = {};
@@ -658,8 +964,10 @@ function spawnBusStopNPCs(platW) {
   return result;
 }
 
-function makePlatform(x, y, w) {
-  return { x, y, w, h: 6, color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)] };
+function makePlatform(x, y, w, zone) {
+  const z = zone || currentZone;
+  const colors = z.platColors;
+  return { x, y, w, h: 6, color: colors[randInt(0, colors.length - 1)] };
 }
 
 function makeBusStop(x) {
@@ -671,34 +979,35 @@ function makeBusStop(x) {
 
 function generatePlatforms(leftBound, rightBound) {
   while (platGenRight < rightBound + 400) {
+    const zone = getZoneAtX(platGenRight).zone;
     if (Math.random() > 0.55) {
       const py = GROUND_Y - rand(55, 140);
-      if (Math.random() < 0.12) {
-        // Rare bus stop (locked height, sits on ground)
+      if (zone.allowBusStops && Math.random() < 0.12) {
         platforms.push(makeBusStop(platGenRight + rand(0, 60)));
         platGenRight += randInt(350, 500);
         continue;
       }
       const pw = Math.random() < 0.2 ? rand(160, 280) : rand(60, 130);
-      platforms.push(makePlatform(platGenRight + rand(0, 120), py, pw));
+      platforms.push(makePlatform(platGenRight + rand(0, 120), py, pw, zone));
       if (Math.random() > 0.7) {
-        platforms.push(makePlatform(platGenRight + rand(20, 100), py - rand(50, 80), rand(40, 80)));
+        platforms.push(makePlatform(platGenRight + rand(20, 100), py - rand(50, 80), rand(40, 80), zone));
       }
     }
     platGenRight += randInt(150, 350);
   }
   while (platGenLeft > leftBound - 400) {
+    const zone = getZoneAtX(platGenLeft).zone;
     if (Math.random() > 0.55) {
       const py = GROUND_Y - rand(55, 140);
-      if (Math.random() < 0.12) {
+      if (zone.allowBusStops && Math.random() < 0.12) {
         platforms.push(makeBusStop(platGenLeft - rand(0, 60) - BUS_STOP_W));
         platGenLeft -= randInt(350, 500);
         continue;
       }
       const pw = Math.random() < 0.2 ? rand(160, 280) : rand(60, 130);
-      platforms.push(makePlatform(platGenLeft - rand(0, 120) - pw, py, pw));
+      platforms.push(makePlatform(platGenLeft - rand(0, 120) - pw, py, pw, zone));
       if (Math.random() > 0.7) {
-        platforms.push(makePlatform(platGenLeft - rand(20, 100) - rand(40, 80), py - rand(50, 80), rand(40, 80)));
+        platforms.push(makePlatform(platGenLeft - rand(20, 100) - rand(40, 80), py - rand(50, 80), rand(40, 80), zone));
       }
     }
     platGenLeft -= randInt(150, 350);
@@ -790,24 +1099,64 @@ const WINDOW_COLOR = '#FFE4A1';
 const WINDOW_OFF = '#4A5568';
 const ACCENT_COLORS = ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5'];
 
-function genBuilding(x, layer) {
+function genBuilding(x, layer, zone) {
+  const z = zone || currentZone;
+  const bColors = z.buildingColors;
+  const aColors = z.accentColors;
+  const hRange = z.bgBuildingHeightRange || [180, 380];
   const w = layer === 'bg' ? randInt(50, 120) : randInt(60, 140);
-  const h = layer === 'bg' ? randInt(180, 380) : randInt(150, 320);
-  const color = BUILDING_COLORS[randInt(0, BUILDING_COLORS.length - 1)];
-  const accent = ACCENT_COLORS[randInt(0, ACCENT_COLORS.length - 1)];
+  const h = layer === 'bg' ? randInt(hRange[0], hRange[1]) : randInt(150, 320);
+  const color = bColors[randInt(0, bColors.length - 1)];
+  const accent = aColors[randInt(0, aColors.length - 1)];
   const windowCols = Math.floor(w / 20), windowRows = Math.floor(h / 25);
   const windows = [];
   for (let r = 0; r < windowRows; r++) for (let c = 0; c < windowCols; c++) windows.push({ r, c, lit: Math.random() > 0.4, nightLit: Math.random() > 0.25 });
   return { x, w, h, color, accent, windows, windowCols, windowRows };
 }
 
+function pickZoneProp(zone) {
+  const z = zone || currentZone;
+  const types = z.propTypes;
+  const weights = z.propWeights;
+  const totalW = types.reduce((s, t) => s + (weights[t] || 10), 0);
+  let r = Math.random() * totalW;
+  for (const t of types) { r -= (weights[t] || 10); if (r <= 0) return t; }
+  return types[0];
+}
+
+function createProp(type, x, zoneId) {
+  const p = { type, x, zoneId: zoneId || currentZone.id };
+  // Pre-randomize colors for neon signs to avoid flicker
+  if (type === 'neon_sign') {
+    const neonColors = ['#FF1493','#00FFFF','#FF4500','#FFD700','#FF00FF','#00FF7F'];
+    p.neonColor = neonColors[randInt(0, neonColors.length - 1)];
+    p.neonW = randInt(12, 24);
+    p.neonH = randInt(6, 12);
+  }
+  if (type === 'tree') {
+    p.trunkH = randInt(30, 50);
+    p.canopyR = randInt(18, 30);
+    const greens = ['#2D8B4E','#3DA05E','#228B22','#4CAF50','#1B5E20'];
+    p.canopyColor = greens[randInt(0, greens.length - 1)];
+  }
+  if (type === 'garden_bush') {
+    const greens = ['#38A169','#48BB78','#2F855A','#68D391'];
+    p.bushColor = greens[randInt(0, greens.length - 1)];
+    p.bushR = randInt(8, 14);
+  }
+  if (type === 'fence_segment') {
+    p.fenceW = randInt(30, 60);
+  }
+  return p;
+}
+
 function generateCity(leftBound, rightBound) {
   // FG buildings (parallax 0.7) — rightward
   while (cityGenRight < rightBound + 300) {
-    buildings.push(genBuilding(cityGenRight, 'fg'));
-    if (Math.random() > 0.6) props.push({ type: 'lamp', x: cityGenRight + rand(10, 50) });
-    if (Math.random() > 0.75) props.push({ type: 'hydrant', x: cityGenRight + rand(20, 80) });
-    if (Math.random() > 0.85) props.push({ type: 'bench', x: cityGenRight + rand(20, 80) });
+    const zone = getZoneAtX(cityGenRight).zone;
+    buildings.push(genBuilding(cityGenRight, 'fg', zone));
+    if (Math.random() > 0.5) props.push(createProp(pickZoneProp(zone), cityGenRight + rand(10, 50), zone.id));
+    if (Math.random() > 0.7) props.push(createProp(pickZoneProp(zone), cityGenRight + rand(20, 80), zone.id));
     const roll = Math.random();
     if (roll < 0.15) cityGenRight += randInt(160, 240);
     else if (roll < 0.45) cityGenRight += randInt(90, 160);
@@ -817,10 +1166,10 @@ function generateCity(leftBound, rightBound) {
   while (cityGenLeft > leftBound - 300) {
     const bw = randInt(60, 140);
     cityGenLeft -= bw;
-    buildings.push(genBuilding(cityGenLeft, 'fg'));
-    if (Math.random() > 0.6) props.push({ type: 'lamp', x: cityGenLeft + rand(10, 50) });
-    if (Math.random() > 0.75) props.push({ type: 'hydrant', x: cityGenLeft + rand(20, 80) });
-    if (Math.random() > 0.85) props.push({ type: 'bench', x: cityGenLeft + rand(20, 80) });
+    const zone = getZoneAtX(cityGenLeft).zone;
+    buildings.push(genBuilding(cityGenLeft, 'fg', zone));
+    if (Math.random() > 0.5) props.push(createProp(pickZoneProp(zone), cityGenLeft + rand(10, 50), zone.id));
+    if (Math.random() > 0.7) props.push(createProp(pickZoneProp(zone), cityGenLeft + rand(20, 80), zone.id));
     const roll = Math.random();
     if (roll < 0.15) cityGenLeft -= randInt(160, 240);
     else if (roll < 0.45) cityGenLeft -= randInt(90, 160);
@@ -829,7 +1178,8 @@ function generateCity(leftBound, rightBound) {
   // BG buildings (parallax 0.3) — rightward
   const bgRightBound = rightBound / 0.3 + 800;
   while (bgGenRight < bgRightBound) {
-    bgBuildings.push(genBuilding(bgGenRight, 'bg'));
+    const zone = getZoneAtX(bgGenRight * 0.3).zone;
+    bgBuildings.push(genBuilding(bgGenRight, 'bg', zone));
     const roll = Math.random();
     if (roll < 0.2) bgGenRight += randInt(140, 240);
     else if (roll < 0.5) bgGenRight += randInt(70, 140);
@@ -840,7 +1190,8 @@ function generateCity(leftBound, rightBound) {
   while (bgGenLeft > bgLeftBound) {
     const bw = randInt(50, 120);
     bgGenLeft -= bw;
-    bgBuildings.push(genBuilding(bgGenLeft, 'bg'));
+    const zone = getZoneAtX(bgGenLeft * 0.3).zone;
+    bgBuildings.push(genBuilding(bgGenLeft, 'bg', zone));
     const roll = Math.random();
     if (roll < 0.2) bgGenLeft -= randInt(140, 240);
     else if (roll < 0.5) bgGenLeft -= randInt(70, 140);
@@ -874,6 +1225,99 @@ function drawProp(p) {
   } else if (p.type === 'bench') {
     ctx.fillStyle = '#8B6E4E'; ctx.fillRect(px - 15, GROUND_Y - 12, 30, 3); ctx.fillRect(px - 13, GROUND_Y - 12, 3, 12); ctx.fillRect(px + 10, GROUND_Y - 12, 3, 12);
     ctx.fillStyle = '#6B5840'; ctx.fillRect(px - 15, GROUND_Y - 22, 2, 13); ctx.fillRect(px + 13, GROUND_Y - 22, 2, 13); ctx.fillRect(px - 15, GROUND_Y - 22, 30, 3);
+  } else if (p.type === 'sign') {
+    // Shopping district store sign
+    ctx.fillStyle = '#8B6E4E'; ctx.fillRect(px - 1, GROUND_Y - 40, 3, 40);
+    ctx.fillStyle = '#E8D5B7'; ctx.fillRect(px - 12, GROUND_Y - 45, 25, 10);
+    ctx.strokeStyle = '#8B6E4E'; ctx.lineWidth = 1; ctx.strokeRect(px - 12, GROUND_Y - 45, 25, 10);
+  } else if (p.type === 'awning_pole') {
+    // Awning support pole
+    ctx.fillStyle = '#6B5840'; ctx.fillRect(px - 1.5, GROUND_Y - 50, 3, 50);
+    ctx.fillStyle = '#C05621'; ctx.fillRect(px - 15, GROUND_Y - 52, 30, 5);
+    ctx.fillStyle = '#DD6B20';
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.moveTo(px - 15 + i * 7.5, GROUND_Y - 47);
+      ctx.lineTo(px - 11.25 + i * 7.5, GROUND_Y - 42);
+      ctx.lineTo(px - 7.5 + i * 7.5, GROUND_Y - 47);
+      ctx.fill();
+    }
+  } else if (p.type === 'tree') {
+    // Park tree
+    const tH = p.trunkH || 40;
+    const cR = p.canopyR || 22;
+    ctx.fillStyle = '#6B4E2A'; ctx.fillRect(px - 3, GROUND_Y - tH, 6, tH);
+    ctx.fillStyle = p.canopyColor || '#2D8B4E';
+    ctx.beginPath(); ctx.arc(px, GROUND_Y - tH - cR * 0.3, cR, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px - cR * 0.5, GROUND_Y - tH + cR * 0.2, cR * 0.7, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + cR * 0.5, GROUND_Y - tH + cR * 0.15, cR * 0.65, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'bush') {
+    ctx.fillStyle = '#38A169';
+    ctx.beginPath(); ctx.ellipse(px, GROUND_Y - 8, 12, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2F855A';
+    ctx.beginPath(); ctx.ellipse(px - 5, GROUND_Y - 6, 7, 6, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (p.type === 'fountain') {
+    // Simple fountain
+    ctx.fillStyle = '#9CA3AF'; ctx.fillRect(px - 18, GROUND_Y - 8, 36, 8);
+    ctx.fillRect(px - 14, GROUND_Y - 12, 28, 4);
+    ctx.fillStyle = '#63B3ED'; ctx.fillRect(px - 12, GROUND_Y - 10, 24, 2);
+    ctx.fillStyle = '#90CDF4'; ctx.fillRect(px - 1, GROUND_Y - 24, 2, 14);
+    // Water spray
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#63B3ED';
+    ctx.beginPath(); ctx.arc(px, GROUND_Y - 24, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (p.type === 'neon_sign') {
+    const nc = p.neonColor || '#FF1493';
+    const nw = p.neonW || 16;
+    const nh = p.neonH || 8;
+    ctx.fillStyle = '#2D2D2D'; ctx.fillRect(px - 1, GROUND_Y - 42, 3, 42);
+    ctx.fillStyle = nc; ctx.fillRect(px - nw / 2, GROUND_Y - 46, nw, nh);
+    ctx.globalAlpha = 0.15; ctx.fillStyle = nc;
+    ctx.beginPath(); ctx.arc(px, GROUND_Y - 42, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (p.type === 'pipe') {
+    ctx.fillStyle = '#6B6B6B'; ctx.fillRect(px - 3, GROUND_Y - 25, 6, 25);
+    ctx.fillStyle = '#8B8B8B'; ctx.fillRect(px - 5, GROUND_Y - 28, 10, 5);
+    ctx.fillRect(px - 4, GROUND_Y - 3, 8, 3);
+  } else if (p.type === 'barrel') {
+    ctx.fillStyle = '#8B5A2B'; ctx.fillRect(px - 8, GROUND_Y - 18, 16, 18);
+    ctx.fillStyle = '#6B4A1B'; ctx.fillRect(px - 9, GROUND_Y - 16, 18, 2);
+    ctx.fillRect(px - 9, GROUND_Y - 6, 18, 2);
+    ctx.fillStyle = '#A06A3B'; ctx.fillRect(px - 7, GROUND_Y - 18, 14, 2);
+  } else if (p.type === 'smokestack_small') {
+    ctx.fillStyle = '#5A5A5A'; ctx.fillRect(px - 4, GROUND_Y - 45, 8, 45);
+    ctx.fillStyle = '#4A4A4A'; ctx.fillRect(px - 6, GROUND_Y - 48, 12, 5);
+    // Smoke puff
+    ctx.globalAlpha = 0.3; ctx.fillStyle = '#9CA3AF';
+    ctx.beginPath(); ctx.arc(px + 3, GROUND_Y - 52, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(px + 7, GROUND_Y - 58, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  } else if (p.type === 'mailbox') {
+    ctx.fillStyle = '#3182CE'; ctx.fillRect(px - 5, GROUND_Y - 20, 10, 12);
+    ctx.beginPath(); ctx.arc(px, GROUND_Y - 20, 5, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2C5282'; ctx.fillRect(px - 2, GROUND_Y - 8, 4, 8);
+  } else if (p.type === 'fence_segment') {
+    const fw = p.fenceW || 40;
+    ctx.fillStyle = '#E8D8C4';
+    ctx.fillRect(px - fw / 2, GROUND_Y - 18, 3, 18);
+    ctx.fillRect(px + fw / 2 - 3, GROUND_Y - 18, 3, 18);
+    ctx.fillRect(px - fw / 2, GROUND_Y - 16, fw, 2);
+    ctx.fillRect(px - fw / 2, GROUND_Y - 8, fw, 2);
+    // Pickets
+    for (let i = 0; i < fw; i += 8) {
+      ctx.fillRect(px - fw / 2 + i, GROUND_Y - 20, 2, 20);
+    }
+  } else if (p.type === 'garden_bush') {
+    const bc = p.bushColor || '#38A169';
+    const br = p.bushR || 10;
+    ctx.fillStyle = bc;
+    ctx.beginPath(); ctx.ellipse(px, GROUND_Y - br * 0.7, br, br * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    // Flowers
+    ctx.fillStyle = '#FF69B4';
+    ctx.beginPath(); ctx.arc(px - br * 0.3, GROUND_Y - br, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath(); ctx.arc(px + br * 0.3, GROUND_Y - br * 0.8, 2, 0, Math.PI * 2); ctx.fill();
   }
 }
 
@@ -1011,6 +1455,10 @@ function drawCharacter(x, y, w, h, opts) {
   const airState = opts.airState || null; // 'rising' or 'falling'
   const eyeColor = opts.eyeColor || '#1A1A2E';
   const customLegColor = opts.legColor || null;
+  const isFeminine = opts.feminineBody || false;
+  const bustScale = opts.bustScale || 0;
+  const hasDress = opts.hasDress || false;
+  const shortDress = opts.shortDress || false;
 
   ctx.globalAlpha = opacity;
   ctx.save();
@@ -1021,50 +1469,126 @@ function drawCharacter(x, y, w, h, opts) {
   let bodyH = isCrouching ? h * 0.55 : h * 0.45;
   let bodyW = isBig ? w * 0.85 : w * 0.7;
   const bodyY = isCrouching ? -h * 0.35 : -h * 0.55;
-  // Gothmommy: slimmer, more feminine proportions
-  if (npcType === 'gothmommy') { bodyW *= 0.75; bodyH *= 0.88; }
+  // Feminine body: slimmer torso
+  if (isFeminine) { bodyW *= 0.78; }
   const headR = w * (isBig ? 0.28 : 0.32);
   const headY = bodyY - headR * 0.7 + breathOffset;
   const bodyDrawY = bodyY + breathOffset * 0.7;
 
-  // Legs
+  // Legs (or dress)
   {
-    const legW = w * (isBig ? 0.22 : 0.18), legH = isCrouching ? h * 0.2 : h * 0.35;
-    const legSpread = w * (isBig ? 0.22 : 0.18);
-    let legLAngle = 0, legRAngle = 0;
-    if (opts.isKO) {
-      // KO: one straight, one bent inward (\|)
-      legLAngle = 0.5;
-      legRAngle = 0;
-    } else if (airState && !isCrouching && opts.isMovingJump) {
-      // Moving jump: legs swing based on phase
-      if (airState === 'rising') { legLAngle = 0.6; legRAngle = 0.4; }
-      else { legLAngle = -0.7; legRAngle = -0.5; }
-    } else if (airState && !isCrouching) {
-      // Static jump: legs tucked back underneath, like a vertical hop
-      legLAngle = 0.22; legRAngle = 0.28;
-    } else if (Math.abs(walkPhase) > 0.01 && !isCrouching) {
-      legLAngle = Math.sin(walkPhase) * 0.45;
-      legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
-    }
     const legColor = customLegColor || charDef.legColor || (isBig ? '#4A4A5A' : '#4A5568');
-    ctx.save(); ctx.translate(-legSpread, bodyDrawY + bodyH); ctx.rotate(legLAngle);
-    ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
-    if (npcType === 'gymgirl') { ctx.fillStyle = bodyColor; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
-    if (npcType === 'gothmommy') { ctx.fillStyle = '#1A1A2E'; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
-    ctx.fillStyle = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
-    ctx.fillRect(-legW/2 - 1, legH - 4, legW + 3, npcType === 'gothmommy' ? 7 : 5); ctx.restore();
-    ctx.save(); ctx.translate(legSpread, bodyDrawY + bodyH); ctx.rotate(legRAngle);
-    ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
-    if (npcType === 'gymgirl') { ctx.fillStyle = bodyColor; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
-    if (npcType === 'gothmommy') { ctx.fillStyle = '#1A1A2E'; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
-    ctx.fillStyle = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
-    ctx.fillRect(-legW/2 - 1, legH - 4, legW + 3, npcType === 'gothmommy' ? 7 : 5); ctx.restore();
+    if (hasDress && !isCrouching) {
+      // Dress: flared trapezoid, short or long
+      const dressTop = bodyDrawY + bodyH * 0.55;
+      const dressH = shortDress ? h * 0.18 : h * 0.38;
+      const topW = bodyW * 0.9;
+      const botW = bodyW * (shortDress ? 1.3 : 1.6);
+      const swish = Math.abs(walkPhase) > 0.01 ? Math.sin(walkPhase) * botW * 0.08 : 0;
+      ctx.fillStyle = bodyColor;
+      ctx.beginPath();
+      ctx.moveTo(-topW / 2, dressTop);
+      ctx.lineTo(topW / 2, dressTop);
+      ctx.lineTo(botW / 2 + swish, dressTop + dressH);
+      ctx.lineTo(-botW / 2 + swish, dressTop + dressH);
+      ctx.closePath(); ctx.fill();
+      // Feet peeking out beneath dress
+      ctx.fillStyle = skin;
+      ctx.fillRect(-botW * 0.25 + swish, dressTop + dressH - 2, 4, 4);
+      ctx.fillRect(botW * 0.15 + swish, dressTop + dressH - 2, 4, 4);
+      // Heels
+      ctx.fillStyle = npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748';
+      ctx.fillRect(-botW * 0.25 + swish - 1, dressTop + dressH + 2, 5, 3);
+      ctx.fillRect(botW * 0.15 + swish - 1, dressTop + dressH + 2, 5, 3);
+    } else {
+      // Standard legs
+      const legW = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
+      const legH = isCrouching ? h * 0.2 : h * 0.35;
+      const legSpread = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
+      let legLAngle = 0, legRAngle = 0;
+      if (opts.isKO) {
+        legLAngle = 0.5; legRAngle = 0;
+      } else if (airState && !isCrouching && opts.isMovingJump) {
+        if (airState === 'rising') { legLAngle = 0.6; legRAngle = 0.4; }
+        else { legLAngle = -0.7; legRAngle = -0.5; }
+      } else if (airState && !isCrouching) {
+        legLAngle = 0.22; legRAngle = 0.28;
+      } else if (Math.abs(walkPhase) > 0.01 && !isCrouching) {
+        legLAngle = Math.sin(walkPhase) * 0.45;
+        legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
+      }
+      ctx.save(); ctx.translate(-legSpread, bodyDrawY + bodyH); ctx.rotate(legLAngle);
+      ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
+      if (npcType === 'gymgirl') { ctx.fillStyle = bodyColor; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
+      if (npcType === 'gothmommy') { ctx.fillStyle = '#1A1A2E'; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
+      ctx.fillStyle = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
+      ctx.fillRect(-legW/2 - 1, legH - 4, legW + 3, npcType === 'gothmommy' ? 7 : 5); ctx.restore();
+      ctx.save(); ctx.translate(legSpread, bodyDrawY + bodyH); ctx.rotate(legRAngle);
+      ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
+      if (npcType === 'gymgirl') { ctx.fillStyle = bodyColor; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
+      if (npcType === 'gothmommy') { ctx.fillStyle = '#1A1A2E'; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
+      ctx.fillStyle = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
+      ctx.fillRect(-legW/2 - 1, legH - 4, legW + 3, npcType === 'gothmommy' ? 7 : 5); ctx.restore();
+    }
   }
 
   // Body
-  ctx.fillStyle = bodyColor;
-  roundRect(ctx, -bodyW/2, bodyDrawY, bodyW, bodyH, 4);
+  if (isFeminine) {
+    // Hourglass torso with waist taper
+    ctx.fillStyle = bodyColor;
+    const waistNarrow = bodyW * 0.72;
+    const hipFlare = bodyW * 1.05;
+    ctx.beginPath();
+    ctx.moveTo(-bodyW/2, bodyDrawY);
+    ctx.lineTo(bodyW/2, bodyDrawY);
+    ctx.lineTo(bodyW/2, bodyDrawY + bodyH * 0.15);
+    ctx.quadraticCurveTo(waistNarrow/2, bodyDrawY + bodyH * 0.5, hipFlare/2, bodyDrawY + bodyH);
+    ctx.lineTo(-hipFlare/2, bodyDrawY + bodyH);
+    ctx.quadraticCurveTo(-waistNarrow/2, bodyDrawY + bodyH * 0.5, -bodyW/2, bodyDrawY + bodyH * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    // Bust
+    if (bustScale > 0) {
+      const bustR = bodyW * 0.22 * bustScale;
+      const bustY = bodyDrawY + bodyH * 0.30;
+      const bustSpread = bustR * 1.15;
+      if (npcType === 'gothmommy') {
+        // Goth Mommy: two separate bust ellipses (revealing top)
+        ctx.fillStyle = bodyColor;
+        ctx.beginPath();
+        ctx.ellipse(-bustSpread, bustY, bustR * 1.15, bustR, 0, 0, Math.PI * 2);
+        ctx.ellipse(bustSpread, bustY, bustR * 1.15, bustR, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.07)';
+        ctx.beginPath();
+        ctx.ellipse(-bustSpread, bustY, bustR * 1.15, bustR, 0, 0, Math.PI * 2);
+        ctx.ellipse(bustSpread, bustY, bustR * 1.15, bustR, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Underbust shadows
+        const moonCY = bustY + bustR * 0.4;
+        ctx.fillStyle = 'rgba(0,0,0,0.14)';
+        ctx.beginPath();
+        ctx.ellipse(-bustSpread, moonCY, bustR * 0.9, bustR * 0.5, 0, 0, Math.PI);
+        ctx.ellipse(bustSpread, moonCY, bustR * 0.9, bustR * 0.5, 0, 0, Math.PI);
+        ctx.fill();
+      } else {
+        // Everyone else: uniboob capsule (same color as clothes)
+        const uniW = (bustSpread + bustR * 1.15) * 2;
+        const uniH = bustR * 2;
+        ctx.fillStyle = bodyColor;
+        roundRect(ctx, -uniW / 2, bustY - bustR, uniW, uniH, bustR);
+        // Underbust shadow
+        const moonCY = bustY + bustR * 0.4;
+        ctx.fillStyle = 'rgba(0,0,0,0.14)';
+        ctx.beginPath();
+        ctx.ellipse(0, moonCY, uniW * 0.4, bustR * 0.5, 0, 0, Math.PI);
+        ctx.fill();
+      }
+    }
+  } else {
+    ctx.fillStyle = bodyColor;
+    roundRect(ctx, -bodyW/2, bodyDrawY, bodyW, bodyH, 4);
+  }
   // Sumo: big round belly
   if (npcType === 'sumo') {
     ctx.fillStyle = skin;
@@ -1099,10 +1623,6 @@ function drawCharacter(x, y, w, h, opts) {
     // Black shorts — tighter, hip-level
     ctx.fillStyle = '#0A0A0A';
     ctx.fillRect(-bodyW / 2, bodyDrawY + bodyH * 0.62, bodyW, bodyH * 0.38);
-    // Chest circles (same color as shirt)
-    ctx.fillStyle = bodyColor;
-    ctx.beginPath(); ctx.arc(-bodyW * 0.18, bodyDrawY + bodyH * 0.22, bodyW * 0.14, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(bodyW * 0.18, bodyDrawY + bodyH * 0.22, bodyW * 0.14, 0, Math.PI * 2); ctx.fill();
   }
 
   // Arms
@@ -1182,8 +1702,6 @@ function drawCharacter(x, y, w, h, opts) {
         // Scarf sides draping down
         ctx.fillRect(-headR - 2, headY - 2, 5, headR * 1.2);
         ctx.fillRect(headR - 2, headY - 2, 5, headR * 1.2);
-        // Knot under chin
-        ctx.beginPath(); ctx.arc(0, headY + headR + 1, 3, 0, Math.PI * 2); ctx.fill();
         break;
       case 'highpony': // Gym Girl — high bouncy ponytail
         ctx.beginPath(); ctx.arc(0, headY - 2, headR + 1, Math.PI, Math.PI * 2); ctx.fill();
@@ -1198,6 +1716,15 @@ function drawCharacter(x, y, w, h, opts) {
         // Scrunchie
         ctx.fillStyle = '#FF69B4';
         ctx.beginPath(); ctx.arc(0, headY - headR - 2, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = hair;
+        break;
+      case 'headband': // Jogger — short hair + headband
+        ctx.beginPath(); ctx.arc(0, headY - 2, headR + 1, Math.PI, Math.PI * 2); ctx.fill();
+        ctx.fillRect(-headR - 1, headY - 4, 4, headR * 0.7);
+        ctx.fillRect(headR - 3, headY - 4, 4, headR * 0.7);
+        // Headband
+        ctx.fillStyle = '#FF4500';
+        ctx.fillRect(-headR - 1, headY - headR * 0.3, (headR + 1) * 2, 3);
         ctx.fillStyle = hair;
         break;
       case 'fade': // Baller — flat top fade + headband
@@ -1268,6 +1795,14 @@ function drawCharacter(x, y, w, h, opts) {
     const hatW = headR * 2.2;
     const hatH = hatW * (hatImg.naturalHeight / hatImg.naturalWidth);
     ctx.drawImage(hatImg, -hatW / 2, headY - headR - hatH * 0.55, hatW, hatH);
+  }
+  // Hard Hat: yellow construction helmet
+  if (npcType === 'hard_hat') {
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(-headR * 0.9, headY - headR - 4, headR * 1.8, 5);
+    ctx.beginPath(); ctx.arc(0, headY - headR - 1, headR * 0.8, Math.PI, Math.PI * 2); ctx.fill();
+    // Brim
+    ctx.fillRect(-headR * 1.1, headY - headR - 1, headR * 2.2, 3);
   }
 
   // Gym girl: exposed midriff band
@@ -1344,6 +1879,13 @@ function drawCharacter(x, y, w, h, opts) {
     ctx.fillRect(-eyeSpread - 3, headY - headR * 0.5, 5, 4);
     ctx.fillRect(eyeSpread - 2, headY - headR * 0.5, 5, 4);
   }
+  // Bouncer: dark sunglasses over eyes
+  if (npcType === 'bouncer' && !opts.isKO) {
+    ctx.fillStyle = '#0A0A0A';
+    ctx.fillRect(-eyeSpread - 4, eyeY - 3, eyeSpread * 2 + 8, 5);
+    ctx.fillRect(-eyeSpread - 3, eyeY - 3, 7, 6);
+    ctx.fillRect(eyeSpread - 3, eyeY - 3, 7, 6);
+  }
 
   ctx.restore();
   ctx.globalAlpha = 1;
@@ -1386,6 +1928,9 @@ const GALLERY_TYPES = [
         npcType: def.name,
         ...(def.eyeColor && { eyeColor: def.eyeColor }),
         ...(def.legColor && { legColor: def.legColor }),
+        ...(def.feminineBody && { feminineBody: true, bustScale: def.bustScale || 0 }),
+        ...(def.hasDress && { hasDress: true }),
+        ...(def.shortDress && { shortDress: true }),
       },
     };
   }),
@@ -1478,21 +2023,30 @@ const player = {
 // ── NPCs ──
 const npcs = [];
 function npcVisualOpts(npc) {
-  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, opacity: npc.fleeOpacity };
+  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, opacity: npc.fleeOpacity, feminineBody: npc.feminineBody, bustScale: npc.bustScale, hasDress: npc.hasDress, shortDress: npc.shortDress };
 }
 const NPC_COLORS = ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5','#D53F8C','#319795'];
 const HAIR_COLORS = ['#3D2B1F','#1A1A2E','#8B4513','#DAA520','#C0392B','#2C3E50'];
 const SKIN_COLORS = ['#FBBF6B','#F0C8A0','#D4956B','#C68642','#8D5524','#FFDBAC'];
 
-function pickNPCType() {
-  const totalWeight = CHARACTER_DEFS.reduce((s, d) => s + d.spawnWeight, 0);
+function pickNPCType(zone) {
+  const pool = zone ? zone.npcPool : null;
+  const poolDefs = pool
+    ? pool.map(name => CHAR_BY_NAME[name]).filter(Boolean)
+    : CHARACTER_DEFS.filter(d => d.spawnWeight > 0);
+  const weighted = poolDefs.map(d => ({
+    def: d,
+    weight: d.spawnWeight > 0 ? d.spawnWeight : (d.isBig || d.isSpecial ? 8 : 15),
+  }));
+  const totalWeight = weighted.reduce((s, w) => s + w.weight, 0);
   let r = Math.random() * totalWeight;
-  for (const d of CHARACTER_DEFS) { r -= d.spawnWeight; if (r <= 0) return d; }
-  return CHARACTER_DEFS[0];
+  for (const w of weighted) { r -= w.weight; if (r <= 0) return w.def; }
+  return weighted[0].def;
 }
 
 function spawnNPC(x) {
-  const def = pickNPCType();
+  const zone = getZoneAtX(x).zone;
+  const def = pickNPCType(zone);
   let color, hairColor, skinColor, hairStyle, eyeColor, legColor;
   if (def.randomizeVisuals) {
     color = NPC_COLORS[randInt(0, NPC_COLORS.length - 1)];
@@ -1507,7 +2061,18 @@ function spawnNPC(x) {
     legColor = def.legColor || undefined;
   }
   const dir = Math.random() > 0.5 ? 1 : -1;
-  const hp = randInt(def.healthMin, def.healthMax);
+  const hp = Math.round(randInt(def.healthMin, def.healthMax) * (1 + prestigeLevel * 0.5));
+  // Feminine body: always for types with feminineBody flag, 50% for non-small pedestrians
+  let isFeminine = !!def.feminineBody;
+  let bustSz = def.bustScale || 0.85;
+  if (!isFeminine && def.randomizeVisuals && def.name !== 'small' && Math.random() < 0.5) {
+    isFeminine = true;
+    bustSz = 0.85;
+    // Give feminine pedestrians longer hair styles
+    hairStyle = ['long','ponytail','bun'][randInt(0, 2)];
+  }
+  const hasDress = !!def.hasDress;
+  const shortDress = !!def.shortDress;
   npcs.push({
     x, y: GROUND_Y,
     vx: dir * rand(20, def.isBig ? 40 : def.isSpecial ? 50 : 60),
@@ -1524,6 +2089,10 @@ function spawnNPC(x) {
     npcType: def.name,
     typeName: def.name,
     calmTimer: 0,
+    feminineBody: isFeminine,
+    bustScale: bustSz,
+    hasDress: hasDress,
+    shortDress: shortDress,
   });
 }
 
@@ -1532,11 +2101,11 @@ let score = 0;
 let totalKOs = 0;
 const koTracker = {};
 for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
-// Group normal/small/tall into one "Pedestrian" category; rest use full label
+// Group normal/small/tall into one "Pedestrian" category; rest use abbrev for compact display
 const PEDESTRIAN_TYPES = ['normal', 'small', 'tall'];
 const trackerTypes = [
-  { key: '_pedestrian', label: 'Pedestrian', color: '#9CA3AF', group: PEDESTRIAN_TYPES },
-  ...CHARACTER_DEFS.filter(d => !PEDESTRIAN_TYPES.includes(d.name)).map(d => ({ key: d.name, label: d.label, color: d.trackerColor })),
+  { key: '_pedestrian', label: 'NPC', color: '#9CA3AF', group: PEDESTRIAN_TYPES },
+  ...CHARACTER_DEFS.filter(d => !PEDESTRIAN_TYPES.includes(d.name)).map(d => ({ key: d.name, label: d.abbrev, color: d.trackerColor })),
 ];
 function getTrackerCount(t) {
   if (t.group) return t.group.reduce((s, k) => s + koTracker[k], 0);
@@ -1548,15 +2117,129 @@ let centerKO = null; // { text, color, timer }
 
 
 // ── Game State ──
-let gameState = 'title';
+let gameState = 'title'; // 'title' | 'modeselect' | 'zonepicker' | 'playing' | 'paused'
 let titleBlink = 0;
 let lastTime = 0;
+let menuSelection = 0; // For mode select / zone picker navigation
+let zonePickerIndex = 0;
 
 // ── Update ──
+function startGame() {
+  initZoneLayout();
+  // Reset everything
+  player.x = gameMode === 'campaign' ? zoneLayout[0].startX + 200 : 200;
+  player.y = GROUND_Y; player.vx = 0; player.vy = 0;
+  player.facing = 1; player.onGround = false; player.isCrouching = false;
+  player.isSprinting = false; player.wasSprinting = false;
+  player.walkPhase = 0; player.breathPhase = 0; player.blinkTimer = 2; player.squashX = 1;
+  player.coyoteTimer = 0; player.jumpBuffer = 0; player.mountedNPC = null;
+  player.lastCrouchTime = 0; player.crouchCycleActive = false; player.combo = 0; player.comboTimer = 0;
+  player.onPlatform = null; player.dropThrough = false; player.dropFromY = 0; player.prevY = GROUND_Y;
+  player.jumpCount = 0; player.airStreak = 0; player.airStreakBest = 0; player.onRealGround = false;
+  npcs.length = 0; buildings.length = 0; bgBuildings.length = 0;
+  props.length = 0; platforms.length = 0; cars.length = 0;
+  particles.length = 0; popups.length = 0;
+  score = 0; totalKOs = 0; centerKO = null;
+  for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
+  const startX = player.x;
+  cityGenRight = startX - 200; cityGenLeft = startX - 200;
+  bgGenRight = (startX - 200) / 0.3 - 800; bgGenLeft = (startX - 200) / 0.3 - 800;
+  platGenRight = startX - 200; platGenLeft = startX - 200;
+  cam.x = startX - W * 0.35; cam.targetX = cam.x;
+  currentZone = getZoneAtX(startX).zone;
+  currentZoneIndex = getZoneAtX(startX).index;
+  generateCity(cam.x - 500, cam.x + W + 500);
+  generatePlatforms(cam.x - 500, cam.x + W + 500);
+  for (let i = 0; i < 5; i++) spawnNPC(startX + rand(-200, 500));
+  for (let i = 0; i < 8; i++) {
+    const def = pickCarDef();
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    const color = def.name === 'bus' ? ['#D69E2E','#E53E3E','#2B6CB0'][randInt(0,2)] : CAR_COLORS[randInt(0, CAR_COLORS.length - 1)];
+    cars.push({ x: startX + rand(-200, W + 400), dir, speed: rand(def.spdMin, def.spdMax), def, color });
+  }
+  dayTime = 75;
+  gameState = 'playing';
+}
+
+function triggerPrestige() {
+  prestigeLevel++;
+  if (prestigeLevel > bestPrestige) bestPrestige = prestigeLevel;
+  // Unlock all zones for endless
+  for (const z of ZONES) {
+    if (!unlockedZones.includes(z.id)) unlockedZones.push(z.id);
+  }
+  saveProgress();
+  // Rebuild zone layout from current position
+  zoneLayout = [];
+  let x = player.x;
+  for (const zone of ZONES) {
+    zoneLayout.push({ zoneId: zone.id, startX: x, endX: x + zone.width });
+    x += zone.width;
+  }
+  currentZoneIndex = 0;
+  currentZone = ZONES[0];
+  centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: 3.0 };
+  addShake(12, 0.5);
+  spawnStars(player.x, player.y - 30, 20);
+}
+
 function update(dt) {
   if (gameState === 'title') {
     titleBlink += dt;
-    if (Object.values(keys).some(v => v) || touch.anyActive) gameState = 'playing';
+    if (Object.values(keys).some(v => v) || touch.anyActive) gameState = 'modeselect';
+    return;
+  }
+
+  if (gameState === 'modeselect') {
+    if (wasPressed('W') || wasPressed('S')) {
+      menuSelection = menuSelection === 0 ? 1 : 0;
+    }
+    if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D')) {
+      if (menuSelection === 0) {
+        // Campaign
+        gameMode = 'campaign';
+        prestigeLevel = 0;
+        startGame();
+      } else {
+        // Endless
+        gameMode = 'endless';
+        zonePickerIndex = 0;
+        gameState = 'zonepicker';
+      }
+    }
+    return;
+  }
+
+  if (gameState === 'zonepicker') {
+    if (wasPressed('A')) {
+      zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
+    }
+    if (wasPressed('D')) {
+      zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
+    }
+    if (justPressed['Enter'] || justPressed['Space']) {
+      const zone = ZONES[zonePickerIndex];
+      if (unlockedZones.includes(zone.id)) {
+        endlessZoneId = zone.id;
+        startGame();
+      }
+    }
+    if (justPressed['Escape']) {
+      gameState = 'modeselect';
+    }
+    return;
+  }
+
+  if (gameState === 'paused') {
+    if (justPressed['Escape'] || justPressed['KeyP']) {
+      gameState = 'playing';
+    }
+    return;
+  }
+
+  // Playing - check for pause
+  if (justPressed['Escape'] || justPressed['KeyP']) {
+    gameState = 'paused';
     return;
   }
 
@@ -1745,7 +2428,9 @@ function update(dt) {
               spawnPopup(npc.x, npc.y - npc.h - 60, `AIR x${p.airStreak}!`, '#00FFAA');
             }
             totalKOs++;
+            allTimeKOs++;
             koTracker[npc.npcType] = (koTracker[npc.npcType] || 0) + 1;
+            saveProgress();
           }
         }
       }
@@ -1895,6 +2580,32 @@ function update(dt) {
   cam.targetX = p.x - W * 0.35;
   cam.x = lerp(cam.x, cam.targetX, dt * 4);
 
+  // Campaign left-boundary soft wall
+  if (gameMode === 'campaign' && zoneLayout.length > 0) {
+    const leftLimit = zoneLayout[0].startX - 500;
+    if (p.x < leftLimit) { p.x = leftLimit; if (p.vx < 0) p.vx = 0; }
+  }
+
+  // ── Zone Tracking ──
+  const zoneResult = getZoneAtX(p.x);
+  if (zoneResult.index === -1 && gameMode === 'campaign') {
+    triggerPrestige();
+  } else if (zoneResult.zone !== currentZone) {
+    currentZone = zoneResult.zone;
+    currentZoneIndex = zoneResult.index;
+    zoneTransitionAnim = { timer: 2.0, maxTimer: 2.0, zoneName: currentZone.name, color: currentZone.displayColor };
+    // Unlock zone for endless mode
+    if (gameMode === 'campaign' && !unlockedZones.includes(currentZone.id)) {
+      unlockedZones.push(currentZone.id);
+      saveProgress();
+    }
+  }
+  // Zone transition animation timer
+  if (zoneTransitionAnim) {
+    zoneTransitionAnim.timer -= dt;
+    if (zoneTransitionAnim.timer <= 0) zoneTransitionAnim = null;
+  }
+
   // ── Generation ──
   generateCity(cam.x - 400, cam.x + W + 400);
   generatePlatforms(cam.x - 400, cam.x + W + 400);
@@ -1925,6 +2636,20 @@ function render(dt) {
     drawSideBars();
     ctx.restore(); return;
   }
+  if (gameState === 'modeselect') {
+    ctx.save(); ctx.translate(GAME_OX, 0);
+    drawModeSelect();
+    ctx.restore();
+    drawSideBars();
+    ctx.restore(); return;
+  }
+  if (gameState === 'zonepicker') {
+    ctx.save(); ctx.translate(GAME_OX, 0);
+    drawZonePicker();
+    ctx.restore();
+    drawSideBars();
+    ctx.restore(); return;
+  }
 
   // Game area with shake + sidebar offset
   ctx.save(); ctx.translate(shake.x, shake.y);
@@ -1949,7 +2674,7 @@ function render(dt) {
     ctx.globalAlpha = 1;
   }
 
-  drawMountains();
+  drawZoneSilhouettes();
   drawClouds();
   drawBirds();
 
@@ -1972,10 +2697,10 @@ function render(dt) {
     }
   }
 
-  // Sidewalk
-  ctx.fillStyle = '#9CA3AF'; ctx.fillRect(0, GROUND_Y, W, 4);
-  ctx.fillStyle = '#6B7280'; ctx.fillRect(0, GROUND_Y + 4, W, H - GROUND_Y - 4);
-  ctx.fillStyle = '#7B8794';
+  // Sidewalk (zone-colored)
+  ctx.fillStyle = currentZone.sidewalkColor; ctx.fillRect(0, GROUND_Y, W, 4);
+  ctx.fillStyle = currentZone.groundColor; ctx.fillRect(0, GROUND_Y + 4, W, H - GROUND_Y - 4);
+  ctx.fillStyle = currentZone.sidewalkLineColor;
   for (let lx = (-cam.x % 80) - 80; lx < W + 80; lx += 80) ctx.fillRect(lx, GROUND_Y + 4, 2, H - GROUND_Y - 4);
 
   // Bus stop NPCs (drawn after sidewalk so legs aren't covered)
@@ -1993,6 +2718,16 @@ function render(dt) {
     if (npc.state === 'gone') continue;
     const sx = npc.x - cam.x;
     if (sx < -100 || sx > W + 100) continue;
+
+    // Prestige 4+: NPC glow aura
+    if (prestigeLevel >= 4 && npc.state !== 'ko' && npc.state !== 'fleeing') {
+      ctx.save();
+      ctx.shadowColor = npc.color || '#FF6B6B';
+      ctx.shadowBlur = 8 + prestigeLevel * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.beginPath(); ctx.arc(sx, GROUND_Y - npc.h / 2, npc.w * 0.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
 
     if (npc.state === 'ko') {
       ctx.save(); ctx.translate(sx, GROUND_Y);
@@ -2052,6 +2787,37 @@ function render(dt) {
     ctx.globalAlpha = 1;
   }
 
+  // Zone color grading
+  if (currentZone.skyTint) {
+    ctx.fillStyle = currentZone.skyTint;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Prestige visual effects
+  if (prestigeLevel >= 1) {
+    // Radial vignette
+    const vigIntensity = Math.min(0.4, 0.15 * prestigeLevel);
+    const vigGrad = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.8);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, `rgba(0,0,0,${vigIntensity})`);
+    ctx.fillStyle = vigGrad;
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (prestigeLevel >= 2) {
+    // Scanline overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    for (let sy = 0; sy < H; sy += 3) ctx.fillRect(0, sy, W, 1);
+  }
+  if (prestigeLevel >= 3) {
+    // Chromatic aberration (red/blue offset strips)
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = 0.03 * Math.min(prestigeLevel - 2, 3);
+    ctx.fillStyle = '#FF0000'; ctx.fillRect(-2, 0, W, H);
+    ctx.fillStyle = '#0000FF'; ctx.fillRect(2, 0, W, H);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
   // ── HUD ──
   const hudL = 10 + HUD_INSET; // left edge, shifted inward past sidebar overlap
   const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
@@ -2062,6 +2828,13 @@ function render(dt) {
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, hudY, scoreW, hudH, hudR);
   ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
   ctx.fillText(`SCORE: ${score}`, hudL + 10, hudTextY);
+
+  // X position counter
+  const xHudY = hudY + hudH + 4;
+  const xW = scoreW;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(ctx, hudL, xHudY, xW, hudH, hudR);
+  ctx.fillStyle = '#9CA3AF'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
+  ctx.fillText(`X: ${Math.round(player.x)}`, hudL + 10, xHudY + Math.round(23 * UI_S));
 
   // Teabag KO counter
   const koX = hudL + scoreW + 10;
@@ -2139,51 +2912,202 @@ function render(dt) {
 
   if (!isMobile) {
     ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
-    ctx.fillText('WASD/Arrows: Move+Jump (2x!) | Double-tap dir: Sprint | \u2193/Space: Crouch | T: Touch UI', W - 10, H - 10);
+    ctx.fillText('WASD/Arrows: Move+Jump (2x!) | Double-tap dir: Sprint | \u2193/Space: Crouch | ESC: Pause', W - 10, H - 10);
+  }
+
+  // Zone indicator pill (bottom-left, above KO tracker)
+  {
+    const zFont = Math.round(10 * UI_S);
+    const zY = H - Math.round(50 * UI_S);
+    const zText = currentZone.name;
+    ctx.font = `bold ${zFont}px monospace`; ctx.textAlign = 'left';
+    const tw = ctx.measureText(zText).width;
+    const zPad = Math.round(8 * UI_S);
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    roundRect(ctx, hudL, zY - zFont, tw + zPad * 2, zFont + zPad, 4);
+    ctx.fillStyle = currentZone.displayColor;
+    ctx.fillText(zText, hudL + zPad, zY);
+    // Prestige indicator
+    if (gameMode === 'campaign' && prestigeLevel > 0) {
+      ctx.fillStyle = '#FFD700';
+      ctx.fillText(`P${prestigeLevel}`, hudL + zPad + tw + 8, zY);
+    }
+  }
+
+  // Zone transition animation (big centered zone name)
+  if (zoneTransitionAnim) {
+    const zt = zoneTransitionAnim;
+    const progress = 1 - zt.timer / zt.maxTimer;
+    let alpha;
+    if (progress < 0.2) alpha = progress / 0.2;
+    else if (progress > 0.7) alpha = (1 - progress) / 0.3;
+    else alpha = 1;
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillStyle = zt.color;
+    ctx.font = `bold ${Math.round(36 * UI_S)}px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(zt.zoneName.toUpperCase(), W / 2, H * 0.25);
+    ctx.globalAlpha = 1;
   }
 
   ctx.restore(); // undo SIDE_W translate
   ctx.restore(); // undo shake translate
 
+  // Pause overlay (drawn over everything including sidebars)
+  if (gameState === 'paused') {
+    ctx.save(); ctx.translate(GAME_OX, 0);
+    drawPauseMenu();
+    ctx.restore();
+  }
+
   drawSideBars();
   ctx.restore(); // undo scale
 }
 
-// ── Mountains (super slow parallax) ──
-const mountains = [];
-for (let i = 0; i < 30; i++) {
-  mountains.push({
-    x: i * 200 - 500 + rand(-40, 40),
-    w: rand(180, 350),
-    h: rand(80, 180),
-    color: i % 3 === 0 ? '#8B9EB0' : i % 3 === 1 ? '#7A8FA2' : '#96A8B8',
-    snowCap: rand(0.3, 0.5),
-    ridgeL: rand(-5, 5),
-    ridgeR: rand(-5, 5),
-  });
+// ── Zone Parallax Silhouettes ──
+const bgSilhouettes = {};
+
+function generateSilhouettes() {
+  // Skyscrapers (Downtown)
+  bgSilhouettes.skyscrapers = [];
+  for (let i = 0; i < 40; i++) {
+    bgSilhouettes.skyscrapers.push({
+      x: i * 160 - 500 + rand(-30, 30), w: rand(30, 60), h: rand(120, 280),
+      color: `rgba(60,70,90,${rand(0.3, 0.5)})`,
+    });
+  }
+  // Storefronts (Shopping)
+  bgSilhouettes.storefronts = [];
+  for (let i = 0; i < 40; i++) {
+    bgSilhouettes.storefronts.push({
+      x: i * 150 - 500 + rand(-20, 20), w: rand(60, 120), h: rand(60, 120),
+      color: `rgba(140,120,80,${rand(0.25, 0.4)})`,
+    });
+  }
+  // Treeline (Park)
+  bgSilhouettes.treeline = [];
+  for (let i = 0; i < 50; i++) {
+    bgSilhouettes.treeline.push({
+      x: i * 120 - 500 + rand(-30, 30), r: rand(30, 60),
+      type: Math.random() > 0.4 ? 'round' : 'triangle',
+      color: `rgba(40,100,50,${rand(0.3, 0.5)})`,
+    });
+  }
+  // Neon buildings (Red Light)
+  bgSilhouettes.neon_buildings = [];
+  for (let i = 0; i < 40; i++) {
+    const neonColors = ['#FF1493','#00FFFF','#FF4500','#FFD700','#FF00FF'];
+    bgSilhouettes.neon_buildings.push({
+      x: i * 155 - 500 + rand(-25, 25), w: rand(40, 80), h: rand(100, 220),
+      color: `rgba(30,15,40,${rand(0.35, 0.5)})`,
+      dots: Array.from({length: randInt(2, 6)}, () => ({
+        dx: rand(0.1, 0.9), dy: rand(0.1, 0.9),
+        color: neonColors[randInt(0, neonColors.length - 1)],
+      })),
+    });
+  }
+  // Factory (Industrial)
+  bgSilhouettes.factory = [];
+  for (let i = 0; i < 35; i++) {
+    bgSilhouettes.factory.push({
+      x: i * 180 - 500 + rand(-30, 30), w: rand(50, 100), h: rand(80, 200),
+      hasStack: Math.random() > 0.5, stackH: rand(40, 80),
+      color: `rgba(70,70,70,${rand(0.3, 0.5)})`,
+    });
+  }
+  // Houses (Suburbs)
+  bgSilhouettes.houses = [];
+  for (let i = 0; i < 45; i++) {
+    bgSilhouettes.houses.push({
+      x: i * 140 - 500 + rand(-25, 25), w: rand(40, 70), h: rand(40, 80),
+      roofH: rand(15, 30),
+      color: `rgba(120,100,80,${rand(0.25, 0.4)})`,
+    });
+  }
 }
-function drawMountains() {
-  for (const m of mountains) {
-    const mx = (m.x - cam.x * 0.05) % (W + 1200) - 300;
-    const baseY = GROUND_Y - 30;
-    // Mountain body
-    ctx.fillStyle = m.color;
-    ctx.beginPath();
-    ctx.moveTo(mx - m.w / 2, baseY);
-    ctx.lineTo(mx - m.w * 0.1 + m.ridgeL, baseY - m.h * 0.7);
-    ctx.lineTo(mx, baseY - m.h);
-    ctx.lineTo(mx + m.w * 0.15 + m.ridgeR, baseY - m.h * 0.65);
-    ctx.lineTo(mx + m.w / 2, baseY);
-    ctx.closePath();
-    ctx.fill();
-    // Snow cap
-    ctx.fillStyle = 'rgba(230,235,245,0.6)';
-    ctx.beginPath();
-    ctx.moveTo(mx - m.w * 0.08, baseY - m.h * (1 - m.snowCap * 0.3));
-    ctx.lineTo(mx, baseY - m.h);
-    ctx.lineTo(mx + m.w * 0.1, baseY - m.h * (1 - m.snowCap * 0.25));
-    ctx.closePath();
-    ctx.fill();
+generateSilhouettes();
+
+function drawZoneSilhouettes() {
+  const style = currentZone.bgStyle;
+  const shapes = bgSilhouettes[style];
+  if (!shapes) return;
+  const baseY = GROUND_Y - 30;
+  const wrapW = W + 1200;
+
+  if (style === 'skyscrapers') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
+      // Tiny window dots
+      ctx.fillStyle = 'rgba(255,228,161,0.15)';
+      for (let wy = 0; wy < s.h - 10; wy += 15) {
+        for (let wx = 4; wx < s.w - 4; wx += 10) {
+          ctx.fillRect(sx + wx, baseY - s.h + 8 + wy, 4, 6);
+        }
+      }
+    }
+  } else if (style === 'storefronts') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
+      // Awning lines
+      ctx.fillStyle = 'rgba(180,140,80,0.2)';
+      ctx.fillRect(sx, baseY - s.h, s.w, 6);
+    }
+  } else if (style === 'treeline') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      if (s.type === 'round') {
+        ctx.beginPath(); ctx.arc(sx, baseY - s.r * 0.5, s.r, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(sx - s.r * 0.7, baseY);
+        ctx.lineTo(sx, baseY - s.r * 1.5);
+        ctx.lineTo(sx + s.r * 0.7, baseY);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  } else if (style === 'neon_buildings') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
+      // Neon dots
+      for (const dot of s.dots) {
+        ctx.fillStyle = dot.color; ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.arc(sx + s.w * dot.dx, baseY - s.h + s.h * dot.dy, 2, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  } else if (style === 'factory') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
+      if (s.hasStack) {
+        ctx.fillRect(sx + s.w * 0.3, baseY - s.h - s.stackH, 8, s.stackH);
+        // Triangle top
+        ctx.beginPath();
+        ctx.moveTo(sx + s.w * 0.3 - 3, baseY - s.h - s.stackH);
+        ctx.lineTo(sx + s.w * 0.3 + 4, baseY - s.h - s.stackH - 8);
+        ctx.lineTo(sx + s.w * 0.3 + 11, baseY - s.h - s.stackH);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  } else if (style === 'houses') {
+    for (const s of shapes) {
+      const sx = ((s.x - cam.x * 0.05) % wrapW + wrapW) % wrapW - 300;
+      ctx.fillStyle = s.color;
+      ctx.fillRect(sx, baseY - s.h, s.w, s.h + 30);
+      // Triangle roof
+      ctx.beginPath();
+      ctx.moveTo(sx - 4, baseY - s.h);
+      ctx.lineTo(sx + s.w / 2, baseY - s.h - s.roofH);
+      ctx.lineTo(sx + s.w + 4, baseY - s.h);
+      ctx.closePath(); ctx.fill();
+    }
   }
 }
 
@@ -2323,6 +3247,172 @@ function drawTitleScreen() {
   }
 }
 
+// ── Mode Select Screen ──
+function drawModeSelect() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a2e'); grad.addColorStop(1, '#16213e');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(36 * UI_S)}px monospace`; ctx.textAlign = 'center';
+  ctx.fillText('SELECT MODE', W / 2, H * 0.18);
+
+  const opts = ['CAMPAIGN', 'ENDLESS'];
+  const descs = ['Linear zone progression with prestige looping', 'Pick a zone and play forever'];
+  for (let i = 0; i < 2; i++) {
+    const y = H * 0.38 + i * Math.round(100 * UI_S);
+    const selected = menuSelection === i;
+    const boxW = Math.round(360 * UI_S), boxH = Math.round(70 * UI_S);
+    ctx.fillStyle = selected ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)';
+    roundRect(ctx, W / 2 - boxW / 2, y - boxH / 2, boxW, boxH, 8);
+    if (selected) {
+      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+      ctx.strokeRect(W / 2 - boxW / 2, y - boxH / 2, boxW, boxH);
+    }
+    ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
+    ctx.font = `bold ${Math.round(22 * UI_S)}px monospace`;
+    ctx.fillText(opts[i], W / 2, y - 4);
+    ctx.fillStyle = selected ? '#ccc' : '#666';
+    ctx.font = `${Math.round(11 * UI_S)}px monospace`;
+    ctx.fillText(descs[i], W / 2, y + Math.round(18 * UI_S));
+  }
+
+  const t = performance.now() / 1000;
+  ctx.fillStyle = '#555'; ctx.font = `${Math.round(11 * UI_S)}px monospace`;
+  if (Math.sin(t * 3) > 0) {
+    ctx.fillText('W/S: Navigate | ENTER: Select', W / 2, H * 0.88);
+  }
+}
+
+// ── Zone Picker Screen ──
+function drawZonePicker() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a2e'); grad.addColorStop(1, '#16213e');
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(28 * UI_S)}px monospace`; ctx.textAlign = 'center';
+  ctx.fillText('SELECT ZONE', W / 2, H * 0.12);
+
+  const cardW = Math.round(120 * UI_S), cardH = Math.round(160 * UI_S);
+  const gap = Math.round(15 * UI_S);
+  const totalW = ZONES.length * cardW + (ZONES.length - 1) * gap;
+  const startX = W / 2 - totalW / 2;
+
+  for (let i = 0; i < ZONES.length; i++) {
+    const zone = ZONES[i];
+    const cx = startX + i * (cardW + gap) + cardW / 2;
+    const cy = H * 0.48;
+    const selected = zonePickerIndex === i;
+    const locked = !unlockedZones.includes(zone.id);
+
+    // Card background
+    ctx.fillStyle = selected ? 'rgba(255,215,0,0.12)' : 'rgba(255,255,255,0.04)';
+    roundRect(ctx, cx - cardW / 2, cy - cardH / 2, cardW, cardH, 8);
+
+    if (selected) {
+      ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2;
+      ctx.strokeRect(cx - cardW / 2, cy - cardH / 2, cardW, cardH);
+    }
+
+    if (locked) {
+      ctx.globalAlpha = 0.3;
+    }
+
+    // Zone color swatch
+    ctx.fillStyle = zone.displayColor;
+    roundRect(ctx, cx - cardW / 2 + 8, cy - cardH / 2 + 8, cardW - 16, cardH * 0.4, 4);
+
+    // Zone name
+    ctx.fillStyle = locked ? '#555' : '#fff';
+    ctx.font = `bold ${Math.round(10 * UI_S)}px monospace`;
+    ctx.fillText(zone.name, cx, cy + cardH * 0.1);
+
+    if (locked) {
+      ctx.fillStyle = '#FF6B6B';
+      ctx.font = `bold ${Math.round(14 * UI_S)}px monospace`;
+      ctx.fillText('LOCKED', cx, cy + cardH * 0.3);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = '#48BB78';
+      ctx.font = `${Math.round(8 * UI_S)}px monospace`;
+      ctx.fillText('UNLOCKED', cx, cy + cardH * 0.3);
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // Nav hints
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(24 * UI_S)}px monospace`;
+  ctx.fillText('\u25C0', startX - 25, H * 0.48);
+  ctx.fillText('\u25B6', startX + totalW + 25, H * 0.48);
+
+  const t = performance.now() / 1000;
+  ctx.fillStyle = '#555'; ctx.font = `${Math.round(11 * UI_S)}px monospace`;
+  if (Math.sin(t * 3) > 0) {
+    ctx.fillText('A/D: Browse | ENTER: Select | ESC: Back', W / 2, H * 0.88);
+  }
+}
+
+// ── Pause Menu ──
+function drawPauseMenu() {
+  // Semi-transparent overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(32 * UI_S)}px monospace`; ctx.textAlign = 'center';
+  ctx.fillText('PAUSED', W / 2, H * 0.12);
+
+  // Current zone & prestige
+  ctx.fillStyle = currentZone.displayColor; ctx.font = `bold ${Math.round(16 * UI_S)}px monospace`;
+  ctx.fillText(currentZone.name, W / 2, H * 0.20);
+  if (gameMode === 'campaign') {
+    ctx.fillStyle = '#FFD700'; ctx.font = `${Math.round(12 * UI_S)}px monospace`;
+    ctx.fillText(`Prestige Level: ${prestigeLevel}`, W / 2, H * 0.26);
+  }
+
+  // Full KO stats grid
+  ctx.fillStyle = '#fff'; ctx.font = `bold ${Math.round(14 * UI_S)}px monospace`;
+  ctx.fillText('KO STATS', W / 2, H * 0.34);
+
+  const allTypes = [
+    { key: '_pedestrian', label: 'Pedestrian', color: '#9CA3AF', group: PEDESTRIAN_TYPES },
+    ...CHARACTER_DEFS.filter(d => !PEDESTRIAN_TYPES.includes(d.name)).map(d => ({ key: d.name, label: d.label, color: d.trackerColor })),
+  ];
+  const cols = 4;
+  const colW = Math.round(200 * UI_S);
+  const rowH = Math.round(18 * UI_S);
+  const gridStartX = W / 2 - (cols * colW) / 2;
+  const gridStartY = H * 0.38;
+
+  for (let i = 0; i < allTypes.length; i++) {
+    const t = allTypes[i];
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = gridStartX + col * colW + 10;
+    const y = gridStartY + row * rowH;
+    const count = t.group ? t.group.reduce((s, k) => s + koTracker[k], 0) : (koTracker[t.key] || 0);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = t.color; ctx.font = `${Math.round(10 * UI_S)}px monospace`;
+    ctx.fillText(t.label, x, y);
+    ctx.fillStyle = count > 0 ? '#fff' : '#555';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${count}`, x + colW - 20, y);
+  }
+
+  // Totals
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FF6B6B'; ctx.font = `bold ${Math.round(14 * UI_S)}px monospace`;
+  const totalY = gridStartY + Math.ceil(allTypes.length / cols) * rowH + 15;
+  ctx.fillText(`Total KOs: ${totalKOs}  |  Score: ${score}`, W / 2, totalY);
+
+  // Resume prompt
+  const t2 = performance.now() / 1000;
+  if (Math.sin(t2 * 3) > 0) {
+    ctx.fillStyle = '#9CA3AF'; ctx.font = `${Math.round(12 * UI_S)}px monospace`;
+    ctx.fillText('ESC / P to resume', W / 2, H * 0.92);
+  }
+}
+
 // ── Main Loop ──
 function loop(timestamp) {
   const dt = Math.min((timestamp - lastTime) / 1000, 1 / 30);
@@ -2334,17 +3424,8 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-// Init
-for (let i = 0; i < 5; i++) spawnNPC(rand(100, 700));
-generateCity(-500, 1500);
-generatePlatforms(-500, 1500);
-// Seed initial cars on the road
-for (let i = 0; i < 8; i++) {
-  const def = pickCarDef();
-  const dir = Math.random() > 0.5 ? 1 : -1;
-  const color = def.name === 'bus' ? ['#D69E2E','#E53E3E','#2B6CB0'][randInt(0,2)] : CAR_COLORS[randInt(0, CAR_COLORS.length - 1)];
-  cars.push({ x: rand(-200, W + 400), dir, speed: rand(def.spdMin, def.spdMax), def, color });
-}
+// Init — set up default zone layout for title screen background
+initZoneLayout();
 
 requestAnimationFrame(ts => { lastTime = ts; loop(ts); });
 

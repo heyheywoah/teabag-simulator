@@ -649,7 +649,7 @@ function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
 let showTouch = isMobile;
-const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, anyActive: false };
+const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, anyActive: false, upJust: false, downJust: false, leftJust: false, rightJust: false, pauseJust: false };
 const touchIds = {}; // trackingId → buttonName
 
 // D-pad hit detection (left side bar)
@@ -670,11 +670,14 @@ const RIGHT_BAR_X = TOTAL_W - SIDE_W;
 const JUMP_CX = RIGHT_BAR_X + SIDE_W * 0.6, JUMP_CY = H * 0.42;
 const BAG_CX = RIGHT_BAR_X + SIDE_W * 0.4, BAG_CY = H * 0.65;
 const ACTION_R = 30, ACTION_HIT_R = 38;
+const PAUSE_CX = RIGHT_BAR_X + SIDE_W / 2, PAUSE_CY = H * 0.15, PAUSE_R = 18;
 function getActionBtn(tx, ty) {
   let dx = tx - JUMP_CX, dy = ty - JUMP_CY;
   if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'jump';
   dx = tx - BAG_CX; dy = ty - BAG_CY;
   if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'teabag';
+  dx = tx - PAUSE_CX; dy = ty - PAUSE_CY;
+  if (dx * dx + dy * dy <= (PAUSE_R + 6) * (PAUSE_R + 6)) return 'pause';
   return null;
 }
 
@@ -730,6 +733,7 @@ function applyTouch(btn, down) {
   if (btn === 'left') {
     touch.left = down;
     if (down) {
+      touch.leftJust = true;
       const now = performance.now() / 1000;
       if (now - touchDTap.left < DTAP_WINDOW) touch.sprint = true;
       touchDTap.left = now;
@@ -739,16 +743,18 @@ function applyTouch(btn, down) {
   else if (btn === 'right') {
     touch.right = down;
     if (down) {
+      touch.rightJust = true;
       const now = performance.now() / 1000;
       if (now - touchDTap.right < DTAP_WINDOW) touch.sprint = true;
       touchDTap.right = now;
     }
     if (!down && !touch.left) touch.sprint = false;
   }
-  else if (btn === 'up') { touch.jump = down; if (down) touch.jumpJust = true; }
-  else if (btn === 'down') touch.crouch = down;
+  else if (btn === 'up') { touch.jump = down; if (down) { touch.jumpJust = true; touch.upJust = true; } }
+  else if (btn === 'down') { touch.crouch = down; if (down) touch.downJust = true; }
   else if (btn === 'jump') { touch.jump = down; if (down) touch.jumpJust = true; }
   else if (btn === 'teabag') touch.crouch = down;
+  else if (btn === 'pause') { if (down) touch.pauseJust = true; }
 }
 
 canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -823,6 +829,14 @@ function drawSideBars() {
   ctx.beginPath(); ctx.arc(BAG_CX, BAG_CY, ACTION_R, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.font = 'bold 11px monospace';
   ctx.fillText('BAG', BAG_CX, BAG_CY);
+
+  // PAUSE button (small, top of right bar)
+  ctx.fillStyle = 'rgba(180,180,180,0.25)';
+  ctx.beginPath(); ctx.arc(PAUSE_CX, PAUSE_CY, PAUSE_R, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(180,180,180,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(PAUSE_CX, PAUSE_CY, PAUSE_R, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = '#aaa'; ctx.fillRect(PAUSE_CX - 5, PAUSE_CY - 6, 4, 12);
+  ctx.fillRect(PAUSE_CX + 1, PAUSE_CY - 6, 4, 12);
 
   ctx.textBaseline = 'alphabetic';
 }
@@ -1113,8 +1127,8 @@ const bgBuildings = [];
 const props = [];
 let cityGenRight = -200;
 let cityGenLeft = -200;
-let bgGenRight = -600; // BG needs a wider range due to slower parallax
-let bgGenLeft = -600;
+let bgGenRight = -200;
+let bgGenLeft = -200;
 
 const WINDOW_OFF = '#4A5568';
 
@@ -1231,7 +1245,7 @@ function generateCity(leftBound, rightBound) {
     else cityGenLeft -= randInt(50, 100);
   }
   // BG buildings (parallax 0.3) — rightward
-  const bgRightBound = rightBound / 0.3 + 800;
+  const bgRightBound = rightBound + W / 0.3;
   while (bgGenRight < bgRightBound) {
     const zone = getZoneAtX(bgGenRight).zone;
     bgBuildings.push(genBuilding(bgGenRight, 'bg', zone));
@@ -1241,7 +1255,7 @@ function generateCity(leftBound, rightBound) {
     else bgGenRight += randInt(35, 80);
   }
   // BG buildings — leftward
-  const bgLeftBound = leftBound / 0.3 - 800;
+  const bgLeftBound = leftBound - W / 0.3;
   while (bgGenLeft > bgLeftBound) {
     const bw = randInt(50, 120);
     bgGenLeft -= bw;
@@ -2330,6 +2344,7 @@ let gameState = 'title'; // 'title' | 'modeselect' | 'zonepicker' | 'playing' | 
 let titleBlink = 0;
 let lastTime = 0;
 let menuSelection = 0; // For mode select / zone picker navigation
+let pauseSelection = 0; // 0 = resume, 1 = quit to menu
 let zonePickerIndex = 0;
 
 // ── Update ──
@@ -2353,7 +2368,7 @@ function startGame() {
   for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
   const startX = player.x;
   cityGenRight = startX - 200; cityGenLeft = startX - 200;
-  bgGenRight = (startX - 200) / 0.3 - 800; bgGenLeft = (startX - 200) / 0.3 - 800;
+  bgGenRight = startX - 200; bgGenLeft = startX - 200;
   platGenRight = startX - 200; platGenLeft = startX - 200;
   cam.x = startX - W * 0.35; cam.targetX = cam.x;
   currentZone = getZoneAtX(startX).zone;
@@ -2393,7 +2408,7 @@ function triggerPrestige() {
   props.length = 0; platforms.length = 0;
   const startX = player.x;
   cityGenRight = startX - 200; cityGenLeft = startX - 200;
-  bgGenRight = (startX - 200) / 0.3 - 800; bgGenLeft = (startX - 200) / 0.3 - 800;
+  bgGenRight = startX - 200; bgGenLeft = startX - 200;
   platGenRight = startX - 200; platGenLeft = startX - 200;
   generateCity(cam.x - 500, cam.x + W + 500);
   generatePlatforms(cam.x - 500, cam.x + W + 500);
@@ -2411,17 +2426,15 @@ function update(dt) {
   }
 
   if (gameState === 'modeselect') {
-    if (wasPressed('W') || wasPressed('S')) {
+    if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
       menuSelection = menuSelection === 0 ? 1 : 0;
     }
-    if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D')) {
+    if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D') || touch.jumpJust) {
       if (menuSelection === 0) {
-        // Campaign
         gameMode = 'campaign';
         prestigeLevel = 0;
         startGame();
       } else {
-        // Endless
         gameMode = 'endless';
         zonePickerIndex = 0;
         gameState = 'zonepicker';
@@ -2431,35 +2444,42 @@ function update(dt) {
   }
 
   if (gameState === 'zonepicker') {
-    if (wasPressed('A')) {
+    if (wasPressed('A') || touch.leftJust) {
       zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
     }
-    if (wasPressed('D')) {
+    if (wasPressed('D') || touch.rightJust) {
       zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
     }
-    if (justPressed['Enter'] || justPressed['Space']) {
+    if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
       const zone = ZONES[zonePickerIndex];
       if (unlockedZones.includes(zone.id)) {
         endlessZoneId = zone.id;
         startGame();
       }
     }
-    if (justPressed['Escape']) {
+    if (justPressed['Escape'] || touch.downJust) {
       gameState = 'modeselect';
     }
     return;
   }
 
   if (gameState === 'paused') {
-    if (justPressed['Escape'] || justPressed['KeyP']) {
+    if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
+      pauseSelection = pauseSelection === 0 ? 1 : 0;
+    }
+    if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
       gameState = 'playing';
+    }
+    if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
+      if (pauseSelection === 0) gameState = 'playing';
+      else { gameState = 'modeselect'; menuSelection = 0; }
     }
     return;
   }
 
   // Playing - check for pause
-  if (justPressed['Escape'] || justPressed['KeyP']) {
-    gameState = 'paused';
+  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
+    gameState = 'paused'; pauseSelection = 0;
     return;
   }
 
@@ -3499,7 +3519,7 @@ function drawModeSelect() {
   const t = performance.now() / 1000;
   ctx.fillStyle = '#555'; ctx.font = `${Math.round(11 * UI_S)}px monospace`;
   if (Math.sin(t * 3) > 0) {
-    ctx.fillText('W/S: Navigate | ENTER: Select', W / 2, H * 0.88);
+    ctx.fillText(isMobile ? 'D-pad: Navigate | JUMP: Select' : 'W/S: Navigate | ENTER: Select', W / 2, H * 0.88);
   }
 }
 
@@ -3568,7 +3588,7 @@ function drawZonePicker() {
   const t = performance.now() / 1000;
   ctx.fillStyle = '#555'; ctx.font = `${Math.round(11 * UI_S)}px monospace`;
   if (Math.sin(t * 3) > 0) {
-    ctx.fillText('A/D: Browse | ENTER: Select | ESC: Back', W / 2, H * 0.88);
+    ctx.fillText(isMobile ? 'L/R: Browse | JUMP: Select | DOWN: Back' : 'A/D: Browse | ENTER: Select | ESC: Back', W / 2, H * 0.88);
   }
 }
 
@@ -3625,11 +3645,24 @@ function drawPauseMenu() {
   const totalY = gridStartY + Math.ceil(allTypes.length / cols) * rowH + 15;
   ctx.fillText(`Total KOs: ${totalKOs}  |  Score: ${score}`, W / 2, totalY);
 
-  // Resume prompt
+  // Resume / Quit buttons
+  const menuOpts = ['RESUME', 'QUIT TO MENU'];
+  for (let i = 0; i < 2; i++) {
+    const y = totalY + Math.round(40 * UI_S) + i * Math.round(36 * UI_S);
+    const selected = pauseSelection === i;
+    const boxW = Math.round(220 * UI_S), boxH = Math.round(28 * UI_S);
+    ctx.fillStyle = selected ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)';
+    roundRect(ctx, W / 2 - boxW / 2, y - boxH / 2, boxW, boxH, 6);
+    if (selected) { ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - boxW / 2, y - boxH / 2, boxW, boxH); }
+    ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
+    ctx.font = `bold ${Math.round(13 * UI_S)}px monospace`;
+    ctx.fillText(menuOpts[i], W / 2, y + 4);
+  }
+
   const t2 = performance.now() / 1000;
   if (Math.sin(t2 * 3) > 0) {
-    ctx.fillStyle = '#9CA3AF'; ctx.font = `${Math.round(12 * UI_S)}px monospace`;
-    ctx.fillText('ESC / P to resume', W / 2, H * 0.92);
+    ctx.fillStyle = '#555'; ctx.font = `${Math.round(10 * UI_S)}px monospace`;
+    ctx.fillText(isMobile ? 'D-pad: Navigate | JUMP: Select' : 'W/S: Navigate | ENTER: Select | ESC: Resume', W / 2, H * 0.94);
   }
 }
 
@@ -3640,7 +3673,8 @@ function loop(timestamp) {
   update(dt);
   render(dt);
   for (const k in justPressed) delete justPressed[k];
-  touch.jumpJust = false;
+  touch.jumpJust = false; touch.upJust = false; touch.downJust = false;
+  touch.leftJust = false; touch.rightJust = false; touch.pauseJust = false;
   requestAnimationFrame(loop);
 }
 

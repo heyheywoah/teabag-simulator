@@ -18,7 +18,286 @@
 </head>
 <body>
 <canvas id="c"></canvas>
+<script src="sfx/sounds.js"></script>
 <script>
+// ── SFX Engine ──
+let sfxAC = null;
+let sfxVolume = 0.6;
+let sfxMuted = false;
+const sfxNoiseBuffers = {};
+
+function sfxCtx() {
+  if (!sfxAC) sfxAC = new (window.AudioContext || window.webkitAudioContext)();
+  if (sfxAC.state === 'suspended') sfxAC.resume();
+  return sfxAC;
+}
+
+function sfxInitNoise() {
+  if (sfxNoiseBuffers.white) return;
+  const a = sfxCtx(), sr = a.sampleRate, len = sr;
+  const white = a.createBuffer(1, len, sr);
+  const wd = white.getChannelData(0);
+  for (let i = 0; i < len; i++) wd[i] = Math.random() * 2 - 1;
+  sfxNoiseBuffers.white = white;
+  const pink = a.createBuffer(1, len, sr);
+  const pd = pink.getChannelData(0);
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+    b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+    b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+    pd[i]=(b0+b1+b2+b3+b4+b5+b6+w*0.5362)*0.11; b6=w*0.115926;
+  }
+  sfxNoiseBuffers.pink = pink;
+  const brown = a.createBuffer(1, len, sr);
+  const bd = brown.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    last = last + 0.02 * w;
+    if (last > 1) last = 1; if (last < -1) last = -1;
+    bd[i] = last * 3.5;
+  }
+  sfxNoiseBuffers.brown = brown;
+}
+
+function sfxMakeCurve(type, drive) {
+  const n = 4096, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = (i/(n-1))*2-1;
+    if (type === 'softclip') c[i] = Math.tanh(drive * x);
+    else if (type === 'hardclip') c[i] = Math.max(-1, Math.min(1, drive * x));
+    else if (type === 'foldback') c[i] = Math.sin(drive * x * Math.PI);
+    else c[i] = x;
+  }
+  return c;
+}
+
+function sfxReverbIR(decay, sr) {
+  const len = Math.floor(sr * decay);
+  const buf = sfxCtx().createBuffer(2, len, sr);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, decay*2);
+  }
+  return buf;
+}
+
+function playSFX(id) {
+  if (sfxMuted || sfxVolume <= 0) return;
+  if (typeof SOUND_DEFS === 'undefined' || !SOUND_DEFS[id]) return;
+  const a = sfxCtx();
+  sfxInitNoise();
+  const snd = SOUND_DEFS[id];
+  const env = snd.envelope;
+  const now = a.currentTime;
+  const dur = snd.duration;
+  const vol = snd.masterVolume * sfxVolume;
+  const FADE = 0.003; // 3ms anti-click fade
+  const endTime = now + dur + env.release + 0.5;
+
+  // Master gain with ADSR + anti-click fades
+  const masterGain = a.createGain();
+  const safeRelease = Math.max(env.release, FADE);
+  masterGain.gain.setValueAtTime(0, now);
+  masterGain.gain.linearRampToValueAtTime(vol, now + Math.max(env.attack, FADE));
+  const susVol = Math.max(0.0001, vol * env.sustain);
+  masterGain.gain.linearRampToValueAtTime(susVol, now + env.attack + env.decay);
+  masterGain.gain.setValueAtTime(susVol, now + dur);
+  masterGain.gain.linearRampToValueAtTime(0.0001, now + dur + safeRelease);
+  // Hard zero to guarantee silence before nodes stop
+  masterGain.gain.setValueAtTime(0, now + dur + safeRelease + 0.001);
+
+  // Build effects chain (backwards from destination)
+  let chainTip = a.destination;
+  const stops = [];
+
+  // Reverb
+  if (snd.reverb && snd.reverb.enabled) {
+    const ir = sfxReverbIR(snd.reverb.decay, a.sampleRate);
+    const conv = a.createConvolver(); conv.buffer = ir;
+    const dG = a.createGain(); dG.gain.value = 1 - snd.reverb.mix;
+    const wG = a.createGain(); wG.gain.value = snd.reverb.mix;
+    const m = a.createGain(); m.connect(chainTip);
+    dG.connect(m); conv.connect(wG); wG.connect(m);
+    const sp = a.createGain(); sp.connect(dG); sp.connect(conv);
+    chainTip = sp;
+  }
+
+  // Delay
+  if (snd.delay && snd.delay.enabled) {
+    const dl = a.createDelay(1.0); dl.delayTime.value = snd.delay.time;
+    const fb = a.createGain(); fb.gain.value = snd.delay.feedback;
+    const dG = a.createGain(); dG.gain.value = 1 - snd.delay.mix;
+    const wG = a.createGain(); wG.gain.value = snd.delay.mix;
+    const m = a.createGain(); m.connect(chainTip);
+    dG.connect(m); dl.connect(fb); fb.connect(dl); dl.connect(wG); wG.connect(m);
+    const sp = a.createGain(); sp.connect(dG); sp.connect(dl);
+    chainTip = sp;
+  }
+
+  // Compressor
+  if (snd.compressor && snd.compressor.enabled) {
+    const c = a.createDynamicsCompressor();
+    c.threshold.value = snd.compressor.threshold;
+    c.knee.value = snd.compressor.knee;
+    c.ratio.value = snd.compressor.ratio;
+    c.attack.value = snd.compressor.attack;
+    c.release.value = snd.compressor.release;
+    c.connect(chainTip); chainTip = c;
+  }
+
+  // Phaser
+  if (snd.phaser && snd.phaser.enabled) {
+    const stages = snd.phaser.stages || 4;
+    const out = a.createGain(); out.connect(chainTip);
+    const filters = [];
+    let prev = null;
+    for (let i = 0; i < stages; i++) {
+      const ap = a.createBiquadFilter(); ap.type = 'allpass'; ap.frequency.value = 1000; ap.Q.value = 0.5;
+      filters.push(ap);
+      if (prev) prev.connect(ap);
+      prev = ap;
+    }
+    prev.connect(out);
+    const fbG = a.createGain(); fbG.gain.value = snd.phaser.feedback;
+    prev.connect(fbG); fbG.connect(filters[0]);
+    const inp = a.createGain(); inp.connect(filters[0]); inp.connect(out);
+    const lfo = a.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = snd.phaser.rate;
+    for (const f of filters) { const g = a.createGain(); g.gain.value = snd.phaser.depth; lfo.connect(g); g.connect(f.frequency); }
+    lfo.start(now); lfo.stop(endTime); stops.push(lfo);
+    chainTip = inp;
+  }
+
+  // Chorus
+  if (snd.chorus && snd.chorus.enabled) {
+    const cd = a.createDelay(0.1); cd.delayTime.value = 0.01;
+    const lfo = a.createOscillator(); lfo.type = 'sine'; lfo.frequency.value = snd.chorus.rate;
+    const lg = a.createGain(); lg.gain.value = snd.chorus.depth;
+    lfo.connect(lg); lg.connect(cd.delayTime);
+    const dG = a.createGain(); dG.gain.value = 1 - snd.chorus.mix;
+    const wG = a.createGain(); wG.gain.value = snd.chorus.mix;
+    const m = a.createGain(); m.connect(chainTip);
+    dG.connect(m); cd.connect(wG); wG.connect(m);
+    const sp = a.createGain(); sp.connect(dG); sp.connect(cd);
+    lfo.start(now); lfo.stop(endTime); stops.push(lfo);
+    chainTip = sp;
+  }
+
+  // EQ
+  if (snd.eq && snd.eq.enabled) {
+    const lo = a.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = snd.eq.lowFreq; lo.gain.value = snd.eq.lowGain;
+    const mi = a.createBiquadFilter(); mi.type = 'peaking'; mi.frequency.value = snd.eq.midFreq; mi.gain.value = snd.eq.midGain; mi.Q.value = snd.eq.midQ;
+    const hi = a.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = snd.eq.highFreq; hi.gain.value = snd.eq.highGain;
+    lo.connect(mi); mi.connect(hi); hi.connect(chainTip); chainTip = lo;
+  }
+
+  // Distortion
+  if (snd.distortion && snd.distortion.enabled) {
+    const ws = a.createWaveShaper(); ws.curve = sfxMakeCurve(snd.distortion.curve, snd.distortion.drive); ws.oversample = '2x';
+    const dG = a.createGain(); dG.gain.value = 1 - snd.distortion.mix;
+    const wG = a.createGain(); wG.gain.value = snd.distortion.mix;
+    const m = a.createGain(); m.connect(chainTip);
+    dG.connect(m); ws.connect(wG); wG.connect(m);
+    const sp = a.createGain(); sp.connect(dG); sp.connect(ws);
+    chainTip = sp;
+  }
+
+  // Tremolo
+  if (snd.tremolo && snd.tremolo.enabled) {
+    const tg = a.createGain(); tg.gain.value = 1 - snd.tremolo.depth * 0.5;
+    const lfo = a.createOscillator(); lfo.type = snd.tremolo.wave; lfo.frequency.value = snd.tremolo.rate;
+    const lg = a.createGain(); lg.gain.value = snd.tremolo.depth * 0.5;
+    lfo.connect(lg); lg.connect(tg.gain);
+    tg.connect(chainTip); lfo.start(now); lfo.stop(endTime); stops.push(lfo);
+    chainTip = tg;
+  }
+
+  masterGain.connect(chainTip);
+
+  // Build layers
+  (snd.layers || []).forEach(layer => {
+    if (!layer.enabled) return;
+    const lg = a.createGain(); lg.gain.value = layer.gain;
+    let tip = lg;
+
+    // LFO → gain
+    if (layer.lfo && layer.lfo.enabled && layer.lfo.dest === 'gain') {
+      const o = a.createOscillator(); o.type = layer.lfo.wave; o.frequency.value = layer.lfo.rate;
+      const g = a.createGain(); g.gain.value = layer.lfo.depth * layer.gain;
+      o.connect(g); g.connect(lg.gain); o.start(now); o.stop(endTime); stops.push(o);
+    }
+
+    // Filter
+    if (layer.filter && layer.filter.enabled) {
+      const f = a.createBiquadFilter(); f.type = layer.filter.type; f.frequency.value = layer.filter.freq; f.Q.value = layer.filter.Q;
+      if (layer.filter.envAmount) {
+        const sf = Math.max(20, Math.min(20000, layer.filter.freq + layer.filter.envAmount));
+        f.frequency.setValueAtTime(sf, now);
+        f.frequency.linearRampToValueAtTime(layer.filter.freq, now + env.attack + env.decay);
+      }
+      if (layer.lfo && layer.lfo.enabled && layer.lfo.dest === 'filter') {
+        const o = a.createOscillator(); o.type = layer.lfo.wave; o.frequency.value = layer.lfo.rate;
+        const g = a.createGain(); g.gain.value = layer.lfo.depth * layer.filter.freq;
+        o.connect(g); g.connect(f.frequency); o.start(now); o.stop(endTime); stops.push(o);
+      }
+      f.connect(tip); tip = f;
+    }
+
+    // Waveshaper
+    if (layer.waveshaper && layer.waveshaper.enabled) {
+      const ws = a.createWaveShaper(); ws.curve = sfxMakeCurve(layer.waveshaper.curve, layer.waveshaper.drive); ws.oversample = '2x';
+      ws.connect(tip); tip = ws;
+    }
+
+    // Source
+    const isNoise = ['white','pink','brown'].includes(layer.source.type);
+    if (isNoise) {
+      const s = a.createBufferSource(); s.buffer = sfxNoiseBuffers[layer.source.type]; s.loop = true;
+      s.connect(tip); s.start(now); s.stop(endTime); stops.push(s);
+    } else if (layer.source.type === 'fm') {
+      const car = a.createOscillator(); car.type = 'sine';
+      car.frequency.setValueAtTime(layer.source.freqStart, now);
+      if (layer.source.freqEnd !== layer.source.freqStart) car.frequency.exponentialRampToValueAtTime(Math.max(1, layer.source.freqEnd), now + dur);
+      car.detune.value = layer.source.detune || 0;
+      const mod = a.createOscillator(); mod.type = 'sine';
+      mod.frequency.value = layer.source.freqStart * (layer.fm ? layer.fm.ratio : 2);
+      const mg = a.createGain(); mg.gain.value = layer.fm ? layer.fm.depth : 100;
+      mod.connect(mg); mg.connect(car.frequency);
+      if (layer.lfo && layer.lfo.enabled && layer.lfo.dest === 'pitch') {
+        const o = a.createOscillator(); o.type = layer.lfo.wave; o.frequency.value = layer.lfo.rate;
+        const g = a.createGain(); g.gain.value = layer.lfo.depth * 100;
+        o.connect(g); g.connect(car.detune); o.start(now); o.stop(endTime); stops.push(o);
+      }
+      car.connect(tip); car.start(now); car.stop(endTime); mod.start(now); mod.stop(endTime); stops.push(car, mod);
+    } else {
+      const o = a.createOscillator(); o.type = layer.source.type;
+      o.frequency.setValueAtTime(layer.source.freqStart, now);
+      if (layer.source.freqEnd !== layer.source.freqStart) o.frequency.exponentialRampToValueAtTime(Math.max(1, layer.source.freqEnd), now + dur);
+      o.detune.value = layer.source.detune || 0;
+      if (layer.lfo && layer.lfo.enabled && layer.lfo.dest === 'pitch') {
+        const l = a.createOscillator(); l.type = layer.lfo.wave; l.frequency.value = layer.lfo.rate;
+        const g = a.createGain(); g.gain.value = layer.lfo.depth * 100;
+        l.connect(g); g.connect(o.detune); l.start(now); l.stop(endTime); stops.push(l);
+      }
+      o.connect(tip); o.start(now); o.stop(endTime); stops.push(o);
+    }
+
+    lg.connect(masterGain);
+  });
+}
+
+// SFX settings persistence
+try {
+  const sfxSaved = JSON.parse(localStorage.getItem('teabag_sfx') || '{}');
+  if (sfxSaved.volume !== undefined) sfxVolume = sfxSaved.volume;
+  if (sfxSaved.muted !== undefined) sfxMuted = sfxSaved.muted;
+} catch(e) {}
+function saveSFXSettings() {
+  try { localStorage.setItem('teabag_sfx', JSON.stringify({ volume: sfxVolume, muted: sfxMuted })); } catch(e) {}
+}
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
@@ -2410,6 +2689,7 @@ function triggerPrestige() {
   generateCity(cam.x - 500, cam.x + W + 500);
   generatePlatforms(cam.x - 500, cam.x + W + 500);
   generateSilhouettes();
+  playSFX('prestige');
   centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: 3.0 };
   addShake(12, 0.5);
   spawnStars(player.x, player.y - 30, 20);
@@ -2425,8 +2705,10 @@ function update(dt) {
   if (gameState === 'modeselect') {
     if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
       menuSelection = menuSelection === 0 ? 1 : 0;
+      playSFX('menuNav');
     }
     if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D') || touch.jumpJust) {
+      playSFX('menuSelect');
       if (menuSelection === 0) {
         gameMode = 'campaign';
         prestigeLevel = 0;
@@ -2443,13 +2725,16 @@ function update(dt) {
   if (gameState === 'zonepicker') {
     if (wasPressed('A') || touch.leftJust) {
       zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
+      playSFX('menuNav');
     }
     if (wasPressed('D') || touch.rightJust) {
       zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
+      playSFX('menuNav');
     }
     if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
       const zone = ZONES[zonePickerIndex];
       if (unlockedZones.includes(zone.id)) {
+        playSFX('menuSelect');
         endlessZoneId = zone.id;
         startGame();
       }
@@ -2461,15 +2746,35 @@ function update(dt) {
   }
 
   if (gameState === 'paused') {
-    if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
-      pauseSelection = pauseSelection === 0 ? 1 : 0;
+    if (wasPressed('W') || touch.upJust) {
+      pauseSelection = (pauseSelection + 4 - 1) % 4;
+      playSFX('menuNav');
+    }
+    if (wasPressed('S') || touch.downJust) {
+      pauseSelection = (pauseSelection + 1) % 4;
+      playSFX('menuNav');
     }
     if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
       gameState = 'playing';
     }
     if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
-      if (pauseSelection === 0) gameState = 'playing';
-      else { gameState = 'modeselect'; menuSelection = 0; }
+      if (pauseSelection === 0) { playSFX('menuSelect'); gameState = 'playing'; }
+      else if (pauseSelection === 1) { // SFX Vol down/toggle mute
+        sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuSelect');
+      }
+      else if (pauseSelection === 2) { playSFX('menuSelect'); } // test volume
+      else if (pauseSelection === 3) { playSFX('menuSelect'); gameState = 'modeselect'; menuSelection = 0; }
+    }
+    // Left/Right adjusts volume on SFX row
+    if (pauseSelection === 1 || pauseSelection === 2) {
+      if (wasPressed('A') || touch.leftJust) {
+        if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+        if (pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
+      }
+      if (wasPressed('D') || touch.rightJust) {
+        if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+        if (pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
+      }
     }
     return;
   }
@@ -2550,12 +2855,14 @@ function update(dt) {
     p.squashX = isDoubleJump ? 1.15 : 1.25;
     p.dropThrough = false;
     if (isDoubleJump) {
+      playSFX('doubleJump');
       // Double jump puff — ring of dust at feet
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
         particles.push({ x: p.x + Math.cos(a) * 8, y: p.y + Math.sin(a) * 4, vx: Math.cos(a) * 60, vy: Math.sin(a) * 30 - 40, life: 0.25, maxLife: 0.25, size: rand(2, 4), color: '#ddd' });
       }
     } else {
+      playSFX('jump');
       spawnDust(p.x, p.y, 5, '#aaa');
     }
   }
@@ -2600,7 +2907,7 @@ function update(dt) {
 
     // Ground collision
     if (p.y >= GROUND_Y) {
-      if (p.vy > 200) { spawnDust(p.x, GROUND_Y, 4, '#aaa'); p.squashX = 0.75; }
+      if (p.vy > 200) { playSFX('land'); spawnDust(p.x, GROUND_Y, 4, '#aaa'); p.squashX = 0.75; }
       p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.dropThrough = false; p.jumpCount = 0;
       p.onRealGround = true;
       p.combo = 0; p.comboTimer = 0;
@@ -2634,11 +2941,13 @@ function update(dt) {
           p.comboTimer = 1.5;
           const dmg = TEABAG_DAMAGE + p.combo * 3;
           npc.health = Math.max(0, npc.health - dmg);
+          playSFX('teabagHit');
           spawnImpact(npc.x, npc.y - npc.h);
           addShake(3 + p.combo * 0.5, 0.1);
           spawnPopup(npc.x, npc.y - npc.h - 20, `-${dmg}`, '#FF6B6B');
           if (p.combo > 1) spawnPopup(npc.x, npc.y - npc.h - 40, `${p.combo}x COMBO`, '#FFD700');
           if (npc.health <= 0) {
+            playSFX('ko');
             npc.state = 'ko'; npc.koTimer = KO_DURATION;
             p.mountedNPC = null; p.vy = -380;
             // Buffer directional input for dismount
@@ -2687,6 +2996,7 @@ function update(dt) {
           p.crouchCycleActive = false; p.jumpCount = 0;
           p.onRealGround = false;
           if (p.chainTimer > 0) p.chainTimer = 3.0; // refresh timer on mount
+          playSFX('mount');
           spawnDust(npc.x, headY, 3, '#fff'); addShake(3, 0.1);
           // Aerial bonus (mounted while chain active)
           if (wasAerial && p.chainCombo > 0) {
@@ -2833,6 +3143,7 @@ function update(dt) {
   } else if (zoneResult.zone !== currentZone) {
     currentZone = zoneResult.zone;
     currentZoneIndex = zoneResult.index;
+    playSFX('zoneTransition');
     zoneTransitionAnim = { timer: 2.0, maxTimer: 2.0, zoneName: currentZone.name, color: currentZone.displayColor };
     // Unlock zone for endless mode
     if (gameMode === 'campaign' && !unlockedZones.includes(currentZone.id)) {
@@ -3654,18 +3965,52 @@ function drawPauseMenu() {
   const totalY = gridStartY + Math.ceil(allTypes.length / cols) * rowH + 15;
   ctx.fillText(`Total KOs: ${totalKOs}  |  Score: ${score}`, W / 2, totalY);
 
-  // Resume / Quit buttons
-  const menuOpts = ['RESUME', 'QUIT TO MENU'];
-  for (let i = 0; i < 2; i++) {
-    const y = totalY + Math.round(40 * UI_S) + i * Math.round(36 * UI_S);
+  // Menu options: Resume, SFX Mute, SFX Volume, Quit
+  const menuLabels = ['RESUME', sfxMuted ? 'SFX: MUTED' : 'SFX: ON', null, 'QUIT TO MENU'];
+  const rowH2 = Math.round(32 * UI_S);
+  for (let i = 0; i < 4; i++) {
+    const y = totalY + Math.round(36 * UI_S) + i * rowH2;
     const selected = pauseSelection === i;
-    const boxW = Math.round(220 * UI_S), boxH = Math.round(28 * UI_S);
+    const boxW = Math.round(240 * UI_S), boxH = Math.round(26 * UI_S);
     ctx.fillStyle = selected ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)';
     roundRect(ctx, W / 2 - boxW / 2, y - boxH / 2, boxW, boxH, 6);
     if (selected) { ctx.strokeStyle = '#FFD700'; ctx.lineWidth = 2; ctx.strokeRect(W / 2 - boxW / 2, y - boxH / 2, boxW, boxH); }
-    ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
-    ctx.font = `bold ${Math.round(13 * UI_S)}px monospace`;
-    ctx.fillText(menuOpts[i], W / 2, y + 4);
+
+    if (i === 2) {
+      // Volume slider row
+      ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
+      ctx.font = `bold ${Math.round(11 * UI_S)}px monospace`;
+      ctx.textAlign = 'left';
+      const sliderX = W / 2 - boxW / 2 + Math.round(12 * UI_S);
+      ctx.fillText('VOL', sliderX, y + 4);
+      // Draw slider track
+      const trackX = sliderX + Math.round(36 * UI_S);
+      const trackW = boxW - Math.round(60 * UI_S);
+      const trackY = y;
+      ctx.fillStyle = '#333';
+      roundRect(ctx, trackX, trackY - 3, trackW, 6, 3);
+      // Fill
+      ctx.fillStyle = sfxMuted ? '#555' : (selected ? '#FFD700' : '#4a8');
+      const fillW = trackW * sfxVolume;
+      roundRect(ctx, trackX, trackY - 3, fillW, 6, 3);
+      // Percent label
+      ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${Math.round(sfxVolume * 100)}%`, W / 2 + boxW / 2 - Math.round(10 * UI_S), y + 4);
+      ctx.textAlign = 'center';
+      if (selected) {
+        ctx.fillStyle = '#666'; ctx.font = `${Math.round(9 * UI_S)}px monospace`;
+        ctx.fillText('\u25C0 / \u25B6', W / 2, y + Math.round(16 * UI_S));
+      }
+    } else {
+      ctx.fillStyle = selected ? '#FFD700' : '#9CA3AF';
+      ctx.font = `bold ${Math.round(13 * UI_S)}px monospace`;
+      ctx.fillText(menuLabels[i], W / 2, y + 4);
+      if (i === 1 && selected) {
+        ctx.fillStyle = '#666'; ctx.font = `${Math.round(9 * UI_S)}px monospace`;
+        ctx.fillText('\u25C0 / \u25B6 to toggle', W / 2, y + Math.round(16 * UI_S));
+      }
+    }
   }
 
   const t2 = performance.now() / 1000;

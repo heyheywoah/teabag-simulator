@@ -366,6 +366,111 @@ const NPC_DESPAWN_DIST = 700;
 const MIN_NPCS_ON_SCREEN = 3;
 const MAX_NPCS = 10;
 
+// Central tuning surface for gameplay and HUD pacing.
+const TUNING = Object.freeze({
+  movement: Object.freeze({
+    airDecelFactor: 0.5,
+    maxAirJumps: 2,
+    sprintJumpBoost: 1.25,
+    doubleJumpForceMult: 0.85,
+    doubleJumpSquash: 1.15,
+    jumpSquash: 1.25,
+    variableJumpCutoffVy: -100,
+    variableJumpDamp: 0.92,
+    dropThroughNudge: 2,
+    platformLandSquash: 0.8,
+    hardLandSpeedThreshold: 200,
+    hardLandSquash: 0.75,
+    dropThroughClearance: 8,
+    squashRecoveryRate: 12,
+    walkAnimSpeed: 0.06,
+    walkAnimLerp: 8,
+    walkAnimMinSpeed: 10,
+    breathingRate: 2.5,
+    blinkMin: 2,
+    blinkMax: 5,
+    sprintTrailChanceThreshold: 0.5,
+    sprintTrailOffset: 15,
+    sprintTrailLife: 0.15,
+  }),
+  combat: Object.freeze({
+    mountBreakawayVy: -100,
+    comboTimerSeconds: 1.5,
+    comboDamageStep: 3,
+    comboHitShakeBase: 3,
+    comboHitShakePerCombo: 0.5,
+    comboHitShakeDuration: 0.1,
+    koDismountVy: -380,
+    dismountLateralSpeed: 180,
+    chainWindowSeconds: 3.0,
+    koBigShakeAmount: 14,
+    koNormalShakeAmount: 8,
+    koBigShakeDuration: 0.4,
+    koNormalShakeDuration: 0.25,
+    centerKoDuration: 1.5,
+    teabagPopupLife: 1.2,
+    mountShakeAmount: 3,
+    mountShakeDuration: 0.1,
+    aerialBonusBase: 50,
+  }),
+  spawn: Object.freeze({
+    npcBreathingRate: 2,
+    npcBlinkMin: 2,
+    npcBlinkMax: 5,
+    wanderRetargetChancePerSec: 0.3,
+    wanderSpeedMin: 20,
+    wanderSpeedMax: 60,
+    panicTimerMin: 0.3,
+    panicTimerMax: 0.8,
+    walkAnimSpeed: 0.05,
+    panicAnimSpeed: 0.08,
+    calmDownSeconds: 3.0,
+    calmWalkSpeedMin: 20,
+    calmWalkSpeedMax: 50,
+    fleeSpeedMin: 200,
+    fleeSpeedMax: 300,
+    fleeAnimSpeed: 0.1,
+    fleeFadePerSec: 0.4,
+    visibleSpawnMargin: 20,
+    offscreenSpawnMin: 120,
+    offscreenSpawnMax: 250,
+    sprintAheadDistance: 500,
+    sprintAheadMinCount: 2,
+    sprintSpawnMin: 400,
+    sprintSpawnMax: 600,
+    busStopPanicRangePad: 120,
+    busStopPanicWaveSpeed: 8,
+  }),
+  world: Object.freeze({
+    cameraLeadFactor: 0.35,
+    cameraFollowLerp: 4,
+    campaignLeftSoftWallPad: 500,
+    generationMargin: 400,
+  }),
+  uiTiming: Object.freeze({
+    postFXNightAlphaScale: 0.6,
+    vignettePerPrestige: 0.15,
+    vignetteMax: 0.4,
+    scanlineAlpha: 0.06,
+    chromaStrengthPerLevel: 0.03,
+    chainPulseMs: 150,
+    chainDangerSeconds: 1,
+    comboLabelBase: 20,
+    comboLabelPerStack: 2,
+    comboLabelY: 50,
+    centerKoPopInFraction: 0.15,
+    centerKoFadeOutSeconds: 0.4,
+    centerKoShadowOffset: 2,
+    centerKoYFactor: 0.38,
+    zoneTransitionDuration: 2.0,
+    zoneTransitionFadeInFraction: 0.2,
+    zoneTransitionFadeOutStart: 0.7,
+    zoneTransitionFadeOutSpan: 0.3,
+    zoneTransitionAlpha: 0.9,
+    zoneTransitionYFactor: 0.25,
+  }),
+});
+
 // ── Zone / Biome Definitions ──
 const ZONES = [
   {
@@ -2809,6 +2914,7 @@ function updatePauseState() {
 }
 
 function updatePlayerMovementAndJump(dt, p, onNPC) {
+  const mt = TUNING.movement;
   // Sprint — preserve momentum in air if we were sprinting at takeoff
   const wantsSprint = sprintDown() && !onNPC && !p.isCrouching;
   p.isSprinting = wantsSprint && p.onGround;
@@ -2827,7 +2933,7 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
       p.vx += moveDir * (p.onGround ? ACCEL : AIR_ACCEL) * dt;
       p.vx = clamp(p.vx, -maxSpeed, maxSpeed);
     } else {
-      const dec = p.onGround ? DECEL : AIR_ACCEL * 0.5;
+      const dec = p.onGround ? DECEL : AIR_ACCEL * mt.airDecelFactor;
       if (p.vx > 0) p.vx = Math.max(0, p.vx - dec * dt);
       else if (p.vx < 0) p.vx = Math.min(0, p.vx + dec * dt);
     }
@@ -2844,7 +2950,7 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
     p.dropThrough = true;
     p.onGround = false;
     p.onPlatform = null;
-    p.y += 2; // nudge below platform
+    p.y += mt.dropThroughNudge; // nudge below platform
   }
 
   // Coyote time
@@ -2856,21 +2962,21 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
   else p.jumpBuffer = Math.max(0, p.jumpBuffer - dt);
 
   // Jump (supports double jump)
-  if (p.jumpBuffer > 0 && (p.coyoteTimer > 0 || onNPC || p.jumpCount < 2)) {
+  if (p.jumpBuffer > 0 && (p.coyoteTimer > 0 || onNPC || p.jumpCount < mt.maxAirJumps)) {
     const isDoubleJump = !p.onGround && !onNPC && p.jumpCount >= 1;
     if (onNPC) {
       p.mountedNPC.state = p.mountedNPC.health > 0 ? 'panicking' : 'ko';
       p.mountedNPC = null;
     }
-    const sprintBoost = p.isSprinting ? 1.25 : 1.0;
-    p.vy = (isDoubleJump ? JUMP_FORCE * 0.85 : JUMP_FORCE) * sprintBoost;
+    const sprintBoost = p.isSprinting ? mt.sprintJumpBoost : 1.0;
+    p.vy = (isDoubleJump ? JUMP_FORCE * mt.doubleJumpForceMult : JUMP_FORCE) * sprintBoost;
     p.onGround = false;
     p.onPlatform = null;
     p.onRealGround = false;
     p.coyoteTimer = 0;
     p.jumpBuffer = 0;
     p.jumpCount++;
-    p.squashX = isDoubleJump ? 1.15 : 1.25;
+    p.squashX = isDoubleJump ? mt.doubleJumpSquash : mt.jumpSquash;
     p.dropThrough = false;
     if (isDoubleJump) {
       playSFX('doubleJump');
@@ -2886,7 +2992,7 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
   }
 
   // Variable jump height
-  if (!jumpPressed() && p.vy < -100) p.vy *= 0.92;
+  if (!jumpPressed() && p.vy < mt.variableJumpCutoffVy) p.vy *= mt.variableJumpDamp;
 
   // Physics (not mounted)
   if (!onNPC) {
@@ -2911,7 +3017,7 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
           p.onRealGround = false;
           if (prevFootY < plat.y - 2) {
             spawnDust(p.x, plat.y, 2, '#aaa');
-            p.squashX = 0.8;
+            p.squashX = mt.platformLandSquash;
           }
           break;
         }
@@ -2919,13 +3025,13 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
     }
 
     // Clear drop-through after clearing the dropped-from platform (land on next one)
-    if (p.dropThrough && p.y + PLAT_FEET_OFFSET > p.dropFromY + 8) p.dropThrough = false;
+    if (p.dropThrough && p.y + PLAT_FEET_OFFSET > p.dropFromY + mt.dropThroughClearance) p.dropThrough = false;
     // Reset drop-through when moving upward
     if (p.vy < 0) p.dropThrough = false;
 
     // Ground collision
     if (p.y >= GROUND_Y) {
-      if (p.vy > 200) { playSFX('land'); spawnDust(p.x, GROUND_Y, 4, '#aaa'); p.squashX = 0.75; }
+      if (p.vy > mt.hardLandSpeedThreshold) { playSFX('land'); spawnDust(p.x, GROUND_Y, 4, '#aaa'); p.squashX = mt.hardLandSquash; }
       p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.dropThrough = false; p.jumpCount = 0;
       p.onRealGround = true;
       p.combo = 0; p.comboTimer = 0;
@@ -2936,11 +3042,12 @@ function updatePlayerMovementAndJump(dt, p, onNPC) {
 }
 
 function updateMountedCombatState(p) {
+  const ct = TUNING.combat;
   // Mounted on NPC
   if (p.mountedNPC) {
     const npc = p.mountedNPC;
     if (npc.state === 'ko' || npc.state === 'fleeing' || npc.state === 'gone') {
-      p.mountedNPC = null; p.vy = -100;
+      p.mountedNPC = null; p.vy = ct.mountBreakawayVy;
     } else {
       // Feet on top of NPC head — y is foot position, npc.y - npc.h is head top
       p.x = npc.x;
@@ -2958,38 +3065,38 @@ function updateMountedCombatState(p) {
         const elapsed = performance.now() / 1000 - p.lastCrouchTime;
         if (elapsed < TEABAG_WINDOW) {
           p.combo++;
-          p.comboTimer = 1.5;
-          const dmg = TEABAG_DAMAGE + p.combo * 3;
+          p.comboTimer = ct.comboTimerSeconds;
+          const dmg = TEABAG_DAMAGE + p.combo * ct.comboDamageStep;
           npc.health = Math.max(0, npc.health - dmg);
           playSFX('teabagHit');
           spawnImpact(npc.x, npc.y - npc.h);
-          addShake(3 + p.combo * 0.5, 0.1);
+          addShake(ct.comboHitShakeBase + p.combo * ct.comboHitShakePerCombo, ct.comboHitShakeDuration);
           spawnPopup(npc.x, npc.y - npc.h - 20, `-${dmg}`, '#FF6B6B');
           if (p.combo > 1) spawnPopup(npc.x, npc.y - npc.h - 40, `${p.combo}x COMBO`, '#FFD700');
           if (npc.health <= 0) {
             playSFX('ko');
             npc.state = 'ko'; npc.koTimer = KO_DURATION;
-            p.mountedNPC = null; p.vy = -380;
+            p.mountedNPC = null; p.vy = ct.koDismountVy;
             // Buffer directional input for dismount
             let dismountDir = 0;
             if (isDown('A')) dismountDir -= 1;
             if (isDown('D')) dismountDir += 1;
-            p.vx = dismountDir * 180;
+            p.vx = dismountDir * ct.dismountLateralSpeed;
             if (dismountDir !== 0) p.facing = dismountDir;
             p.chainCombo++;
-            p.chainTimer = 3.0;
+            p.chainTimer = ct.chainWindowSeconds;
             if (p.chainCombo > bestChainCombo) { bestChainCombo = p.chainCombo; saveProgress(); }
             const koDef = CHAR_BY_NAME[npc.npcType];
             const isBigKO = koDef.isSpecial;
             spawnStars(npc.x, npc.y - npc.h, isBigKO ? 12 : 8);
-            addShake(isBigKO ? 14 : 8, isBigKO ? 0.4 : 0.25);
+            addShake(isBigKO ? ct.koBigShakeAmount : ct.koNormalShakeAmount, isBigKO ? ct.koBigShakeDuration : ct.koNormalShakeDuration);
             const chainMult = p.chainCombo > 1 ? p.chainCombo : 1;
             const baseScore = koDef.koScore ? koDef.koScore + p.combo * 100 : 100 + p.combo * 50;
             score += baseScore * chainMult;
             // Center screen big KO announcement for special types
-            if (koDef.koText) centerKO = { text: koDef.koText, color: koDef.koColor, timer: 1.5 };
+            if (koDef.koText) centerKO = { text: koDef.koText, color: koDef.koColor, timer: ct.centerKoDuration };
             // Teabag icon spawned as special particle
-            popups.push({ x: npc.x, y: npc.y - npc.h - 25, text: null, teabag: true, life: 1.2, maxLife: 1.2 });
+            popups.push({ x: npc.x, y: npc.y - npc.h - 25, text: null, teabag: true, life: ct.teabagPopupLife, maxLife: ct.teabagPopupLife });
             if (p.chainCombo > 1) {
               spawnPopup(npc.x, npc.y - npc.h - 60, `CHAIN x${p.chainCombo}!`, '#00FFAA');
             }
@@ -3015,12 +3122,12 @@ function updateMountedCombatState(p) {
           // Don't reset combo on mount — air combos can continue!
           p.crouchCycleActive = false; p.jumpCount = 0;
           p.onRealGround = false;
-          if (p.chainTimer > 0) p.chainTimer = 3.0; // refresh timer on mount
+          if (p.chainTimer > 0) p.chainTimer = ct.chainWindowSeconds; // refresh timer on mount
           playSFX('mount');
-          spawnDust(npc.x, headY, 3, '#fff'); addShake(3, 0.1);
+          spawnDust(npc.x, headY, 3, '#fff'); addShake(ct.mountShakeAmount, ct.mountShakeDuration);
           // Aerial bonus (mounted while chain active)
           if (wasAerial && p.chainCombo > 0) {
-            const bonus = 50 * (p.chainCombo + 1);
+            const bonus = ct.aerialBonusBase * (p.chainCombo + 1);
             score += bonus;
             spawnPopup(npc.x, headY - 40, `AERIAL +${bonus}`, '#00DDFF');
           }
@@ -3033,29 +3140,30 @@ function updateMountedCombatState(p) {
 }
 
 function updatePlayerTimersAndFX(dt, p, onNPC) {
+  const mt = TUNING.movement;
   // Combo timer — pauses while airborne (platform/NPC counts as air)
   if (p.comboTimer > 0 && p.onRealGround) { p.comboTimer -= dt; if (p.comboTimer <= 0) p.combo = 0; }
-  // Chain combo timer — must mount another NPC within 3s of a KO
+  // Chain combo timer — must mount another NPC before chain window expires
   if (p.chainTimer > 0 && !p.mountedNPC) { p.chainTimer -= dt; if (p.chainTimer <= 0) { p.chainCombo = 0; } }
   // Center KO announcement timer
   if (centerKO) { centerKO.timer -= dt; if (centerKO.timer <= 0) centerKO = null; }
 
   // Squash recovery
-  p.squashX = lerp(p.squashX, 1, dt * 12);
+  p.squashX = lerp(p.squashX, 1, dt * mt.squashRecoveryRate);
 
   // Walk animation
-  if (p.onGround && Math.abs(p.vx) > 10 && !onNPC) p.walkPhase += Math.abs(p.vx) * dt * 0.06;
-  else if (!onNPC) p.walkPhase = lerp(p.walkPhase, 0, dt * 8);
+  if (p.onGround && Math.abs(p.vx) > mt.walkAnimMinSpeed && !onNPC) p.walkPhase += Math.abs(p.vx) * dt * mt.walkAnimSpeed;
+  else if (!onNPC) p.walkPhase = lerp(p.walkPhase, 0, dt * mt.walkAnimLerp);
 
   // Breathing & blinking
-  p.breathPhase += dt * 2.5;
+  p.breathPhase += dt * mt.breathingRate;
   p.blinkTimer -= dt;
-  if (p.blinkTimer <= 0) p.blinkTimer = rand(2, 5);
+  if (p.blinkTimer <= 0) p.blinkTimer = rand(mt.blinkMin, mt.blinkMax);
 
   // Sprint lines
-  if (p.isSprinting && Math.abs(p.vx) > PLAYER_SPEED && Math.random() > 0.5) {
-    particles.push({ x: p.x - p.facing * 15 + rand(-5, 5), y: p.y - p.h / 2 + rand(-10, 10),
-      vx: -p.facing * rand(40, 100), vy: rand(-10, 10), life: 0.15, maxLife: 0.15, size: rand(1, 2), color: '#fff' });
+  if (p.isSprinting && Math.abs(p.vx) > PLAYER_SPEED && Math.random() > mt.sprintTrailChanceThreshold) {
+    particles.push({ x: p.x - p.facing * mt.sprintTrailOffset + rand(-5, 5), y: p.y - p.h / 2 + rand(-10, 10),
+      vx: -p.facing * rand(40, 100), vy: rand(-10, 10), life: mt.sprintTrailLife, maxLife: mt.sprintTrailLife, size: rand(1, 2), color: '#fff' });
   }
 }
 
@@ -3074,33 +3182,34 @@ function updatePlayerState(dt) {
 }
 
 function updateNPCFSM(dt, p) {
+  const st = TUNING.spawn;
   // ── NPC Update ──
   for (let i = npcs.length - 1; i >= 0; i--) {
     const npc = npcs[i];
-    npc.breathPhase += dt * 2;
+    npc.breathPhase += dt * st.npcBreathingRate;
     npc.blinkTimer -= dt;
-    if (npc.blinkTimer <= 0) npc.blinkTimer = rand(2, 5);
+    if (npc.blinkTimer <= 0) npc.blinkTimer = rand(st.npcBlinkMin, st.npcBlinkMax);
 
     switch (npc.state) {
       case 'walking':
         npc.x += npc.vx * dt;
-        npc.walkPhase += Math.abs(npc.vx) * dt * 0.05;
-        if (Math.random() < dt * 0.3) npc.vx = (Math.random() > 0.5 ? 1 : -1) * rand(20, 60);
+        npc.walkPhase += Math.abs(npc.vx) * dt * st.walkAnimSpeed;
+        if (Math.random() < dt * st.wanderRetargetChancePerSec) npc.vx = (Math.random() > 0.5 ? 1 : -1) * rand(st.wanderSpeedMin, st.wanderSpeedMax);
         npc.facing = npc.vx > 0 ? 1 : -1;
         break;
       case 'panicking':
         npc.panicTimer -= dt;
-        if (npc.panicTimer <= 0) { npc.panicDir *= -1; npc.panicTimer = rand(0.3, 0.8); }
+        if (npc.panicTimer <= 0) { npc.panicDir *= -1; npc.panicTimer = rand(st.panicTimerMin, st.panicTimerMax); }
         npc.vx = npc.panicDir * npc.panicSpeed;
         npc.x += npc.vx * dt;
         npc.facing = npc.vx > 0 ? 1 : -1;
-        npc.walkPhase += Math.abs(npc.vx) * dt * 0.08;
+        npc.walkPhase += Math.abs(npc.vx) * dt * st.panicAnimSpeed;
         // Calm down if not currently mounted (so player can re-mount)
         if (p.mountedNPC !== npc) {
           npc.calmTimer += dt;
-          if (npc.calmTimer > 3.0) {
+          if (npc.calmTimer > st.calmDownSeconds) {
             npc.state = 'walking';
-            npc.vx = npc.facing * rand(20, 50);
+            npc.vx = npc.facing * rand(st.calmWalkSpeedMin, st.calmWalkSpeedMax);
             npc.calmTimer = 0;
           }
         } else {
@@ -3111,14 +3220,14 @@ function updateNPCFSM(dt, p) {
         npc.koTimer -= dt;
         if (npc.koTimer <= 0) {
           npc.state = 'fleeing';
-          npc.vx = (npc.x < p.x ? -1 : 1) * rand(200, 300);
+          npc.vx = (npc.x < p.x ? -1 : 1) * rand(st.fleeSpeedMin, st.fleeSpeedMax);
           npc.facing = npc.vx > 0 ? 1 : -1;
         }
         break;
       case 'fleeing':
         npc.x += npc.vx * dt;
-        npc.walkPhase += Math.abs(npc.vx) * dt * 0.1;
-        npc.fleeOpacity = Math.max(0, npc.fleeOpacity - dt * 0.4);
+        npc.walkPhase += Math.abs(npc.vx) * dt * st.fleeAnimSpeed;
+        npc.fleeOpacity = Math.max(0, npc.fleeOpacity - dt * st.fleeFadePerSec);
         if (npc.fleeOpacity <= 0) npc.state = 'gone';
         break;
       case 'gone':
@@ -3134,37 +3243,39 @@ function updateNPCFSM(dt, p) {
 }
 
 function updateNPCSpawning(p) {
+  const st = TUNING.spawn;
   // ── NPC Spawning — always keep NPCs nearby ──
   const activeNPCs = npcs.filter(n => n.state === 'walking' || n.state === 'panicking');
   const screenLeft = cam.x;
   const screenRight = cam.x + W;
-  const visibleNPCs = activeNPCs.filter(n => n.x > screenLeft - 20 && n.x < screenRight + 20);
+  const visibleNPCs = activeNPCs.filter(n => n.x > screenLeft - st.visibleSpawnMargin && n.x < screenRight + st.visibleSpawnMargin);
 
   if (visibleNPCs.length < MIN_NPCS_ON_SCREEN && npcs.length < MAX_NPCS) {
     // Spawn well off screen so they walk in naturally
     const side = Math.random() > 0.5 ? 1 : -1;
-    const spawnX = side > 0 ? screenRight + rand(120, 250) : screenLeft - rand(120, 250);
+    const spawnX = side > 0 ? screenRight + rand(st.offscreenSpawnMin, st.offscreenSpawnMax) : screenLeft - rand(st.offscreenSpawnMin, st.offscreenSpawnMax);
     spawnNPC(spawnX);
   }
   // Also spawn ahead of a sprinting player (in their facing direction)
   if (p.isSprinting && npcs.length < MAX_NPCS) {
     const dir = p.facing;
-    const ahead = activeNPCs.filter(n => dir > 0 ? (n.x > p.x && n.x < p.x + 500) : (n.x < p.x && n.x > p.x - 500));
-    if (ahead.length < 2) spawnNPC(p.x + dir * rand(400, 600));
+    const ahead = activeNPCs.filter(n => dir > 0 ? (n.x > p.x && n.x < p.x + st.sprintAheadDistance) : (n.x < p.x && n.x > p.x - st.sprintAheadDistance));
+    if (ahead.length < st.sprintAheadMinCount) spawnNPC(p.x + dir * rand(st.sprintSpawnMin, st.sprintSpawnMax));
   }
 }
 
 function updateBusStopAmbient(dt, p) {
+  const st = TUNING.spawn;
   // ── Bus Stop NPC Update ──
   for (const plat of platforms) {
     if (!plat.busStop) continue;
-    const nearMounting = p.mountedNPC && Math.abs(p.x - (plat.x + plat.w / 2)) < plat.w + 120;
+    const nearMounting = p.mountedNPC && Math.abs(p.x - (plat.x + plat.w / 2)) < plat.w + st.busStopPanicRangePad;
     for (const bNpc of plat.busStop.npcs) {
-      bNpc.breathPhase += dt * 2;
+      bNpc.breathPhase += dt * st.npcBreathingRate;
       bNpc.blinkTimer -= dt;
-      if (bNpc.blinkTimer <= 0) bNpc.blinkTimer = rand(2, 5);
+      if (bNpc.blinkTimer <= 0) bNpc.blinkTimer = rand(st.npcBlinkMin, st.npcBlinkMax);
       bNpc.panicState = nearMounting;
-      if (bNpc.panicState && bNpc.armsWave) bNpc.panicPhase += dt * 8;
+      if (bNpc.panicState && bNpc.armsWave) bNpc.panicPhase += dt * st.busStopPanicWaveSpeed;
     }
   }
 }
@@ -3176,13 +3287,15 @@ function updateNPCState(dt, p) {
 }
 
 function updateWorldState(dt, p) {
+  const ut = TUNING.uiTiming;
+  const wt = TUNING.world;
   // ── Camera ──
-  cam.targetX = p.x - W * 0.35;
-  cam.x = lerp(cam.x, cam.targetX, dt * 4);
+  cam.targetX = p.x - W * wt.cameraLeadFactor;
+  cam.x = lerp(cam.x, cam.targetX, dt * wt.cameraFollowLerp);
 
   // Campaign left-boundary soft wall
   if (gameMode === 'campaign' && zoneLayout.length > 0) {
-    const leftLimit = zoneLayout[0].startX - 500;
+    const leftLimit = zoneLayout[0].startX - wt.campaignLeftSoftWallPad;
     if (p.x < leftLimit) { p.x = leftLimit; if (p.vx < 0) p.vx = 0; }
   }
 
@@ -3194,7 +3307,7 @@ function updateWorldState(dt, p) {
     currentZone = zoneResult.zone;
     currentZoneIndex = zoneResult.index;
     playSFX('zoneTransition');
-    zoneTransitionAnim = { timer: 2.0, maxTimer: 2.0, zoneName: currentZone.name, color: currentZone.displayColor };
+    zoneTransitionAnim = { timer: ut.zoneTransitionDuration, maxTimer: ut.zoneTransitionDuration, zoneName: currentZone.name, color: currentZone.displayColor };
     // Unlock zone for endless mode
     if (gameMode === 'campaign' && !unlockedZones.includes(currentZone.id)) {
       unlockedZones.push(currentZone.id);
@@ -3208,8 +3321,8 @@ function updateWorldState(dt, p) {
   }
 
   // ── Generation ──
-  generateCity(cam.x - 400, cam.x + W + 400);
-  generatePlatforms(cam.x - 400, cam.x + W + 400);
+  generateCity(cam.x - wt.generationMargin, cam.x + W + wt.generationMargin);
+  generatePlatforms(cam.x - wt.generationMargin, cam.x + W + wt.generationMargin);
 
   dayTime = (dayTime + dt) % DAY_CYCLE;
   updateBirds(dt);
@@ -3439,9 +3552,10 @@ function renderEntityLayer() {
 }
 
 function renderPostFX(sky) {
+  const ut = TUNING.uiTiming;
   // Night ambient overlay (darkens everything below HUD)
   if (sky.amb > 0) {
-    ctx.globalAlpha = sky.amb * 0.6;
+    ctx.globalAlpha = sky.amb * ut.postFXNightAlphaScale;
     ctx.fillStyle = '#05051A';
     ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1;
@@ -3460,7 +3574,7 @@ function renderPostFX(sky) {
   // Prestige visual effects
   if (prestigeLevel >= 1) {
     // Radial vignette
-    const vigIntensity = Math.min(0.4, 0.15 * prestigeLevel);
+    const vigIntensity = Math.min(ut.vignetteMax, ut.vignettePerPrestige * prestigeLevel);
     const vigGrad = ctx.createRadialGradient(W/2, H/2, H * 0.3, W/2, H/2, H * 0.8);
     vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
     vigGrad.addColorStop(1, `rgba(0,0,0,${vigIntensity})`);
@@ -3469,13 +3583,13 @@ function renderPostFX(sky) {
   }
   if (prestigeLevel >= 2) {
     // Scanline overlay
-    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.fillStyle = `rgba(0,0,0,${ut.scanlineAlpha})`;
     for (let sy = 0; sy < H; sy += 3) ctx.fillRect(0, sy, W, 1);
   }
   if (prestigeLevel >= 3) {
     // Chromatic aberration (red/blue offset strips)
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.03 * Math.min(prestigeLevel - 2, 3);
+    ctx.globalAlpha = ut.chromaStrengthPerLevel * Math.min(prestigeLevel - 2, 3);
     ctx.fillStyle = '#FF0000'; ctx.fillRect(-2, 0, W, H);
     ctx.fillStyle = '#0000FF'; ctx.fillRect(2, 0, W, H);
     ctx.globalAlpha = 1;
@@ -3484,6 +3598,8 @@ function renderPostFX(sky) {
 }
 
 function renderHUDLayer() {
+  const ut = TUNING.uiTiming;
+  const ct = TUNING.combat;
   // ── HUD ──
   const hudL = 10 + HUD_INSET; // left edge, shifted inward past sidebar overlap
   const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
@@ -3511,15 +3627,15 @@ function renderHUDLayer() {
     roundRect(ctx, chainX, hudY, chainW, hudH, hudR);
     ctx.textBaseline = 'middle';
     if (player.chainCombo > 0) {
-      const pulse = 1 + Math.sin(performance.now() / 150) * 0.08;
+      const pulse = 1 + Math.sin(performance.now() / ut.chainPulseMs) * 0.08;
       ctx.fillStyle = '#00FFAA'; ctx.font = `bold ${Math.round(hudFont * pulse)}px monospace`; ctx.textAlign = 'left';
       ctx.fillText(`CHAIN x${player.chainCombo}`, chainX + 10, hudTextY);
       // Timer bar
       const barW = chainW - 20, barH = 3;
       const barY = hudY + hudH - 6;
       ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(chainX + 10, barY, barW, barH);
-      ctx.fillStyle = player.chainTimer > 1 ? '#00FFAA' : '#FF6B6B';
-      ctx.fillRect(chainX + 10, barY, barW * (player.chainTimer / 3), barH);
+      ctx.fillStyle = player.chainTimer > ut.chainDangerSeconds ? '#00FFAA' : '#FF6B6B';
+      ctx.fillRect(chainX + 10, barY, barW * (player.chainTimer / ct.chainWindowSeconds), barH);
     } else {
       ctx.fillStyle = '#fff'; ctx.font = `bold ${hudFont}px monospace`; ctx.textAlign = 'left';
       ctx.fillText(`BEST CHAIN: ${bestChainCombo}`, chainX + 10, hudTextY);
@@ -3529,25 +3645,25 @@ function renderHUDLayer() {
 
   if (player.combo > 0 && player.comboTimer > 0) {
     ctx.globalAlpha = Math.min(1, player.comboTimer);
-    ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round((20 + player.combo * 2) * UI_S)}px monospace`; ctx.textAlign = 'center';
-    ctx.fillText(`${player.combo}x COMBO`, W / 2, Math.round(50 * UI_S)); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round((ut.comboLabelBase + player.combo * ut.comboLabelPerStack) * UI_S)}px monospace`; ctx.textAlign = 'center';
+    ctx.fillText(`${player.combo}x COMBO`, W / 2, Math.round(ut.comboLabelY * UI_S)); ctx.globalAlpha = 1;
   }
 
   // Center screen big KO announcement
   if (centerKO) {
-    const progress = 1 - centerKO.timer / 1.5;
-    const scale = progress < 0.15 ? progress / 0.15 : 1; // quick pop in
-    const alpha = centerKO.timer < 0.4 ? centerKO.timer / 0.4 : 1; // fade out
+    const progress = 1 - centerKO.timer / ct.centerKoDuration;
+    const scale = progress < ut.centerKoPopInFraction ? progress / ut.centerKoPopInFraction : 1; // quick pop in
+    const alpha = centerKO.timer < ut.centerKoFadeOutSeconds ? centerKO.timer / ut.centerKoFadeOutSeconds : 1; // fade out
     ctx.globalAlpha = alpha;
     ctx.fillStyle = centerKO.color;
     ctx.font = `bold ${Math.round(42 * UI_S * scale)}px monospace`;
     ctx.textAlign = 'center';
-    ctx.fillText(centerKO.text, W / 2, H * 0.38);
+    ctx.fillText(centerKO.text, W / 2, H * ut.centerKoYFactor);
     // Shadow for readability
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillText(centerKO.text, W / 2 + 2, H * 0.38 + 2);
+    ctx.fillText(centerKO.text, W / 2 + ut.centerKoShadowOffset, H * ut.centerKoYFactor + ut.centerKoShadowOffset);
     ctx.fillStyle = centerKO.color;
-    ctx.fillText(centerKO.text, W / 2, H * 0.38);
+    ctx.fillText(centerKO.text, W / 2, H * ut.centerKoYFactor);
     ctx.globalAlpha = 1;
   }
 
@@ -3612,13 +3728,13 @@ function renderHUDLayer() {
     const zt = zoneTransitionAnim;
     const progress = 1 - zt.timer / zt.maxTimer;
     let alpha;
-    if (progress < 0.2) alpha = progress / 0.2;
-    else if (progress > 0.7) alpha = (1 - progress) / 0.3;
+    if (progress < ut.zoneTransitionFadeInFraction) alpha = progress / ut.zoneTransitionFadeInFraction;
+    else if (progress > ut.zoneTransitionFadeOutStart) alpha = (1 - progress) / ut.zoneTransitionFadeOutSpan;
     else alpha = 1;
-    ctx.globalAlpha = alpha * 0.9;
+    ctx.globalAlpha = alpha * ut.zoneTransitionAlpha;
     ctx.fillStyle = zt.color;
     ctx.font = `bold ${Math.round(36 * UI_S)}px monospace`; ctx.textAlign = 'center';
-    ctx.fillText(zt.zoneName.toUpperCase(), W / 2, H * 0.25);
+    ctx.fillText(zt.zoneName.toUpperCase(), W / 2, H * ut.zoneTransitionYFactor);
     ctx.globalAlpha = 1;
   }
 }

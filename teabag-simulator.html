@@ -60,7 +60,7 @@ resize();
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 100));
 if (isMobile && screen.orientation && screen.orientation.lock) {
-  screen.orientation.lock('landscape').catch(() => {});
+  try { screen.orientation.lock('landscape').catch(() => {}); } catch(e) {}
 }
 
 // ── Utility ──
@@ -2012,7 +2012,7 @@ function drawCharacter(x, y, w, h, opts) {
   }
 
   // McHat on player's head
-  if (opts.isPlayer && hatImg.complete) {
+  if (opts.isPlayer && hatImg.complete && hatImg.naturalWidth > 0) {
     const hatW = headR * 2.2;
     const hatH = hatW * (hatImg.naturalHeight / hatImg.naturalWidth);
     ctx.drawImage(hatImg, -hatW / 2, headY - headR - hatH * 0.55, hatW, hatH);

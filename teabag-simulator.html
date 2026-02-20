@@ -22,6 +22,9 @@
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
+// ── McHat ──
+const hatImg = new Image(); hatImg.src = 'sprites/mchat.png';
+
 // ── Resolution ──
 const W = 960, H = 540;
 const PX_SCALE = 2;
@@ -169,14 +172,14 @@ const CHARACTER_DEFS = [
   },
   {
     name: 'karen', label: 'Karen', abbrev: 'KRN',
-    color: '#E91E8C', skinColor: '#F0C8A0', hairColor: '#8B4513', hairStyle: 'karenbob',
+    color: '#84CC16', skinColor: '#F0C8A0', hairColor: '#8B4513', hairStyle: 'karenbob',
     eyeColor: null, legColor: '#2C2C3E',
     wScale: 1.05, hScale: 1.0,
     healthMin: 150, healthMax: 250, spawnWeight: 4,
     isBig: false, isSpecial: true, bareArm: false,
     exposedShoulders: false, angryBrows: false, randomizeVisuals: false,
-    koText: "MANAGER'D", koColor: '#E91E8C', koScore: 400,
-    labelText: 'KAREN', labelColor: '#E91E8C', trackerColor: '#E91E8C',
+    koText: "MANAGER'D", koColor: '#84CC16', koScore: 400,
+    labelText: 'KAREN', labelColor: '#84CC16', trackerColor: '#84CC16',
   },
   {
     name: 'babushka', label: 'Babushka', abbrev: 'BAB',
@@ -607,38 +610,95 @@ const platforms = [];
 let platGenRight = -200;
 let platGenLeft = -200;
 const PLAT_COLORS = ['#6B8E6B','#8B7355','#7B6B8E','#5B7B8E','#8E7B5B'];
+const PLAT_FEET_OFFSET = 10; // how far below anchor feet extend visually
+const BUS_STOP_W = 250, BUS_STOP_ROOF_H = 119; // roof 119gu above ground (ground line at sprite y=238)
+const BUS_STOP_IMG_H = 124; // full sprite height in game units (248px @ 2x)
+const busStopImg = new Image(); busStopImg.src = 'sprites/busstop.png';
+
+function pickBusStopCount() {
+  const r = Math.random();
+  if (r < 0.35) return 3;
+  if (r < 0.65) return 2;
+  if (r < 0.85) return 4;
+  if (r < 0.95) return 5;
+  return 1;
+}
+
+function spawnBusStopNPCs(platW) {
+  const count = pickBusStopCount();
+  const result = [];
+  const hasGothMommy = count === 1 ? Math.random() < 0.95 : Math.random() < 0.01;
+  for (let i = 0; i < count; i++) {
+    let npcType, color, skinColor, hairColor, hairStyle, eyeColor, legColor, w, h;
+    if ((count === 1 && hasGothMommy) || (count > 1 && hasGothMommy && i === 0)) {
+      const def = CHAR_BY_NAME['gothmommy'];
+      npcType = 'gothmommy'; color = def.color; skinColor = def.skinColor;
+      hairColor = def.hairColor; hairStyle = def.hairStyle;
+      eyeColor = def.eyeColor; legColor = def.legColor;
+      w = Math.round(BASE_W * def.wScale); h = Math.round(BASE_H * def.hScale);
+    } else {
+      npcType = 'normal';
+      color = NPC_COLORS[randInt(0, NPC_COLORS.length - 1)];
+      hairColor = HAIR_COLORS[randInt(0, HAIR_COLORS.length - 1)];
+      skinColor = SKIN_COLORS[randInt(0, SKIN_COLORS.length - 1)];
+      hairStyle = HAIR_STYLES[randInt(0, HAIR_STYLES.length - 1)];
+      eyeColor = undefined; legColor = undefined;
+      w = BASE_W; h = BASE_H;
+    }
+    const spacing = platW / (count + 1);
+    result.push({
+      xOffset: spacing * (i + 1),
+      w, h, facing: Math.random() > 0.5 ? 1 : -1,
+      color, skinColor, hairColor, hairStyle, eyeColor, legColor, npcType,
+      breathPhase: rand(0, Math.PI * 2), blinkTimer: rand(1, 4),
+      panicState: false, panicPhase: 0,
+      armsWave: Math.random() > 0.5,
+    });
+  }
+  return result;
+}
+
+function makePlatform(x, y, w) {
+  return { x, y, w, h: 6, color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)] };
+}
+
+function makeBusStop(x) {
+  return {
+    x, y: GROUND_Y - BUS_STOP_ROOF_H, w: BUS_STOP_W, h: 6, color: '#8896A4', isBusStop: true,
+    busStop: { npcs: spawnBusStopNPCs(BUS_STOP_W) },
+  };
+}
 
 function generatePlatforms(leftBound, rightBound) {
   while (platGenRight < rightBound + 400) {
     if (Math.random() > 0.55) {
-      const pw = rand(60, 130);
       const py = GROUND_Y - rand(55, 140);
-      platforms.push({
-        x: platGenRight + rand(0, 120), y: py, w: pw, h: 6,
-        color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
-      });
+      if (Math.random() < 0.12) {
+        // Rare bus stop (locked height, sits on ground)
+        platforms.push(makeBusStop(platGenRight + rand(0, 60)));
+        platGenRight += randInt(350, 500);
+        continue;
+      }
+      const pw = Math.random() < 0.2 ? rand(160, 280) : rand(60, 130);
+      platforms.push(makePlatform(platGenRight + rand(0, 120), py, pw));
       if (Math.random() > 0.7) {
-        platforms.push({
-          x: platGenRight + rand(20, 100), y: py - rand(50, 80), w: rand(40, 80), h: 6,
-          color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
-        });
+        platforms.push(makePlatform(platGenRight + rand(20, 100), py - rand(50, 80), rand(40, 80)));
       }
     }
     platGenRight += randInt(150, 350);
   }
   while (platGenLeft > leftBound - 400) {
     if (Math.random() > 0.55) {
-      const pw = rand(60, 130);
       const py = GROUND_Y - rand(55, 140);
-      platforms.push({
-        x: platGenLeft - rand(0, 120) - pw, y: py, w: pw, h: 6,
-        color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
-      });
+      if (Math.random() < 0.12) {
+        platforms.push(makeBusStop(platGenLeft - rand(0, 60) - BUS_STOP_W));
+        platGenLeft -= randInt(350, 500);
+        continue;
+      }
+      const pw = Math.random() < 0.2 ? rand(160, 280) : rand(60, 130);
+      platforms.push(makePlatform(platGenLeft - rand(0, 120) - pw, py, pw));
       if (Math.random() > 0.7) {
-        platforms.push({
-          x: platGenLeft - rand(20, 100) - rand(40, 80), y: py - rand(50, 80), w: rand(40, 80), h: 6,
-          color: PLAT_COLORS[randInt(0, PLAT_COLORS.length - 1)],
-        });
+        platforms.push(makePlatform(platGenLeft - rand(20, 100) - rand(40, 80), py - rand(50, 80), rand(40, 80)));
       }
     }
     platGenLeft -= randInt(150, 350);
@@ -647,18 +707,73 @@ function generatePlatforms(leftBound, rightBound) {
 
 function drawPlatform(plat) {
   const px = plat.x - cam.x;
-  // Main surface
   ctx.fillStyle = plat.color;
   roundRect(ctx, px, plat.y, plat.w, plat.h, 3);
-  // Highlight line on top
   ctx.fillStyle = 'rgba(255,255,255,0.2)';
   ctx.fillRect(px + 3, plat.y, plat.w - 6, 2);
-  // Support posts (decorative)
-  ctx.fillStyle = plat.color;
-  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = plat.color; ctx.globalAlpha = 0.3;
   ctx.fillRect(px + 8, plat.y + plat.h, 4, GROUND_Y - plat.y - plat.h);
   ctx.fillRect(px + plat.w - 12, plat.y + plat.h, 4, GROUND_Y - plat.y - plat.h);
   ctx.globalAlpha = 1;
+}
+
+function drawBusStopStructure(plat) {
+  const px = plat.x - cam.x;
+  // Glass panels behind the shelter (visible through transparent sprite areas)
+  ctx.fillStyle = 'rgba(100,180,220,0.22)';
+  ctx.fillRect(px + 15, plat.y + 10, plat.w - 30, BUS_STOP_ROOF_H - 16);
+  // Glass edge highlight
+  ctx.strokeStyle = 'rgba(180,220,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(px + 15, plat.y + 10, plat.w - 30, BUS_STOP_ROOF_H - 16);
+  // Subtle glare streak
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(px + 20, plat.y + 12, 8, BUS_STOP_ROOF_H - 24);
+  // Shelter sprite on top of glass
+  if (busStopImg.complete && busStopImg.naturalWidth > 0) {
+    ctx.drawImage(busStopImg, px, plat.y, BUS_STOP_W, BUS_STOP_IMG_H);
+  } else {
+    ctx.fillStyle = '#6B7B8D';
+    ctx.fillRect(px + 6, plat.y, 4, BUS_STOP_ROOF_H);
+    ctx.fillRect(px + plat.w - 10, plat.y, 4, BUS_STOP_ROOF_H);
+    ctx.fillStyle = '#4A5568';
+    roundRect(ctx, px, plat.y, plat.w, plat.h, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(px + 3, plat.y, plat.w - 6, 2);
+    ctx.fillStyle = 'rgba(135,206,235,0.12)';
+    ctx.fillRect(px + 12, plat.y + 8, plat.w - 24, BUS_STOP_ROOF_H - 14);
+    ctx.strokeStyle = '#6B7B8D'; ctx.lineWidth = 1;
+    ctx.strokeRect(px + 12, plat.y + 8, plat.w - 24, BUS_STOP_ROOF_H - 14);
+    ctx.fillStyle = '#3182CE';
+    ctx.fillRect(px + plat.w / 2 - 11, plat.y - 12, 22, 12);
+    ctx.fillStyle = '#fff'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('BUS', px + plat.w / 2, plat.y - 3);
+  }
+}
+
+function drawBusStopNPCs(plat, playerScreenX, playerScreenY) {
+  const px = plat.x - cam.x;
+  for (const bNpc of plat.busStop.npcs) {
+    const npcScreenX = px + bNpc.xOffset;
+    const drawOpts = {
+      facing: bNpc.facing, color: bNpc.color, skinColor: bNpc.skinColor,
+      hairColor: bNpc.hairColor, hairStyle: bNpc.hairStyle,
+      eyeColor: bNpc.eyeColor, legColor: bNpc.legColor,
+      npcType: bNpc.npcType,
+      breathing: Math.sin(bNpc.breathPhase) * 1,
+      blinkTimer: bNpc.blinkTimer,
+      lookAtScreenX: playerScreenX, lookAtScreenY: playerScreenY,
+    };
+    if (bNpc.panicState) {
+      if (bNpc.armsWave) {
+        drawOpts.isFleeing = true;
+        drawOpts.walkPhase = bNpc.panicPhase;
+      } else {
+        drawOpts.openMouth = true;
+      }
+    }
+    drawCharacter(npcScreenX, GROUND_Y, bNpc.w, bNpc.h, drawOpts);
+  }
 }
 
 // ── City Generation ──
@@ -1148,6 +1263,13 @@ function drawCharacter(x, y, w, h, opts) {
     }
   }
 
+  // McHat on player's head
+  if (opts.isPlayer && hatImg.complete) {
+    const hatW = headR * 2.2;
+    const hatH = hatW * (hatImg.naturalHeight / hatImg.naturalWidth);
+    ctx.drawImage(hatImg, -hatW / 2, headY - headR - hatH * 0.55, hatW, hatH);
+  }
+
   // Gym girl: exposed midriff band
   if (npcType === 'gymgirl') {
     ctx.fillStyle = skin;
@@ -1181,12 +1303,21 @@ function drawCharacter(x, y, w, h, opts) {
     ctx.moveTo(-eyeSpread - 2, eyeY); ctx.lineTo(-eyeSpread + 3, eyeY);
     ctx.moveTo(eyeSpread - 2, eyeY); ctx.lineTo(eyeSpread + 3, eyeY); ctx.stroke();
   } else {
+    // WHITE SCLERA
     ctx.fillStyle = '#fff'; ctx.beginPath();
     ctx.ellipse(-eyeSpread, eyeY, 3.5, 3, 0, 0, Math.PI * 2);
     ctx.ellipse(eyeSpread, eyeY, 3.5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // PUPILS — dynamic gaze if lookAt is set, otherwise look in facing direction
+    let pupilDx = 1.2, pupilDy = 0;
+    if (opts.lookAtScreenX !== undefined) {
+      const dx = (opts.lookAtScreenX - x) * f;
+      const dy = (opts.lookAtScreenY !== undefined ? opts.lookAtScreenY : y) - y + (headY + 1);
+      pupilDx = clamp(dx * 0.04, -1.7, 1.7);
+      pupilDy = clamp(dy * 0.04, -1.0, 1.0);
+    }
     ctx.fillStyle = eyeColor; ctx.beginPath();
-    ctx.arc(-eyeSpread + 1.2, eyeY, 1.8, 0, Math.PI * 2);
-    ctx.arc(eyeSpread + 1.2, eyeY, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.arc(-eyeSpread + pupilDx, eyeY + pupilDy, 1.8, 0, Math.PI * 2);
+    ctx.arc(eyeSpread + pupilDx, eyeY + pupilDy, 1.8, 0, Math.PI * 2); ctx.fill();
     // Big type angry eyebrows
     if (charDef.angryBrows && !opts.isFleeing) {
       ctx.strokeStyle = '#2D2D2D'; ctx.lineWidth = 2;
@@ -1200,7 +1331,7 @@ function drawCharacter(x, y, w, h, opts) {
   // Mouth (KO = no mouth, just XX eyes)
   if (opts.isKO) {
     // no mouth — XX eyes are enough
-  } else if (opts.isFleeing) {
+  } else if (opts.isFleeing || opts.openMouth) {
     ctx.fillStyle = '#2D2D2D'; ctx.beginPath(); ctx.ellipse(0, headY + headR * 0.75, 1.5, 2, 0, 0, Math.PI * 2); ctx.fill();
   } else if (npcType === 'gothmommy') {
     // Dark lipstick — smaller, lower
@@ -1339,7 +1470,7 @@ const player = {
   coyoteTimer: 0, jumpBuffer: 0,
   mountedNPC: null,
   lastCrouchTime: 0, crouchCycleActive: false, combo: 0, comboTimer: 0,
-  onPlatform: null, dropThrough: false, prevY: GROUND_Y,
+  onPlatform: null, dropThrough: false, dropFromY: 0, prevY: GROUND_Y,
   jumpCount: 0,
   airStreak: 0, airStreakBest: 0, onRealGround: false,
 };
@@ -1464,8 +1595,9 @@ function update(dt) {
   const wasCrouching = p.isCrouching;
   p.isCrouching = crouchDown() && (p.onGround || onNPC);
 
-  // Drop through platform on crouch press
+  // Drop through platform on crouch press (only one platform)
   if (p.isCrouching && !wasCrouching && p.onPlatform && !onNPC) {
+    p.dropFromY = p.onPlatform.y;
     p.dropThrough = true;
     p.onGround = false;
     p.onPlatform = null;
@@ -1517,20 +1649,22 @@ function update(dt) {
     p.x += p.vx * dt;
     p.y += p.vy * dt;
 
-    // Platform collision (one-way, Smash Bros style)
+    // Platform collision (one-way, Smash Bros style) — uses feet offset so character stands ON platform
     p.onPlatform = null;
     if (p.vy >= 0 && !p.dropThrough) {
       for (const plat of platforms) {
         const platLeft = plat.x - 4, platRight = plat.x + plat.w + 4;
+        const footY = p.y + PLAT_FEET_OFFSET;
+        const prevFootY = p.prevY + PLAT_FEET_OFFSET;
         if (p.x > platLeft && p.x < platRight &&
-            p.prevY <= plat.y && p.y >= plat.y) {
-          p.y = plat.y;
+            prevFootY <= plat.y && footY >= plat.y) {
+          p.y = plat.y - PLAT_FEET_OFFSET;
           p.vy = 0;
           p.onGround = true;
           p.onPlatform = plat;
           p.jumpCount = 0;
-          p.onRealGround = false; // platform doesn't count as ground for combos
-          if (p.prevY < plat.y - 2) {
+          p.onRealGround = false;
+          if (prevFootY < plat.y - 2) {
             spawnDust(p.x, plat.y, 2, '#aaa');
             p.squashX = 0.8;
           }
@@ -1539,7 +1673,9 @@ function update(dt) {
       }
     }
 
-    // Reset drop-through when moving upward or far below
+    // Clear drop-through after clearing the dropped-from platform (land on next one)
+    if (p.dropThrough && p.y + PLAT_FEET_OFFSET > p.dropFromY + 8) p.dropThrough = false;
+    // Reset drop-through when moving upward
     if (p.vy < 0) p.dropThrough = false;
 
     // Ground collision
@@ -1742,6 +1878,19 @@ function update(dt) {
     if (ahead.length < 2) spawnNPC(p.x + dir * rand(400, 600));
   }
 
+  // ── Bus Stop NPC Update ──
+  for (const plat of platforms) {
+    if (!plat.busStop) continue;
+    const nearMounting = p.mountedNPC && Math.abs(p.x - (plat.x + plat.w / 2)) < plat.w + 120;
+    for (const bNpc of plat.busStop.npcs) {
+      bNpc.breathPhase += dt * 2;
+      bNpc.blinkTimer -= dt;
+      if (bNpc.blinkTimer <= 0) bNpc.blinkTimer = rand(2, 5);
+      bNpc.panicState = nearMounting;
+      if (bNpc.panicState && bNpc.armsWave) bNpc.panicPhase += dt * 8;
+    }
+  }
+
   // ── Camera ──
   cam.targetX = p.x - W * 0.35;
   cam.x = lerp(cam.x, cam.targetX, dt * 4);
@@ -1812,10 +1961,15 @@ function render(dt) {
   // Cars (no road — they drive behind the sidewalk layer)
   for (const car of cars) drawCar(car);
 
-  // Platforms
+  // Platforms & bus stop structures (NPCs drawn after sidewalk)
+  const playerSX = player.x - cam.x;
+  const playerSY = player.y;
   for (const plat of platforms) {
     const sx = plat.x - cam.x;
-    if (sx + plat.w > -50 && sx < W + 50) drawPlatform(plat);
+    if (sx + plat.w > -50 && sx < W + 50) {
+      if (plat.isBusStop) drawBusStopStructure(plat);
+      else drawPlatform(plat);
+    }
   }
 
   // Sidewalk
@@ -1823,6 +1977,13 @@ function render(dt) {
   ctx.fillStyle = '#6B7280'; ctx.fillRect(0, GROUND_Y + 4, W, H - GROUND_Y - 4);
   ctx.fillStyle = '#7B8794';
   for (let lx = (-cam.x % 80) - 80; lx < W + 80; lx += 80) ctx.fillRect(lx, GROUND_Y + 4, 2, H - GROUND_Y - 4);
+
+  // Bus stop NPCs (drawn after sidewalk so legs aren't covered)
+  for (const plat of platforms) {
+    if (!plat.isBusStop) continue;
+    const sx = plat.x - cam.x;
+    if (sx + plat.w > -50 && sx < W + 50) drawBusStopNPCs(plat, playerSX, playerSY);
+  }
 
   // Props
   for (const pr of props) { const sx = pr.x - cam.x; if (sx > -50 && sx < W + 50) drawProp(pr); }
@@ -1877,6 +2038,7 @@ function render(dt) {
     blinkTimer: player.blinkTimer, isCrouching: player.isCrouching, squash: player.squashX,
     airState: (!player.onGround && !player.mountedNPC) ? (player.vy < 0 ? 'rising' : 'falling') : null,
     isMovingJump: (!player.onGround && !player.mountedNPC) && Math.abs(player.vx) > 30,
+    isPlayer: true,
   });
 
   drawParticles();

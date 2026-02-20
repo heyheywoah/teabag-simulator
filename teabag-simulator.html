@@ -651,7 +651,7 @@ function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
 let showTouch = isMobile;
-const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, anyActive: false, upJust: false, downJust: false, leftJust: false, rightJust: false, pauseJust: false };
+const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, upJust: false, downJust: false, leftJust: false, rightJust: false, pauseJust: false };
 const touchIds = {}; // trackingId → buttonName
 
 // D-pad hit detection (left side bar) — 4 circle buttons in diamond layout
@@ -704,7 +704,6 @@ function touchToLogical(tx, ty) {
 
 function handleTouchStart(e) {
   e.preventDefault();
-  touch.anyActive = true;
   for (const t of e.changedTouches) {
     const [x, y] = touchToLogical(t.clientX, t.clientY);
     const btn = getTouchBtn(x, y);
@@ -738,7 +737,6 @@ function handleTouchEnd(e) {
 
 const touchDTap = { left: 0, right: 0 };
 function applyTouch(btn, down) {
-  touch.anyActive = true;
   if (btn === 'left') {
     touch.left = down;
     if (down) {
@@ -2420,7 +2418,7 @@ function triggerPrestige() {
 function update(dt) {
   if (gameState === 'title') {
     titleBlink += dt;
-    if (Object.values(keys).some(v => v) || touch.anyActive) gameState = 'modeselect';
+    if (Object.values(keys).some(v => v) || touch.jumpJust) gameState = 'modeselect';
     return;
   }
 
@@ -3492,7 +3490,7 @@ function drawTitleScreen() {
   // Start prompt
   if (Math.sin(titleBlink * 3) > 0) {
     ctx.fillStyle = '#FFD700'; ctx.font = `bold ${Math.round(18 * UI_S)}px monospace`;
-    ctx.fillText(isMobile ? 'TAP TO START' : 'PRESS ENTER TO START', W / 2, H * 0.82);
+    ctx.fillText(isMobile ? 'PRESS JUMP TO START' : 'PRESS ENTER TO START', W / 2, H * 0.82);
   }
 }
 

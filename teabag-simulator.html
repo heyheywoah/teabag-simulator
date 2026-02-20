@@ -2784,13 +2784,7 @@ function updatePauseState() {
   return true;
 }
 
-function updatePlayerState(dt) {
-  const p = player;
-  const onNPC = p.mountedNPC !== null;
-
-  // Store previous Y for platform one-way check
-  p.prevY = p.y;
-
+function updatePlayerMovementAndJump(dt, p, onNPC) {
   // Sprint — preserve momentum in air if we were sprinting at takeoff
   const wantsSprint = sprintDown() && !onNPC && !p.isCrouching;
   p.isSprinting = wantsSprint && p.onGround;
@@ -2915,7 +2909,9 @@ function updatePlayerState(dt) {
       p.onGround = false;
     }
   }
+}
 
+function updateMountedCombatState(p) {
   // Mounted on NPC
   if (p.mountedNPC) {
     const npc = p.mountedNPC;
@@ -3010,7 +3006,9 @@ function updatePlayerState(dt) {
       }
     }
   }
+}
 
+function updatePlayerTimersAndFX(dt, p, onNPC) {
   // Combo timer — pauses while airborne (platform/NPC counts as air)
   if (p.comboTimer > 0 && p.onRealGround) { p.comboTimer -= dt; if (p.comboTimer <= 0) p.combo = 0; }
   // Chain combo timer — must mount another NPC within 3s of a KO
@@ -3035,6 +3033,18 @@ function updatePlayerState(dt) {
     particles.push({ x: p.x - p.facing * 15 + rand(-5, 5), y: p.y - p.h / 2 + rand(-10, 10),
       vx: -p.facing * rand(40, 100), vy: rand(-10, 10), life: 0.15, maxLife: 0.15, size: rand(1, 2), color: '#fff' });
   }
+}
+
+function updatePlayerState(dt) {
+  const p = player;
+  const onNPC = p.mountedNPC !== null;
+
+  // Store previous Y for platform one-way check
+  p.prevY = p.y;
+
+  updatePlayerMovementAndJump(dt, p, onNPC);
+  updateMountedCombatState(p);
+  updatePlayerTimersAndFX(dt, p, onNPC);
 
   return p;
 }
@@ -3394,7 +3404,7 @@ function renderEntityLayer() {
   drawPopups();
 }
 
-function renderOverlayLayer(sky) {
+function renderPostFX(sky) {
   // Night ambient overlay (darkens everything below HUD)
   if (sky.amb > 0) {
     ctx.globalAlpha = sky.amb * 0.6;
@@ -3437,7 +3447,9 @@ function renderOverlayLayer(sky) {
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
+}
 
+function renderHUDLayer() {
   // ── HUD ──
   const hudL = 10 + HUD_INSET; // left edge, shifted inward past sidebar overlap
   const hudY = 10, hudH = Math.round(36 * UI_S), hudR = 6;
@@ -3575,6 +3587,11 @@ function renderOverlayLayer(sky) {
     ctx.fillText(zt.zoneName.toUpperCase(), W / 2, H * 0.25);
     ctx.globalAlpha = 1;
   }
+}
+
+function renderOverlayLayer(sky) {
+  renderPostFX(sky);
+  renderHUDLayer();
 }
 
 function render(dt) {

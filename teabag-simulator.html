@@ -654,24 +654,30 @@ let showTouch = isMobile;
 const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, anyActive: false, upJust: false, downJust: false, leftJust: false, rightJust: false, pauseJust: false };
 const touchIds = {}; // trackingId → buttonName
 
-// D-pad hit detection (left side bar)
-const DPAD_CX = SIDE_W / 2, DPAD_CY = H * 0.6;
-const DPAD_ARM_W = 28, DPAD_ARM_L = 38, DPAD_HIT_PAD = 6;
+// D-pad hit detection (left side bar) — 4 circle buttons in diamond layout
+const DPAD_CX = SIDE_W / 2, DPAD_CY = H / 2;
+const DPAD_SPREAD = 55; // distance from center to each button center (diagonal gap > 2 * hit radius)
+const DPAD_R = 30; // same visual radius as JUMP/BAG
+const DPAD_HIT_R = Math.round(DPAD_R * 1.25); // 1.25x visual for touch zone
+const DPAD_POS = {
+  left:  { x: DPAD_CX - DPAD_SPREAD, y: DPAD_CY },
+  right: { x: DPAD_CX + DPAD_SPREAD, y: DPAD_CY },
+  up:    { x: DPAD_CX, y: DPAD_CY - DPAD_SPREAD },
+  down:  { x: DPAD_CX, y: DPAD_CY + DPAD_SPREAD },
+};
 function getDpadDir(tx, ty) {
-  const dx = tx - DPAD_CX, dy = ty - DPAD_CY;
-  const hw = DPAD_ARM_W / 2 + DPAD_HIT_PAD, hl = DPAD_ARM_L + DPAD_HIT_PAD;
-  const inHBar = Math.abs(dx) <= hl && Math.abs(dy) <= hw;
-  const inVBar = Math.abs(dx) <= hw && Math.abs(dy) <= hl;
-  if (!inHBar && !inVBar) return null;
-  if (Math.abs(dx) > Math.abs(dy)) return dx < 0 ? 'left' : 'right';
-  return dy < 0 ? 'up' : 'down';
+  for (const [dir, pos] of Object.entries(DPAD_POS)) {
+    const dx = tx - pos.x, dy = ty - pos.y;
+    if (dx * dx + dy * dy <= DPAD_HIT_R * DPAD_HIT_R) return dir;
+  }
+  return null;
 }
 
 // Action button hit detection (right side bar)
 const RIGHT_BAR_X = TOTAL_W - SIDE_W;
 const JUMP_CX = RIGHT_BAR_X + SIDE_W * 0.6, JUMP_CY = H * 0.42;
 const BAG_CX = RIGHT_BAR_X + SIDE_W * 0.4, BAG_CY = H * 0.65;
-const ACTION_R = 30, ACTION_HIT_R = 38;
+const ACTION_R = 30, ACTION_HIT_R = Math.round(ACTION_R * 1.25);
 const PAUSE_CX = RIGHT_BAR_X + SIDE_W / 2, PAUSE_CY = H * 0.15, PAUSE_R = 18;
 function getActionBtn(tx, ty) {
   let dx = tx - JUMP_CX, dy = ty - JUMP_CY;
@@ -679,7 +685,8 @@ function getActionBtn(tx, ty) {
   dx = tx - BAG_CX; dy = ty - BAG_CY;
   if (dx * dx + dy * dy <= ACTION_HIT_R * ACTION_HIT_R) return 'teabag';
   dx = tx - PAUSE_CX; dy = ty - PAUSE_CY;
-  if (dx * dx + dy * dy <= (PAUSE_R + 6) * (PAUSE_R + 6)) return 'pause';
+  const PAUSE_HIT_R = Math.round(PAUSE_R * 1.25);
+  if (dx * dx + dy * dy <= PAUSE_HIT_R * PAUSE_HIT_R) return 'pause';
   return null;
 }
 
@@ -779,36 +786,26 @@ function drawSideBars() {
   ctx.fillStyle = '#222';
   ctx.fillRect(SIDE_W - 1, 0, 1, H);
 
-  // D-pad cross
-  const dCX = DPAD_CX, dCY = DPAD_CY;
-  const hw = DPAD_ARM_W / 2, al = DPAD_ARM_L;
-
-  // Cross shape background
-  ctx.fillStyle = '#222';
-  ctx.fillRect(dCX - al, dCY - hw, al * 2, DPAD_ARM_W);
-  ctx.fillRect(dCX - hw, dCY - al, DPAD_ARM_W, al * 2);
-
-  // Cross shape border
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
-  ctx.strokeRect(dCX - al, dCY - hw, al * 2, DPAD_ARM_W);
-  ctx.strokeRect(dCX - hw, dCY - al, DPAD_ARM_W, al * 2);
-
-  // Active highlights
-  if (touch.left)  { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - al, dCY - hw, al, DPAD_ARM_W); }
-  if (touch.right) { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX, dCY - hw, al, DPAD_ARM_W); }
-  if (touch.jump)  { ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - hw, dCY - al, DPAD_ARM_W, al); }
-  if (touch.crouch){ ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(dCX - hw, dCY, DPAD_ARM_W, al); }
-
-  // Arrow glyphs
-  ctx.fillStyle = '#888'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('\u25C0', dCX - al * 0.6, dCY);
-  ctx.fillText('\u25B6', dCX + al * 0.6, dCY);
-  ctx.fillText('\u25B2', dCX, dCY - al * 0.6);
-  ctx.fillText('\u25BC', dCX, dCY + al * 0.6);
+  // D-pad circle buttons
+  const dpadBtns = [
+    { dir: 'left',  glyph: '\u25C0', active: touch.left },
+    { dir: 'right', glyph: '\u25B6', active: touch.right },
+    { dir: 'up',    glyph: '\u25B2', active: touch.jump },
+    { dir: 'down',  glyph: '\u25BC', active: touch.crouch },
+  ];
+  for (const btn of dpadBtns) {
+    const pos = DPAD_POS[btn.dir];
+    ctx.fillStyle = btn.active ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)';
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, DPAD_R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, DPAD_R, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = btn.active ? '#fff' : '#888'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(btn.glyph, pos.x, pos.y);
+  }
 
   // Sprint hint
-  ctx.fillStyle = '#555'; ctx.font = '8px monospace'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText('2x TAP: SPRINT', dCX, dCY + al + 18);
+  ctx.fillStyle = '#555'; ctx.font = '8px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('2x TAP: SPRINT', DPAD_CX, DPAD_POS.down.y + DPAD_R + 14);
 
   // Right bar background
   ctx.fillStyle = '#111';

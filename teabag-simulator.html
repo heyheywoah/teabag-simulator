@@ -651,7 +651,7 @@ function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
 let showTouch = isMobile;
-const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, upJust: false, downJust: false, leftJust: false, rightJust: false, pauseJust: false };
+const touch = { left: false, right: false, jump: false, jumpJust: false, crouch: false, sprint: false, upJust: false, downJust: false, leftJust: false, rightJust: false, bagJust: false, pauseJust: false };
 const touchIds = {}; // trackingId → buttonName
 
 // D-pad hit detection (left side bar) — 4 circle buttons in diamond layout
@@ -757,10 +757,10 @@ function applyTouch(btn, down) {
     }
     if (!down && !touch.left) touch.sprint = false;
   }
-  else if (btn === 'up') { touch.jump = down; if (down) { touch.upJust = true; if (gameState === 'playing') touch.jumpJust = true; } }
-  else if (btn === 'down') { touch.crouch = down; if (down) touch.downJust = true; }
+  else if (btn === 'up') { if (down) touch.upJust = true; }
+  else if (btn === 'down') { if (down) touch.downJust = true; if (gameState === 'playing') touch.crouch = down; }
   else if (btn === 'jump') { touch.jump = down; if (down) touch.jumpJust = true; }
-  else if (btn === 'teabag') touch.crouch = down;
+  else if (btn === 'teabag') { if (down) touch.bagJust = true; if (gameState === 'playing') touch.crouch = down; }
   else if (btn === 'pause') { if (down) touch.pauseJust = true; }
 }
 
@@ -2454,7 +2454,7 @@ function update(dt) {
         startGame();
       }
     }
-    if (justPressed['Escape'] || touch.downJust) {
+    if (justPressed['Escape'] || touch.bagJust) {
       gameState = 'modeselect';
     }
     return;
@@ -2464,7 +2464,7 @@ function update(dt) {
     if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
       pauseSelection = pauseSelection === 0 ? 1 : 0;
     }
-    if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
+    if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
       gameState = 'playing';
     }
     if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
@@ -3681,7 +3681,7 @@ function loop(timestamp) {
   render(dt);
   for (const k in justPressed) delete justPressed[k];
   touch.jumpJust = false; touch.upJust = false; touch.downJust = false;
-  touch.leftJust = false; touch.rightJust = false; touch.pauseJust = false;
+  touch.leftJust = false; touch.rightJust = false; touch.bagJust = false; touch.pauseJust = false;
   requestAnimationFrame(loop);
 }
 

@@ -2744,6 +2744,79 @@ let menuSelection = 0; // For mode select / zone picker navigation
 let pauseSelection = 0; // 0 = resume, 1 = quit to menu
 let zonePickerIndex = 0;
 
+function createGameContext() {
+  const state = {
+    get gameState() { return gameState; },
+    set gameState(v) { gameState = v; },
+    get titleBlink() { return titleBlink; },
+    set titleBlink(v) { titleBlink = v; },
+    get lastTime() { return lastTime; },
+    set lastTime(v) { lastTime = v; },
+    get menuSelection() { return menuSelection; },
+    set menuSelection(v) { menuSelection = v; },
+    get pauseSelection() { return pauseSelection; },
+    set pauseSelection(v) { pauseSelection = v; },
+    get zonePickerIndex() { return zonePickerIndex; },
+    set zonePickerIndex(v) { zonePickerIndex = v; },
+    get gameMode() { return gameMode; },
+    set gameMode(v) { gameMode = v; },
+    get endlessZoneId() { return endlessZoneId; },
+    set endlessZoneId(v) { endlessZoneId = v; },
+    get prestigeLevel() { return prestigeLevel; },
+    set prestigeLevel(v) { prestigeLevel = v; },
+    get currentZoneIndex() { return currentZoneIndex; },
+    set currentZoneIndex(v) { currentZoneIndex = v; },
+    get currentZone() { return currentZone; },
+    set currentZone(v) { currentZone = v; },
+    get zoneTransitionAnim() { return zoneTransitionAnim; },
+    set zoneTransitionAnim(v) { zoneTransitionAnim = v; },
+    get unlockedZones() { return unlockedZones; },
+    set unlockedZones(v) { unlockedZones = v; },
+    get bestPrestige() { return bestPrestige; },
+    set bestPrestige(v) { bestPrestige = v; },
+    get allTimeKOs() { return allTimeKOs; },
+    set allTimeKOs(v) { allTimeKOs = v; },
+    get bestChainCombo() { return bestChainCombo; },
+    set bestChainCombo(v) { bestChainCombo = v; },
+    get score() { return score; },
+    set score(v) { score = v; },
+    get totalKOs() { return totalKOs; },
+    set totalKOs(v) { totalKOs = v; },
+    get centerKO() { return centerKO; },
+    set centerKO(v) { centerKO = v; },
+    get dayTime() { return dayTime; },
+    set dayTime(v) { dayTime = v; },
+  };
+
+  return {
+    config: { tuning: TUNING },
+    input: { keys, justPressed, touch },
+    services: {
+      playSFX,
+      saveProgress,
+      saveSFXSettings,
+      now: () => performance.now(),
+    },
+    refs: {
+      player,
+      npcs,
+      cam,
+      platforms,
+      buildings,
+      bgBuildings,
+      props,
+      cars,
+      particles,
+      popups,
+      koTracker,
+      zoneLayout,
+    },
+    state,
+  };
+}
+
+const GAME_CTX = createGameContext();
+
 // ── Update ──
 function startGame() {
   const wt = TUNING.world;
@@ -3371,7 +3444,7 @@ function updatePlayingState(dt) {
   updateWorldState(dt, p);
 }
 
-function update(dt) {
+function update(gameCtx, dt) {
   if (updateMenuState(dt)) return;
   if (updatePauseState()) return;
   updatePlayingState(dt);
@@ -3772,7 +3845,7 @@ function renderOverlayLayer(sky) {
   renderHUDLayer();
 }
 
-function render(dt) {
+function render(gameCtx, dt) {
   const shake = getShakeOffset(dt);
   ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
 
@@ -4255,21 +4328,26 @@ function drawPauseMenu() {
 }
 
 // ── Main Loop ──
-function loop(timestamp) {
-  const dt = Math.min((timestamp - lastTime) / 1000, 1 / 30);
-  lastTime = timestamp;
-  update(dt);
-  render(dt);
-  for (const k in justPressed) delete justPressed[k];
-  touch.jumpJust = false; touch.upJust = false; touch.downJust = false;
-  touch.leftJust = false; touch.rightJust = false; touch.bagJust = false; touch.pauseJust = false;
-  requestAnimationFrame(loop);
+function endFrameInputReset(gameCtx) {
+  for (const k in gameCtx.input.justPressed) delete gameCtx.input.justPressed[k];
+  const t = gameCtx.input.touch;
+  t.jumpJust = false; t.upJust = false; t.downJust = false;
+  t.leftJust = false; t.rightJust = false; t.bagJust = false; t.pauseJust = false;
+}
+
+function loop(gameCtx, timestamp) {
+  const dt = Math.min((timestamp - gameCtx.state.lastTime) / 1000, 1 / 30);
+  gameCtx.state.lastTime = timestamp;
+  update(gameCtx, dt);
+  render(gameCtx, dt);
+  endFrameInputReset(gameCtx);
+  requestAnimationFrame(ts => loop(gameCtx, ts));
 }
 
 // Init — set up default zone layout for title screen background
 initZoneLayout();
 
-requestAnimationFrame(ts => { lastTime = ts; loop(ts); });
+requestAnimationFrame(ts => { GAME_CTX.state.lastTime = ts; loop(GAME_CTX, ts); });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

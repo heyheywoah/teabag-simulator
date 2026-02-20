@@ -2695,62 +2695,72 @@ function triggerPrestige() {
   spawnStars(player.x, player.y - 30, 20);
 }
 
+function updateTitleMenuState(dt) {
+  titleBlink += dt;
+  if (Object.values(keys).some(v => v) || touch.jumpJust) gameState = 'modeselect';
+}
+
+function updateModeSelectState() {
+  if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
+    menuSelection = menuSelection === 0 ? 1 : 0;
+    playSFX('menuNav');
+  }
+  if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D') || touch.jumpJust) {
+    playSFX('menuSelect');
+    if (menuSelection === 0) {
+      gameMode = 'campaign';
+      prestigeLevel = 0;
+      startGame();
+    } else {
+      gameMode = 'endless';
+      zonePickerIndex = 0;
+      gameState = 'zonepicker';
+    }
+  }
+}
+
+function updateZonePickerState() {
+  if (wasPressed('A') || touch.leftJust) {
+    zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
+    playSFX('menuNav');
+  }
+  if (wasPressed('D') || touch.rightJust) {
+    zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
+    playSFX('menuNav');
+  }
+  if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
+    const zone = ZONES[zonePickerIndex];
+    if (unlockedZones.includes(zone.id)) {
+      playSFX('menuSelect');
+      endlessZoneId = zone.id;
+      startGame();
+    }
+  }
+  if (justPressed['Escape'] || touch.bagJust) {
+    gameState = 'modeselect';
+  }
+}
+
 function updateMenuState(dt) {
   if (gameState === 'title') {
-    titleBlink += dt;
-    if (Object.values(keys).some(v => v) || touch.jumpJust) gameState = 'modeselect';
+    updateTitleMenuState(dt);
     return true;
   }
 
   if (gameState === 'modeselect') {
-    if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
-      menuSelection = menuSelection === 0 ? 1 : 0;
-      playSFX('menuNav');
-    }
-    if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D') || touch.jumpJust) {
-      playSFX('menuSelect');
-      if (menuSelection === 0) {
-        gameMode = 'campaign';
-        prestigeLevel = 0;
-        startGame();
-      } else {
-        gameMode = 'endless';
-        zonePickerIndex = 0;
-        gameState = 'zonepicker';
-      }
-    }
+    updateModeSelectState();
     return true;
   }
 
   if (gameState === 'zonepicker') {
-    if (wasPressed('A') || touch.leftJust) {
-      zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
-      playSFX('menuNav');
-    }
-    if (wasPressed('D') || touch.rightJust) {
-      zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
-      playSFX('menuNav');
-    }
-    if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
-      const zone = ZONES[zonePickerIndex];
-      if (unlockedZones.includes(zone.id)) {
-        playSFX('menuSelect');
-        endlessZoneId = zone.id;
-        startGame();
-      }
-    }
-    if (justPressed['Escape'] || touch.bagJust) {
-      gameState = 'modeselect';
-    }
+    updateZonePickerState();
     return true;
   }
 
   return false;
 }
 
-function updatePauseState() {
-  if (gameState !== 'paused') return false;
-
+function updatePauseNavigation() {
   if (wasPressed('W') || touch.upJust) {
     pauseSelection = (pauseSelection + 4 - 1) % 4;
     playSFX('menuNav');
@@ -2759,6 +2769,9 @@ function updatePauseState() {
     pauseSelection = (pauseSelection + 1) % 4;
     playSFX('menuNav');
   }
+}
+
+function updatePauseSelectionAction() {
   if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
     gameState = 'playing';
   }
@@ -2770,6 +2783,9 @@ function updatePauseState() {
     else if (pauseSelection === 2) { playSFX('menuSelect'); } // test volume
     else if (pauseSelection === 3) { playSFX('menuSelect'); gameState = 'modeselect'; menuSelection = 0; }
   }
+}
+
+function updatePauseAdjustments() {
   // Left/Right adjusts volume on SFX row
   if (pauseSelection === 1 || pauseSelection === 2) {
     if (wasPressed('A') || touch.leftJust) {
@@ -2781,6 +2797,14 @@ function updatePauseState() {
       if (pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
     }
   }
+}
+
+function updatePauseState() {
+  if (gameState !== 'paused') return false;
+
+  updatePauseNavigation();
+  updatePauseSelectionAction();
+  updatePauseAdjustments();
   return true;
 }
 
@@ -3049,7 +3073,7 @@ function updatePlayerState(dt) {
   return p;
 }
 
-function updateNPCState(dt, p) {
+function updateNPCFSM(dt, p) {
   // ── NPC Update ──
   for (let i = npcs.length - 1; i >= 0; i--) {
     const npc = npcs[i];
@@ -3107,7 +3131,9 @@ function updateNPCState(dt, p) {
       if (dist > NPC_DESPAWN_DIST) { npcs.splice(i, 1); continue; }
     }
   }
+}
 
+function updateNPCSpawning(p) {
   // ── NPC Spawning — always keep NPCs nearby ──
   const activeNPCs = npcs.filter(n => n.state === 'walking' || n.state === 'panicking');
   const screenLeft = cam.x;
@@ -3126,7 +3152,9 @@ function updateNPCState(dt, p) {
     const ahead = activeNPCs.filter(n => dir > 0 ? (n.x > p.x && n.x < p.x + 500) : (n.x < p.x && n.x > p.x - 500));
     if (ahead.length < 2) spawnNPC(p.x + dir * rand(400, 600));
   }
+}
 
+function updateBusStopAmbient(dt, p) {
   // ── Bus Stop NPC Update ──
   for (const plat of platforms) {
     if (!plat.busStop) continue;
@@ -3139,6 +3167,12 @@ function updateNPCState(dt, p) {
       if (bNpc.panicState && bNpc.armsWave) bNpc.panicPhase += dt * 8;
     }
   }
+}
+
+function updateNPCState(dt, p) {
+  updateNPCFSM(dt, p);
+  updateNPCSpawning(p);
+  updateBusStopAmbient(dt, p);
 }
 
 function updateWorldState(dt, p) {

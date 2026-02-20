@@ -232,12 +232,17 @@ function getZoneAtX(worldX) {
       return { index: i, zone: ZONE_BY_ID[layout.zoneId], layout };
     }
   }
-  // Past the last zone in campaign → prestige trigger
-  if (gameMode === 'campaign' && zoneLayout.length > 0) {
-    const last = zoneLayout[zoneLayout.length - 1];
-    if (worldX >= last.endX) return { index: -1, zone: ZONE_BY_ID[last.zoneId], layout: last };
+  // Out of range — cycle through zones (handles BG-space coordinates after prestige)
+  const first = zoneLayout[0], last = zoneLayout[zoneLayout.length - 1];
+  const totalWidth = last.endX - first.startX;
+  const offset = ((worldX - first.startX) % totalWidth + totalWidth) % totalWidth;
+  const wrapped = first.startX + offset;
+  for (let i = 0; i < zoneLayout.length; i++) {
+    const layout = zoneLayout[i];
+    if (wrapped >= layout.startX && wrapped < layout.endX) {
+      return { index: i, zone: ZONE_BY_ID[layout.zoneId], layout };
+    }
   }
-  // Before first zone — return first
   return { index: 0, zone: ZONE_BY_ID[zoneLayout[0].zoneId], layout: zoneLayout[0] };
 }
 
@@ -2801,7 +2806,7 @@ function update(dt) {
 
   // ── Zone Tracking ──
   const zoneResult = getZoneAtX(p.x);
-  if (zoneResult.index === -1 && gameMode === 'campaign') {
+  if (gameMode === 'campaign' && zoneLayout.length > 0 && p.x >= zoneLayout[zoneLayout.length - 1].endX) {
     triggerPrestige();
   } else if (zoneResult.zone !== currentZone) {
     currentZone = zoneResult.zone;

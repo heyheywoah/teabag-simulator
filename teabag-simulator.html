@@ -2947,18 +2947,18 @@ function updateZonePickerState() {
   }
 }
 
-function updateMenuState(dt) {
-  if (gameState === 'title') {
+function updateMenuState(gameCtx, dt) {
+  if (gameCtx.state.gameState === 'title') {
     updateTitleMenuState(dt);
     return true;
   }
 
-  if (gameState === 'modeselect') {
+  if (gameCtx.state.gameState === 'modeselect') {
     updateModeSelectState();
     return true;
   }
 
-  if (gameState === 'zonepicker') {
+  if (gameCtx.state.gameState === 'zonepicker') {
     updateZonePickerState();
     return true;
   }
@@ -3005,8 +3005,8 @@ function updatePauseAdjustments() {
   }
 }
 
-function updatePauseState() {
-  if (gameState !== 'paused') return false;
+function updatePauseState(gameCtx) {
+  if (gameCtx.state.gameState !== 'paused') return false;
 
   updatePauseNavigation();
   updatePauseSelectionAction();
@@ -3432,10 +3432,10 @@ function updateWorldState(dt, p) {
   updatePopups(dt);
 }
 
-function updatePlayingState(dt) {
+function updatePlayingState(gameCtx, dt) {
   // Playing - check for pause
-  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust) {
-    gameState = 'paused'; pauseSelection = 0;
+  if (gameCtx.input.justPressed['Escape'] || gameCtx.input.justPressed['KeyP'] || gameCtx.input.touch.pauseJust) {
+    gameCtx.state.gameState = 'paused'; gameCtx.state.pauseSelection = 0;
     return;
   }
 
@@ -3445,9 +3445,9 @@ function updatePlayingState(dt) {
 }
 
 function update(gameCtx, dt) {
-  if (updateMenuState(dt)) return;
-  if (updatePauseState()) return;
-  updatePlayingState(dt);
+  if (updateMenuState(gameCtx, dt)) return;
+  if (updatePauseState(gameCtx)) return;
+  updatePlayingState(gameCtx, dt);
 }
 
 // ── Render ──

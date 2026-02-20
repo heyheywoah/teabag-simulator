@@ -57,11 +57,11 @@ Note: `galleryMode` (`2524`) is orthogonal to `gameState`; `Tab` toggles preview
 - `updateTitleMenuState(dt)` at `teabag-simulator.html:2904`
 - `updateModeSelectState()` at `teabag-simulator.html:2909`
 - `updateZonePickerState()` at `teabag-simulator.html:2928`
-- `updateMenuState(dt)` at `teabag-simulator.html:2950`
+- `updateMenuState(gameCtx, dt)` at `teabag-simulator.html:2950`
 - `updatePauseNavigation()` at `teabag-simulator.html:2969`
 - `updatePauseSelectionAction()` at `teabag-simulator.html:2980`
 - `updatePauseAdjustments()` at `teabag-simulator.html:2994`
-- `updatePauseState()` at `teabag-simulator.html:3008`
+- `updatePauseState(gameCtx)` at `teabag-simulator.html:3008`
 - `updatePlayerMovementAndJump(dt, p, onNPC)` at `teabag-simulator.html:3017`
 - `updateMountedCombatState(p)` at `teabag-simulator.html:3145`
 - `updatePlayerTimersAndFX(dt, p, onNPC)` at `teabag-simulator.html:3243`
@@ -71,7 +71,7 @@ Note: `galleryMode` (`2524`) is orthogonal to `gameState`; `Tab` toggles preview
 - `updateBusStopAmbient(dt, p)` at `teabag-simulator.html:3368`
 - `updateNPCState(dt, p)` at `teabag-simulator.html:3384`
 - `updateWorldState(dt, p)` at `teabag-simulator.html:3390`
-- `updatePlayingState(dt)` at `teabag-simulator.html:3435`
+- `updatePlayingState(gameCtx, dt)` at `teabag-simulator.html:3435`
 - `update(gameCtx, dt)` dispatcher at `teabag-simulator.html:3447`
 - `renderFrontScreen()` at `teabag-simulator.html:3454`
 - `renderWorldLayer(sky)` at `teabag-simulator.html:3486`

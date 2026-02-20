@@ -2818,12 +2818,12 @@ function createGameContext() {
 const GAME_CTX = createGameContext();
 
 // ── Update ──
-function startGame() {
+function startGame(gameCtx) {
   const wt = TUNING.world;
   initZoneLayout();
   generateSilhouettes();
   // Reset everything
-  player.x = gameMode === 'campaign'
+  player.x = gameCtx.state.gameMode === 'campaign'
     ? zoneLayout[0].startX + wt.startXOffsetCampaign
     : wt.startXOffsetEndless;
   player.y = GROUND_Y; player.vx = 0; player.vy = 0;
@@ -2864,18 +2864,18 @@ function startGame() {
     });
   }
   dayTime = wt.startDayTime;
-  gameState = 'playing';
+  gameCtx.state.gameState = 'playing';
 }
 
-function triggerPrestige() {
+function triggerPrestige(gameCtx) {
   const wt = TUNING.world;
-  prestigeLevel++;
-  if (prestigeLevel > bestPrestige) bestPrestige = prestigeLevel;
+  gameCtx.state.prestigeLevel++;
+  if (gameCtx.state.prestigeLevel > gameCtx.state.bestPrestige) gameCtx.state.bestPrestige = gameCtx.state.prestigeLevel;
   // Unlock all zones for endless
   for (const z of ZONES) {
-    if (!unlockedZones.includes(z.id)) unlockedZones.push(z.id);
+    if (!gameCtx.state.unlockedZones.includes(z.id)) gameCtx.state.unlockedZones.push(z.id);
   }
-  saveProgress();
+  gameCtx.services.saveProgress();
   // Rebuild zone layout from current position
   zoneLayout = [];
   let x = player.x;
@@ -2883,8 +2883,8 @@ function triggerPrestige() {
     zoneLayout.push({ zoneId: zone.id, startX: x, endX: x + zone.width });
     x += zone.width;
   }
-  currentZoneIndex = 0;
-  currentZone = ZONES[0];
+  gameCtx.state.currentZoneIndex = 0;
+  gameCtx.state.currentZone = ZONES[0];
   // Clear old world geometry so new zones generate fresh
   buildings.length = 0; bgBuildings.length = 0;
   props.length = 0; platforms.length = 0;
@@ -2895,112 +2895,112 @@ function triggerPrestige() {
   generateCity(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
   generatePlatforms(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
   generateSilhouettes();
-  playSFX('prestige');
-  centerKO = { text: `PRESTIGE ${prestigeLevel}!`, color: '#FFD700', timer: wt.prestigeAnnouncementDuration };
+  gameCtx.services.playSFX('prestige');
+  gameCtx.state.centerKO = { text: `PRESTIGE ${gameCtx.state.prestigeLevel}!`, color: '#FFD700', timer: wt.prestigeAnnouncementDuration };
   addShake(wt.prestigeShakeAmount, wt.prestigeShakeDuration);
   spawnStars(player.x, player.y - wt.prestigeStarsYOffset, wt.prestigeStarsCount);
 }
 
-function updateTitleMenuState(dt) {
-  titleBlink += dt;
-  if (Object.values(keys).some(v => v) || touch.jumpJust) gameState = 'modeselect';
+function updateTitleMenuState(gameCtx, dt) {
+  gameCtx.state.titleBlink += dt;
+  if (Object.values(gameCtx.input.keys).some(v => v) || gameCtx.input.touch.jumpJust) gameCtx.state.gameState = 'modeselect';
 }
 
-function updateModeSelectState() {
-  if (wasPressed('W') || wasPressed('S') || touch.upJust || touch.downJust) {
-    menuSelection = menuSelection === 0 ? 1 : 0;
+function updateModeSelectState(gameCtx) {
+  if (wasPressed('W') || wasPressed('S') || gameCtx.input.touch.upJust || gameCtx.input.touch.downJust) {
+    gameCtx.state.menuSelection = gameCtx.state.menuSelection === 0 ? 1 : 0;
     playSFX('menuNav');
   }
-  if (justPressed['Enter'] || justPressed['Space'] || wasPressed('D') || touch.jumpJust) {
+  if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || wasPressed('D') || gameCtx.input.touch.jumpJust) {
     playSFX('menuSelect');
-    if (menuSelection === 0) {
-      gameMode = 'campaign';
-      prestigeLevel = 0;
-      startGame();
+    if (gameCtx.state.menuSelection === 0) {
+      gameCtx.state.gameMode = 'campaign';
+      gameCtx.state.prestigeLevel = 0;
+      startGame(gameCtx);
     } else {
-      gameMode = 'endless';
-      zonePickerIndex = 0;
-      gameState = 'zonepicker';
+      gameCtx.state.gameMode = 'endless';
+      gameCtx.state.zonePickerIndex = 0;
+      gameCtx.state.gameState = 'zonepicker';
     }
   }
 }
 
-function updateZonePickerState() {
-  if (wasPressed('A') || touch.leftJust) {
-    zonePickerIndex = (zonePickerIndex - 1 + ZONES.length) % ZONES.length;
+function updateZonePickerState(gameCtx) {
+  if (wasPressed('A') || gameCtx.input.touch.leftJust) {
+    gameCtx.state.zonePickerIndex = (gameCtx.state.zonePickerIndex - 1 + ZONES.length) % ZONES.length;
     playSFX('menuNav');
   }
-  if (wasPressed('D') || touch.rightJust) {
-    zonePickerIndex = (zonePickerIndex + 1) % ZONES.length;
+  if (wasPressed('D') || gameCtx.input.touch.rightJust) {
+    gameCtx.state.zonePickerIndex = (gameCtx.state.zonePickerIndex + 1) % ZONES.length;
     playSFX('menuNav');
   }
-  if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
-    const zone = ZONES[zonePickerIndex];
-    if (unlockedZones.includes(zone.id)) {
+  if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || gameCtx.input.touch.jumpJust) {
+    const zone = ZONES[gameCtx.state.zonePickerIndex];
+    if (gameCtx.state.unlockedZones.includes(zone.id)) {
       playSFX('menuSelect');
-      endlessZoneId = zone.id;
-      startGame();
+      gameCtx.state.endlessZoneId = zone.id;
+      startGame(gameCtx);
     }
   }
-  if (justPressed['Escape'] || touch.bagJust) {
-    gameState = 'modeselect';
+  if (gameCtx.input.justPressed['Escape'] || gameCtx.input.touch.bagJust) {
+    gameCtx.state.gameState = 'modeselect';
   }
 }
 
 function updateMenuState(gameCtx, dt) {
   if (gameCtx.state.gameState === 'title') {
-    updateTitleMenuState(dt);
+    updateTitleMenuState(gameCtx, dt);
     return true;
   }
 
   if (gameCtx.state.gameState === 'modeselect') {
-    updateModeSelectState();
+    updateModeSelectState(gameCtx);
     return true;
   }
 
   if (gameCtx.state.gameState === 'zonepicker') {
-    updateZonePickerState();
+    updateZonePickerState(gameCtx);
     return true;
   }
 
   return false;
 }
 
-function updatePauseNavigation() {
-  if (wasPressed('W') || touch.upJust) {
-    pauseSelection = (pauseSelection + 4 - 1) % 4;
+function updatePauseNavigation(gameCtx) {
+  if (wasPressed('W') || gameCtx.input.touch.upJust) {
+    gameCtx.state.pauseSelection = (gameCtx.state.pauseSelection + 4 - 1) % 4;
     playSFX('menuNav');
   }
-  if (wasPressed('S') || touch.downJust) {
-    pauseSelection = (pauseSelection + 1) % 4;
+  if (wasPressed('S') || gameCtx.input.touch.downJust) {
+    gameCtx.state.pauseSelection = (gameCtx.state.pauseSelection + 1) % 4;
     playSFX('menuNav');
   }
 }
 
-function updatePauseSelectionAction() {
-  if (justPressed['Escape'] || justPressed['KeyP'] || touch.pauseJust || touch.bagJust) {
-    gameState = 'playing';
+function updatePauseSelectionAction(gameCtx) {
+  if (gameCtx.input.justPressed['Escape'] || gameCtx.input.justPressed['KeyP'] || gameCtx.input.touch.pauseJust || gameCtx.input.touch.bagJust) {
+    gameCtx.state.gameState = 'playing';
   }
-  if (justPressed['Enter'] || justPressed['Space'] || touch.jumpJust) {
-    if (pauseSelection === 0) { playSFX('menuSelect'); gameState = 'playing'; }
-    else if (pauseSelection === 1) { // SFX Vol down/toggle mute
+  if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || gameCtx.input.touch.jumpJust) {
+    if (gameCtx.state.pauseSelection === 0) { playSFX('menuSelect'); gameCtx.state.gameState = 'playing'; }
+    else if (gameCtx.state.pauseSelection === 1) { // SFX Vol down/toggle mute
       sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuSelect');
     }
-    else if (pauseSelection === 2) { playSFX('menuSelect'); } // test volume
-    else if (pauseSelection === 3) { playSFX('menuSelect'); gameState = 'modeselect'; menuSelection = 0; }
+    else if (gameCtx.state.pauseSelection === 2) { playSFX('menuSelect'); } // test volume
+    else if (gameCtx.state.pauseSelection === 3) { playSFX('menuSelect'); gameCtx.state.gameState = 'modeselect'; gameCtx.state.menuSelection = 0; }
   }
 }
 
-function updatePauseAdjustments() {
+function updatePauseAdjustments(gameCtx) {
   // Left/Right adjusts volume on SFX row
-  if (pauseSelection === 1 || pauseSelection === 2) {
-    if (wasPressed('A') || touch.leftJust) {
-      if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-      if (pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
+  if (gameCtx.state.pauseSelection === 1 || gameCtx.state.pauseSelection === 2) {
+    if (wasPressed('A') || gameCtx.input.touch.leftJust) {
+      if (gameCtx.state.pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
     }
-    if (wasPressed('D') || touch.rightJust) {
-      if (pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-      if (pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
+    if (wasPressed('D') || gameCtx.input.touch.rightJust) {
+      if (gameCtx.state.pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
     }
   }
 }
@@ -3008,9 +3008,9 @@ function updatePauseAdjustments() {
 function updatePauseState(gameCtx) {
   if (gameCtx.state.gameState !== 'paused') return false;
 
-  updatePauseNavigation();
-  updatePauseSelectionAction();
-  updatePauseAdjustments();
+  updatePauseNavigation(gameCtx);
+  updatePauseSelectionAction(gameCtx);
+  updatePauseAdjustments(gameCtx);
   return true;
 }
 
@@ -3387,7 +3387,7 @@ function updateNPCState(dt, p) {
   updateBusStopAmbient(dt, p);
 }
 
-function updateWorldState(dt, p) {
+function updateWorldState(gameCtx, dt, p) {
   const ut = TUNING.uiTiming;
   const wt = TUNING.world;
   // ── Camera ──
@@ -3403,7 +3403,7 @@ function updateWorldState(dt, p) {
   // ── Zone Tracking ──
   const zoneResult = getZoneAtX(p.x);
   if (gameMode === 'campaign' && zoneLayout.length > 0 && p.x >= zoneLayout[zoneLayout.length - 1].endX) {
-    triggerPrestige();
+    triggerPrestige(gameCtx);
   } else if (zoneResult.zone !== currentZone) {
     currentZone = zoneResult.zone;
     currentZoneIndex = zoneResult.index;
@@ -3441,7 +3441,7 @@ function updatePlayingState(gameCtx, dt) {
 
   const p = updatePlayerState(dt);
   updateNPCState(dt, p);
-  updateWorldState(dt, p);
+  updateWorldState(gameCtx, dt, p);
 }
 
 function update(gameCtx, dt) {

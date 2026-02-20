@@ -52,15 +52,15 @@ Note: `galleryMode` (`2524`) is orthogonal to `gameState`; `Tab` toggles preview
 
 - `createGameContext()` at `teabag-simulator.html:2747`
 - `const GAME_CTX` init at `teabag-simulator.html:2818`
-- `startGame()` at `teabag-simulator.html:2821`
-- `triggerPrestige()` at `teabag-simulator.html:2870`
-- `updateTitleMenuState(dt)` at `teabag-simulator.html:2904`
-- `updateModeSelectState()` at `teabag-simulator.html:2909`
-- `updateZonePickerState()` at `teabag-simulator.html:2928`
+- `startGame(gameCtx)` at `teabag-simulator.html:2821`
+- `triggerPrestige(gameCtx)` at `teabag-simulator.html:2870`
+- `updateTitleMenuState(gameCtx, dt)` at `teabag-simulator.html:2904`
+- `updateModeSelectState(gameCtx)` at `teabag-simulator.html:2909`
+- `updateZonePickerState(gameCtx)` at `teabag-simulator.html:2928`
 - `updateMenuState(gameCtx, dt)` at `teabag-simulator.html:2950`
-- `updatePauseNavigation()` at `teabag-simulator.html:2969`
-- `updatePauseSelectionAction()` at `teabag-simulator.html:2980`
-- `updatePauseAdjustments()` at `teabag-simulator.html:2994`
+- `updatePauseNavigation(gameCtx)` at `teabag-simulator.html:2969`
+- `updatePauseSelectionAction(gameCtx)` at `teabag-simulator.html:2980`
+- `updatePauseAdjustments(gameCtx)` at `teabag-simulator.html:2994`
 - `updatePauseState(gameCtx)` at `teabag-simulator.html:3008`
 - `updatePlayerMovementAndJump(dt, p, onNPC)` at `teabag-simulator.html:3017`
 - `updateMountedCombatState(p)` at `teabag-simulator.html:3145`
@@ -70,7 +70,7 @@ Note: `galleryMode` (`2524`) is orthogonal to `gameState`; `Tab` toggles preview
 - `updateNPCSpawning(p)` at `teabag-simulator.html:3346`
 - `updateBusStopAmbient(dt, p)` at `teabag-simulator.html:3368`
 - `updateNPCState(dt, p)` at `teabag-simulator.html:3384`
-- `updateWorldState(dt, p)` at `teabag-simulator.html:3390`
+- `updateWorldState(gameCtx, dt, p)` at `teabag-simulator.html:3390`
 - `updatePlayingState(gameCtx, dt)` at `teabag-simulator.html:3435`
 - `update(gameCtx, dt)` dispatcher at `teabag-simulator.html:3447`
 - `renderFrontScreen()` at `teabag-simulator.html:3454`

@@ -3451,7 +3451,7 @@ function update(gameCtx, dt) {
 }
 
 // ── Render ──
-function renderFrontScreen() {
+function renderFrontScreen(gameCtx) {
   if (galleryMode) {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawGallery();
@@ -3459,21 +3459,21 @@ function renderFrontScreen() {
     drawSideBars();
     return true;
   }
-  if (gameState === 'title') {
+  if (gameCtx.state.gameState === 'title') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawTitleScreen();
     ctx.restore();
     drawSideBars();
     return true;
   }
-  if (gameState === 'modeselect') {
+  if (gameCtx.state.gameState === 'modeselect') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawModeSelect();
     ctx.restore();
     drawSideBars();
     return true;
   }
-  if (gameState === 'zonepicker') {
+  if (gameCtx.state.gameState === 'zonepicker') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawZonePicker();
     ctx.restore();
@@ -3698,7 +3698,7 @@ function renderPostFX(sky) {
   }
 }
 
-function renderHUDLayer() {
+function renderHUDLayer(gameCtx) {
   const ut = TUNING.uiTiming;
   const ct = TUNING.combat;
   // ── HUD ──
@@ -3840,16 +3840,16 @@ function renderHUDLayer() {
   }
 }
 
-function renderOverlayLayer(sky) {
+function renderOverlayLayer(gameCtx, sky) {
   renderPostFX(sky);
-  renderHUDLayer();
+  renderHUDLayer(gameCtx);
 }
 
 function render(gameCtx, dt) {
   const shake = getShakeOffset(dt);
   ctx.save(); ctx.scale(PX_SCALE, PX_SCALE);
 
-  if (renderFrontScreen()) { ctx.restore(); return; }
+  if (renderFrontScreen(gameCtx)) { ctx.restore(); return; }
 
   // Game area with shake + sidebar offset
   ctx.save(); ctx.translate(shake.x, shake.y);
@@ -3863,13 +3863,13 @@ function render(gameCtx, dt) {
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
   renderWorldLayer(sky);
   renderEntityLayer();
-  renderOverlayLayer(sky);
+  renderOverlayLayer(gameCtx, sky);
 
   ctx.restore(); // undo SIDE_W translate
   ctx.restore(); // undo shake translate
 
   // Pause overlay (drawn over everything including sidebars)
-  if (gameState === 'paused') {
+  if (gameCtx.state.gameState === 'paused') {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawPauseMenu();
     ctx.restore();

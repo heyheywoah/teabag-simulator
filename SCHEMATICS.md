@@ -73,12 +73,12 @@ Note: `galleryMode` (`2524`) is orthogonal to `gameState`; `Tab` toggles preview
 - `updateWorldState(gameCtx, dt, p)` at `teabag-simulator.html:3390`
 - `updatePlayingState(gameCtx, dt)` at `teabag-simulator.html:3435`
 - `update(gameCtx, dt)` dispatcher at `teabag-simulator.html:3447`
-- `renderFrontScreen()` at `teabag-simulator.html:3454`
+- `renderFrontScreen(gameCtx)` at `teabag-simulator.html:3454`
 - `renderWorldLayer(sky)` at `teabag-simulator.html:3486`
 - `renderEntityLayer()` at `teabag-simulator.html:3574`
 - `renderPostFX(sky)` at `teabag-simulator.html:3655`
-- `renderHUDLayer()` at `teabag-simulator.html:3701`
-- `renderOverlayLayer(sky)` at `teabag-simulator.html:3843`
+- `renderHUDLayer(gameCtx)` at `teabag-simulator.html:3701`
+- `renderOverlayLayer(gameCtx, sky)` at `teabag-simulator.html:3843`
 - `render(gameCtx, dt)` dispatcher at `teabag-simulator.html:3848`
 - `endFrameInputReset(gameCtx)` at `teabag-simulator.html:4331`
 - `loop(gameCtx, timestamp)` at `teabag-simulator.html:4338`

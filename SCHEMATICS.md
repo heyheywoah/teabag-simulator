@@ -110,7 +110,7 @@ Central tuning object: `TUNING` at `teabag-simulator.html:370`
 | NPC density / pacing | global caps (`365-367`) + `TUNING.spawn` (`416-443`) | spawn/despawn loops (`3382-3410`) | world pressure in same frame |
 | Zone progression / prestige | `ZONES` (`491-584`), `zoneLayout` (`587+`) | zone tracking + prestige (`3449-3459`, `2914-2945`) | zone pill + transition banner (`3848-3884`) |
 | Procedural world gen | generation funcs (`1412`, `1662`) + `TUNING.world` margins (`448`, `452`) | startup/prestige/per-frame generation (`2893-2894`, `2939-2940`, `3469-3470`) | rendered in layer order (`3530-3890`) |
-| City spacing profile | `CITY_GAP_PROFILE` + spacing helpers (`1532-1573`) | FG placement stride in `generateCity` (`1664-1681`) | building density read in world layer (`3547-3553`) |
+| City spacing profile | `CITY_GAP_PROFILE` + spacing helpers (`1532-1573`) | FG/BG placement stride in `generateCity` (`1664-1697`) | building density read in world layer (`3547-3553`) |
 | Persistence | save keys `teabag_save`/`teabag_sfx` (`293`, `601`) | `saveProgress` (`608`) + `saveSFXSettings` (`297`) | loaded at boot (`293`, `601`) |
 
 ## Render Order (Authoritative)
@@ -152,7 +152,7 @@ Within `update(gameCtx, dt)` (`3491`), dispatch flow is:
 | Change chain window length | `405`, `3226`, `3264`, `3777` |
 | Add new NPC type | `667-957` (definition), zone `npcPool` in `491-584` |
 | Add new zone | `491-584`, blend assumptions `653-664`, render pattern branch `3564+`, silhouettes `3926+` |
-| Retune city spacing profile | `1532-1573` (gap profile + helpers), FG stride logic `1664-1681` |
+| Retune city spacing profile | `1532-1573` (gap profile + helpers), FG/BG stride logic `1664-1697` |
 | Change spawn pressure | `365-367`, `416-443`, `3390-3410` |
 | Change prestige behavior | `2914-2945`, `3449-3459`, postFX `3719-3742` |
 | Change pause menu controls | paused helpers `3013-3058`, renderer `4267-4373` |
@@ -184,3 +184,4 @@ Use these from repo root:
 - `drawCharacter` is shared by player, NPCs, bus-stop NPCs, title screen, and gallery (`2107`, `3618`, `4073`, `2598`).
 - Frame-end input reset ordering is critical and now centralized in `endFrameInputReset(gameCtx)` (`4375-4379`); keep it after `render(gameCtx, dt)` in `loop` (`4385-4387`).
 - Bootstrap world warmup and spawn burst values are centralized in `TUNING.world` (`444-465`); keep bootstrap (`452+`) and streaming (`448`, `3469-3470`) margins intentionally aligned for pacing.
+- FG and BG both use `advanceCityCursor(...)` for width-aware symmetric stride; keep left-anchor placement as `b.x = cursor - b.w` so right/left parity is preserved.

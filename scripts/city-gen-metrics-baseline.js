@@ -68,6 +68,37 @@ const ZONES = [
   },
 ];
 
+const CITY_GAP_PROFILE = Object.freeze({
+  downtown: Object.freeze({
+    fg: Object.freeze({ min: 16, max: 86, largeGapChance: 0.15, largeMin: 110, largeMax: 190 }),
+    bg: Object.freeze({ min: 12, max: 70, largeGapChance: 0.2, largeMin: 90, largeMax: 170 }),
+  }),
+  shopping: Object.freeze({
+    fg: Object.freeze({ min: 10, max: 76, largeGapChance: 0.12, largeMin: 96, largeMax: 170 }),
+    bg: Object.freeze({ min: 10, max: 66, largeGapChance: 0.2, largeMin: 86, largeMax: 160 }),
+  }),
+  park: Object.freeze({
+    fg: Object.freeze({ min: 24, max: 112, largeGapChance: 0.18, largeMin: 132, largeMax: 230 }),
+    bg: Object.freeze({ min: 16, max: 76, largeGapChance: 0.24, largeMin: 98, largeMax: 180 }),
+  }),
+  redlight: Object.freeze({
+    fg: Object.freeze({ min: 14, max: 84, largeGapChance: 0.15, largeMin: 110, largeMax: 184 }),
+    bg: Object.freeze({ min: 12, max: 70, largeGapChance: 0.2, largeMin: 90, largeMax: 170 }),
+  }),
+  industrial: Object.freeze({
+    fg: Object.freeze({ min: 8, max: 64, largeGapChance: 0.1, largeMin: 82, largeMax: 150 }),
+    bg: Object.freeze({ min: 10, max: 68, largeGapChance: 0.2, largeMin: 88, largeMax: 162 }),
+  }),
+  suburbs: Object.freeze({
+    fg: Object.freeze({ min: 20, max: 98, largeGapChance: 0.16, largeMin: 122, largeMax: 208 }),
+    bg: Object.freeze({ min: 14, max: 72, largeGapChance: 0.22, largeMin: 92, largeMax: 174 }),
+  }),
+  default: Object.freeze({
+    fg: Object.freeze({ min: 14, max: 82, largeGapChance: 0.15, largeMin: 108, largeMax: 184 }),
+    bg: Object.freeze({ min: 12, max: 70, largeGapChance: 0.2, largeMin: 90, largeMax: 170 }),
+  }),
+});
+
 function parseArgs(argv) {
   const cfg = {
     seeds: 20,
@@ -238,6 +269,18 @@ function runZoneSeed(zone, seed, span) {
     return { zone };
   }
 
+  function sampleCityGap(zoneId, layer) {
+    const zoneProfile = CITY_GAP_PROFILE[zoneId] || CITY_GAP_PROFILE.default;
+    const profile = zoneProfile[layer] || CITY_GAP_PROFILE.default[layer];
+    if (random() < profile.largeGapChance) return randInt(profile.largeMin, profile.largeMax);
+    return randInt(profile.min, profile.max);
+  }
+
+  function advanceCityCursor(cursor, dir, width, zoneId, layer) {
+    const gap = sampleCityGap(zoneId, layer);
+    return cursor + (Math.max(0, width) + gap) * dir;
+  }
+
   function genBuilding(x, layer, zoneArg) {
     const z = zoneArg;
     const bColors = z.buildingColors;
@@ -342,26 +385,19 @@ function runZoneSeed(zone, seed, span) {
       const zoneNow = getZoneAtX(cityGenRight).zone;
       const b = genBuilding(cityGenRight, 'fg', zoneNow);
       fgRight.push({ x: b.x, w: b.w });
-      if (random() > 0.5) props.push(createProp(pickZoneProp(zoneNow), cityGenRight + rand(10, 50), zoneNow.id));
-      if (random() > 0.7) props.push(createProp(pickZoneProp(zoneNow), cityGenRight + rand(20, 80), zoneNow.id));
-      const roll = random();
-      if (roll < 0.15) cityGenRight += randInt(160, 240);
-      else if (roll < 0.45) cityGenRight += randInt(90, 160);
-      else cityGenRight += randInt(50, 100);
+      if (random() > 0.5) props.push(createProp(pickZoneProp(zoneNow), b.x + rand(10, 50), zoneNow.id));
+      if (random() > 0.7) props.push(createProp(pickZoneProp(zoneNow), b.x + rand(20, 80), zoneNow.id));
+      cityGenRight = advanceCityCursor(cityGenRight, 1, b.w, zoneNow.id, 'fg');
     }
 
     while (cityGenLeft > leftBound - 300) {
-      const bw = randInt(60, 140);
-      cityGenLeft -= bw;
       const zoneNow = getZoneAtX(cityGenLeft).zone;
       const b = genBuilding(cityGenLeft, 'fg', zoneNow);
+      b.x = cityGenLeft - b.w;
       fgLeft.push({ x: b.x, w: b.w });
-      if (random() > 0.5) props.push(createProp(pickZoneProp(zoneNow), cityGenLeft + rand(10, 50), zoneNow.id));
-      if (random() > 0.7) props.push(createProp(pickZoneProp(zoneNow), cityGenLeft + rand(20, 80), zoneNow.id));
-      const roll = random();
-      if (roll < 0.15) cityGenLeft -= randInt(160, 240);
-      else if (roll < 0.45) cityGenLeft -= randInt(90, 160);
-      else cityGenLeft -= randInt(50, 100);
+      if (random() > 0.5) props.push(createProp(pickZoneProp(zoneNow), b.x + rand(10, 50), zoneNow.id));
+      if (random() > 0.7) props.push(createProp(pickZoneProp(zoneNow), b.x + rand(20, 80), zoneNow.id));
+      cityGenLeft = advanceCityCursor(cityGenLeft, -1, b.w, zoneNow.id, 'fg');
     }
 
     const bgRightBound = rightBound + W / 0.3;
@@ -369,23 +405,16 @@ function runZoneSeed(zone, seed, span) {
       const zoneNow = getZoneAtX(bgGenRight).zone;
       const b = genBuilding(bgGenRight, 'bg', zoneNow);
       bgRight.push({ x: b.x, w: b.w });
-      const roll = random();
-      if (roll < 0.2) bgGenRight += randInt(140, 240);
-      else if (roll < 0.5) bgGenRight += randInt(70, 140);
-      else bgGenRight += randInt(35, 80);
+      bgGenRight = advanceCityCursor(bgGenRight, 1, b.w, zoneNow.id, 'bg');
     }
 
     const bgLeftBound = leftBound - W / 0.3;
     while (bgGenLeft > bgLeftBound) {
-      const bw = randInt(50, 120);
-      bgGenLeft -= bw;
       const zoneNow = getZoneAtX(bgGenLeft).zone;
       const b = genBuilding(bgGenLeft, 'bg', zoneNow);
+      b.x = bgGenLeft - b.w;
       bgLeft.push({ x: b.x, w: b.w });
-      const roll = random();
-      if (roll < 0.2) bgGenLeft -= randInt(140, 240);
-      else if (roll < 0.5) bgGenLeft -= randInt(70, 140);
-      else bgGenLeft -= randInt(35, 80);
+      bgGenLeft = advanceCityCursor(bgGenLeft, -1, b.w, zoneNow.id, 'bg');
     }
   }
 

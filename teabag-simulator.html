@@ -1683,23 +1683,18 @@ function generateCity(leftBound, rightBound) {
   const bgRightBound = rightBound + W / 0.3;
   while (bgGenRight < bgRightBound) {
     const zone = getZoneAtX(bgGenRight).zone;
-    bgBuildings.push(genBuilding(bgGenRight, 'bg', zone));
-    const roll = Math.random();
-    if (roll < 0.2) bgGenRight += randInt(140, 240);
-    else if (roll < 0.5) bgGenRight += randInt(70, 140);
-    else bgGenRight += randInt(35, 80);
+    const b = genBuilding(bgGenRight, 'bg', zone);
+    bgBuildings.push(b);
+    bgGenRight = advanceCityCursor(bgGenRight, 1, b.w, zone.id, 'bg');
   }
   // BG buildings — leftward
   const bgLeftBound = leftBound - W / 0.3;
   while (bgGenLeft > bgLeftBound) {
-    const bw = randInt(50, 120);
-    bgGenLeft -= bw;
     const zone = getZoneAtX(bgGenLeft).zone;
-    bgBuildings.push(genBuilding(bgGenLeft, 'bg', zone));
-    const roll = Math.random();
-    if (roll < 0.2) bgGenLeft -= randInt(140, 240);
-    else if (roll < 0.5) bgGenLeft -= randInt(70, 140);
-    else bgGenLeft -= randInt(35, 80);
+    const b = genBuilding(bgGenLeft, 'bg', zone);
+    b.x = bgGenLeft - b.w;
+    bgBuildings.push(b);
+    bgGenLeft = advanceCityCursor(bgGenLeft, -1, b.w, zone.id, 'bg');
   }
 }
 

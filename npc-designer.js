@@ -12,6 +12,8 @@
   const GAME_BASE_H = 46;
   const GAME_TO_EDITOR_SCALE = 3.2;
   const HANDLE_SCREEN_SIZE = 10;
+  const CONSTRAINTS = window.NPCDesignerConstraints || null;
+  const SHARED_RENDER = window.NPCRenderShared || null;
   const SUNDRESS_HAIR_PROFILE = Object.freeze({
     topLift: 0.46,
     backWidth: 1.18,
@@ -83,11 +85,26 @@
     },
     layerIdCounter: 1,
     hitCanvas: null,
-    hitCtx: null
+    hitCtx: null,
+    strictVisualRules: true,
+    autoFixVisualIssues: true,
+    validation: null,
+    constraintReference: [],
+    runtimeRenderer: null,
+    runtimePreview: {
+      pose: "normal",
+      facing: 1,
+      scale: 1,
+      tick: 0,
+      worldContext: true
+    },
+    runtimeCharDefs: Object.create(null),
+    skipAutoFixOnce: false
   };
 
   function initDesigner() {
     cacheUI();
+    initConstraintScaffold();
     bindUI();
     initHitCanvas();
     loadInitialDocument();
@@ -116,6 +133,34 @@
 
     ui.charIdInput = document.getElementById("charIdInput");
     ui.charLabelInput = document.getElementById("charLabelInput");
+    ui.issueFieldMap = {
+      "field:char-id": document.getElementById("issue-char-id"),
+      "field:char-label": document.getElementById("issue-char-label"),
+      "field:runtime-base-type": document.getElementById("issue-runtime-base-type"),
+      "field:runtime-npc-type": document.getElementById("issue-runtime-npc-type"),
+      "field:runtime-scale": document.getElementById("issue-runtime-scale"),
+      "field:runtime-health": document.getElementById("issue-runtime-health"),
+      "field:runtime-colors": document.getElementById("issue-runtime-colors"),
+      "field:runtime-dress": document.getElementById("issue-runtime-dress")
+    };
+
+    ui.runtimeBaseTypeSelect = document.getElementById("runtimeBaseTypeSelect");
+    ui.runtimeNpcTypeInput = document.getElementById("runtimeNpcTypeInput");
+    ui.runtimeWScaleInput = document.getElementById("runtimeWScaleInput");
+    ui.runtimeHScaleInput = document.getElementById("runtimeHScaleInput");
+    ui.runtimeHealthMinInput = document.getElementById("runtimeHealthMinInput");
+    ui.runtimeHealthMaxInput = document.getElementById("runtimeHealthMaxInput");
+    ui.runtimeBodyColorInput = document.getElementById("runtimeBodyColorInput");
+    ui.runtimeSkinColorInput = document.getElementById("runtimeSkinColorInput");
+    ui.runtimeHairColorInput = document.getElementById("runtimeHairColorInput");
+    ui.runtimeHairStyleSelect = document.getElementById("runtimeHairStyleSelect");
+    ui.runtimeEyeColorInput = document.getElementById("runtimeEyeColorInput");
+    ui.runtimeLegColorInput = document.getElementById("runtimeLegColorInput");
+    ui.runtimeShoeColorInput = document.getElementById("runtimeShoeColorInput");
+    ui.runtimeFeminineBodyToggle = document.getElementById("runtimeFeminineBodyToggle");
+    ui.runtimeBustScaleInput = document.getElementById("runtimeBustScaleInput");
+    ui.runtimeHasDressToggle = document.getElementById("runtimeHasDressToggle");
+    ui.runtimeShortDressToggle = document.getElementById("runtimeShortDressToggle");
 
     ui.toolButtons = Array.from(document.querySelectorAll(".tool-btn"));
 
@@ -164,15 +209,242 @@
       ko: document.getElementById("previewKo")
     };
     ui.selectionInfo = document.getElementById("selectionInfo");
+    ui.strictVisualRulesToggle = document.getElementById("strictVisualRulesToggle");
+    ui.autoFixVisualToggle = document.getElementById("autoFixVisualToggle");
+    ui.readinessSummary = document.getElementById("readinessSummary");
+    ui.hardBlockerList = document.getElementById("hardBlockerList");
+    ui.warningList = document.getElementById("warningList");
+    ui.readinessMeta = document.getElementById("readinessMeta");
+    ui.constraintReferenceList = document.getElementById("constraintReferenceList");
+
+    ui.runtimePreviewPoseSelect = document.getElementById("runtimePreviewPoseSelect");
+    ui.runtimePreviewFacingSelect = document.getElementById("runtimePreviewFacingSelect");
+    ui.runtimePreviewScaleInput = document.getElementById("runtimePreviewScaleInput");
+    ui.runtimePreviewScaleValue = document.getElementById("runtimePreviewScaleValue");
+    ui.runtimePreviewTickInput = document.getElementById("runtimePreviewTickInput");
+    ui.runtimePreviewTickValue = document.getElementById("runtimePreviewTickValue");
+    ui.runtimePreviewWorldToggle = document.getElementById("runtimePreviewWorldToggle");
+    ui.runtimePreviewCanvas = document.getElementById("runtimePreviewCanvas");
+    ui.runtimePreviewStatus = document.getElementById("runtimePreviewStatus");
+    ui.runtimePreviewCtx = ui.runtimePreviewCanvas.getContext("2d");
 
     ui.editorCanvas.width = DESIGN_CANVAS_WIDTH;
     ui.editorCanvas.height = DESIGN_CANVAS_HEIGHT;
+  }
+
+  function initConstraintScaffold() {
+    if (CONSTRAINTS && typeof CONSTRAINTS.getConstraintReference === "function") {
+      state.constraintReference = CONSTRAINTS.getConstraintReference();
+    } else {
+      state.constraintReference = [];
+    }
+
+    const runtimeBaseDefs = CONSTRAINTS && typeof CONSTRAINTS.getRuntimeBaseDefs === "function"
+      ? CONSTRAINTS.getRuntimeBaseDefs()
+      : [];
+    state.runtimeCharDefs = Object.create(null);
+    runtimeBaseDefs.forEach((def) => {
+      if (!def || !def.name) return;
+      state.runtimeCharDefs[def.name] = deepClone(def);
+    });
+
+    populateRuntimeProfileOptionLists(runtimeBaseDefs);
+
+    if (SHARED_RENDER && typeof SHARED_RENDER.createCharacterRenderer === "function") {
+      state.runtimeRenderer = SHARED_RENDER.createCharacterRenderer({
+        ctx: ui.runtimePreviewCtx,
+        CHAR_BY_NAME: state.runtimeCharDefs,
+        clamp,
+        roundRect: fillRoundRect
+      });
+    } else {
+      state.runtimeRenderer = null;
+    }
+  }
+
+  function populateRuntimeProfileOptionLists(runtimeBaseDefs) {
+    const baseDefs = Array.isArray(runtimeBaseDefs) ? runtimeBaseDefs : [];
+    ui.runtimeBaseTypeSelect.replaceChildren();
+    baseDefs.forEach((def) => {
+      if (!def || !def.name) return;
+      const opt = document.createElement("option");
+      opt.value = def.name;
+      opt.textContent = `${def.name}${def.label ? ` (${def.label})` : ""}`;
+      ui.runtimeBaseTypeSelect.append(opt);
+    });
+    if (!ui.runtimeBaseTypeSelect.options.length) {
+      const opt = document.createElement("option");
+      opt.value = "normal";
+      opt.textContent = "normal";
+      ui.runtimeBaseTypeSelect.append(opt);
+    }
+
+    const hairStyles = CONSTRAINTS && Array.isArray(CONSTRAINTS.HAIR_STYLE_OPTIONS)
+      ? CONSTRAINTS.HAIR_STYLE_OPTIONS
+      : ["short", "long", "ponytail", "mohawk", "bun", "spiky", "fade", "buzz"];
+    ui.runtimeHairStyleSelect.replaceChildren();
+    hairStyles.forEach((styleName) => {
+      const opt = document.createElement("option");
+      opt.value = styleName;
+      opt.textContent = styleName;
+      ui.runtimeHairStyleSelect.append(opt);
+    });
+  }
+
+  function bindRuntimeProfileEvents() {
+    ui.runtimeBaseTypeSelect.addEventListener("change", () => {
+      ensureRuntimeProfile();
+      applyRuntimeBasePreset(ui.runtimeBaseTypeSelect.value);
+      stampUpdatedAt();
+      requestRender();
+    });
+
+    ui.runtimeNpcTypeInput.addEventListener("input", () => {
+      ensureRuntimeProfile();
+      state.document.runtimeProfile.npcType = ui.runtimeNpcTypeInput.value.trim();
+      stampUpdatedAt();
+      requestRender();
+    });
+
+    [
+      ui.runtimeWScaleInput,
+      ui.runtimeHScaleInput,
+      ui.runtimeHealthMinInput,
+      ui.runtimeHealthMaxInput,
+      ui.runtimeBustScaleInput
+    ].forEach((inputEl) => {
+      inputEl.addEventListener("input", onRuntimeProfileNumericInput);
+    });
+
+    [
+      ui.runtimeBodyColorInput,
+      ui.runtimeSkinColorInput,
+      ui.runtimeHairColorInput,
+      ui.runtimeEyeColorInput,
+      ui.runtimeLegColorInput,
+      ui.runtimeShoeColorInput
+    ].forEach((inputEl) => {
+      inputEl.addEventListener("input", onRuntimeProfileColorInput);
+    });
+
+    ui.runtimeHairStyleSelect.addEventListener("change", () => {
+      ensureRuntimeProfile();
+      state.document.runtimeProfile.hairStyle = ui.runtimeHairStyleSelect.value;
+      stampUpdatedAt();
+      requestRender();
+    });
+
+    [ui.runtimeFeminineBodyToggle, ui.runtimeHasDressToggle, ui.runtimeShortDressToggle].forEach((toggle) => {
+      toggle.addEventListener("change", onRuntimeProfileToggleInput);
+    });
+  }
+
+  function bindReadinessPanelEvents() {
+    ui.strictVisualRulesToggle.addEventListener("change", () => {
+      state.strictVisualRules = !!ui.strictVisualRulesToggle.checked;
+      if (state.strictVisualRules && !ui.autoFixVisualToggle.checked) {
+        ui.autoFixVisualToggle.checked = true;
+      }
+      state.autoFixVisualIssues = !!ui.autoFixVisualToggle.checked;
+      updateReadinessToggleState();
+      requestRender();
+    });
+
+    ui.autoFixVisualToggle.addEventListener("change", () => {
+      state.autoFixVisualIssues = !!ui.autoFixVisualToggle.checked;
+      requestRender();
+    });
+
+    [ui.hardBlockerList, ui.warningList].forEach((listEl) => {
+      listEl.addEventListener("click", (e) => {
+        const button = e.target.closest("button[data-target]");
+        if (!button) return;
+        jumpToIssueTarget(button.dataset.target || "");
+      });
+    });
+
+    Object.entries(ui.issueFieldMap).forEach((entry) => {
+      const [, el] = entry;
+      if (!el) return;
+      el.addEventListener("click", () => {
+        const target = el.dataset.target || "";
+        if (!target) return;
+        jumpToIssueTarget(target);
+      });
+    });
+  }
+
+  function bindRuntimePreviewEvents() {
+    ui.runtimePreviewPoseSelect.addEventListener("change", () => {
+      state.runtimePreview.pose = POSE_IDS.includes(ui.runtimePreviewPoseSelect.value)
+        ? ui.runtimePreviewPoseSelect.value
+        : "normal";
+      requestRender();
+    });
+
+    ui.runtimePreviewFacingSelect.addEventListener("change", () => {
+      state.runtimePreview.facing = ui.runtimePreviewFacingSelect.value === "-1" ? -1 : 1;
+      requestRender();
+    });
+
+    ui.runtimePreviewScaleInput.addEventListener("input", () => {
+      state.runtimePreview.scale = clamp(parseFloat(ui.runtimePreviewScaleInput.value), 0.5, 1.8);
+      updateRuntimePreviewLabels();
+      requestRender();
+    });
+
+    ui.runtimePreviewTickInput.addEventListener("input", () => {
+      state.runtimePreview.tick = clamp(parseFloat(ui.runtimePreviewTickInput.value), 0, 10);
+      updateRuntimePreviewLabels();
+      requestRender();
+    });
+
+    ui.runtimePreviewWorldToggle.addEventListener("change", () => {
+      state.runtimePreview.worldContext = !!ui.runtimePreviewWorldToggle.checked;
+      requestRender();
+    });
+  }
+
+  function onRuntimeProfileNumericInput() {
+    ensureRuntimeProfile();
+    const profile = state.document.runtimeProfile;
+    profile.wScale = num(ui.runtimeWScaleInput.value, profile.wScale);
+    profile.hScale = num(ui.runtimeHScaleInput.value, profile.hScale);
+    profile.healthMin = num(ui.runtimeHealthMinInput.value, profile.healthMin);
+    profile.healthMax = num(ui.runtimeHealthMaxInput.value, profile.healthMax);
+    profile.bustScale = num(ui.runtimeBustScaleInput.value, profile.bustScale);
+    stampUpdatedAt();
+    requestRender();
+  }
+
+  function onRuntimeProfileColorInput() {
+    ensureRuntimeProfile();
+    const profile = state.document.runtimeProfile;
+    profile.color = ui.runtimeBodyColorInput.value;
+    profile.skinColor = ui.runtimeSkinColorInput.value;
+    profile.hairColor = ui.runtimeHairColorInput.value;
+    profile.eyeColor = ui.runtimeEyeColorInput.value;
+    profile.legColor = ui.runtimeLegColorInput.value;
+    profile.shoeColor = ui.runtimeShoeColorInput.value;
+    stampUpdatedAt();
+    requestRender();
+  }
+
+  function onRuntimeProfileToggleInput() {
+    ensureRuntimeProfile();
+    const profile = state.document.runtimeProfile;
+    profile.feminineBody = !!ui.runtimeFeminineBodyToggle.checked;
+    profile.hasDress = !!ui.runtimeHasDressToggle.checked;
+    profile.shortDress = !!ui.runtimeShortDressToggle.checked;
+    stampUpdatedAt();
+    requestRender();
   }
 
   function bindUI() {
     ui.templateSelect.addEventListener("change", () => {
       ensureDocument();
       state.document.meta.baseTemplate = ui.templateSelect.value;
+      ensureRuntimeProfile();
       stampUpdatedAt();
       requestRender();
     });
@@ -227,6 +499,7 @@
       ensureDocument();
       state.document.meta.id = ui.charIdInput.value.trim();
       stampUpdatedAt();
+      requestRender();
     });
 
     ui.charLabelInput.addEventListener("input", () => {
@@ -331,6 +604,7 @@
 
     ui.exportCompactBtn.addEventListener("click", () => {
       const payload = exportIntegrationPayload();
+      if (!payload) return;
       const text = JSON.stringify(payload, null, 2);
       ui.jsonWorkspace.value = text;
       setStatus("Compact payload exported.");
@@ -338,6 +612,7 @@
 
     ui.copyCompactBtn.addEventListener("click", async () => {
       const payload = exportIntegrationPayload();
+      if (!payload) return;
       await copyJsonToClipboard(JSON.stringify(payload, null, 2));
     });
 
@@ -363,6 +638,10 @@
 
     window.addEventListener("keydown", onWindowKeyDown);
     window.addEventListener("resize", requestRender);
+
+    bindRuntimeProfileEvents();
+    bindReadinessPanelEvents();
+    bindRuntimePreviewEvents();
   }
 
   function initHitCanvas() {
@@ -383,6 +662,7 @@
     state.activePose = "normal";
     state.selectedIds.clear();
     state.layerListAnchorId = null;
+    state.validation = null;
     syncControlsFromDocument();
     fitToModel();
   }
@@ -413,6 +693,7 @@
         showHeightLines: true,
         showSilhouettes: false
       },
+      runtimeProfile: createDefaultRuntimeProfile(templateId),
       poses: {
         normal: { layers: templates.normal },
         panic: { layers: templates.panic },
@@ -428,6 +709,7 @@
 
   function syncControlsFromDocument() {
     ensureDocument();
+    ensureRuntimeProfile();
     ui.templateSelect.value = state.document.meta.baseTemplate || "male_base";
     ui.charIdInput.value = state.document.meta.id || "";
     ui.charLabelInput.value = state.document.meta.label || "";
@@ -446,7 +728,154 @@
     ui.strokeWidthValue.textContent = String(state.styleDraft.strokeWidth);
     ui.opacityValue.textContent = state.styleDraft.opacity.toFixed(2);
     ui.gradAngleValue.textContent = `${Math.round(state.styleDraft.gradientAngle)}°`;
+    syncRuntimeProfileInputs();
+    updateReadinessToggleState();
+    updateRuntimePreviewLabels();
+    renderConstraintReferenceList();
     updateZoomUI();
+  }
+
+  function createDefaultRuntimeProfile(baseTemplate) {
+    if (CONSTRAINTS && typeof CONSTRAINTS.createDefaultRuntimeProfile === "function") {
+      return CONSTRAINTS.createDefaultRuntimeProfile(baseTemplate);
+    }
+    return {
+      baseType: "normal",
+      npcType: "normal_custom",
+      wScale: 1,
+      hScale: 1,
+      healthMin: 60,
+      healthMax: 100,
+      color: "#3182CE",
+      skinColor: "#F0C8A0",
+      hairColor: "#8B4513",
+      hairStyle: "long",
+      eyeColor: "#1A1A2E",
+      legColor: "#4A5568",
+      shoeColor: "#2D3748",
+      feminineBody: baseTemplate === "female_base",
+      bustScale: baseTemplate === "female_base" ? 0.85 : 0,
+      hasDress: false,
+      shortDress: false
+    };
+  }
+
+  function normalizeRuntimeProfile(profile, baseTemplate) {
+    if (CONSTRAINTS && typeof CONSTRAINTS.normalizeRuntimeProfile === "function") {
+      return CONSTRAINTS.normalizeRuntimeProfile(profile, baseTemplate);
+    }
+    const fallback = createDefaultRuntimeProfile(baseTemplate);
+    const raw = (profile && typeof profile === "object") ? profile : {};
+    return {
+      baseType: typeof raw.baseType === "string" ? raw.baseType : fallback.baseType,
+      npcType: typeof raw.npcType === "string" ? raw.npcType.trim() : fallback.npcType,
+      wScale: num(raw.wScale, fallback.wScale),
+      hScale: num(raw.hScale, fallback.hScale),
+      healthMin: num(raw.healthMin, fallback.healthMin),
+      healthMax: num(raw.healthMax, fallback.healthMax),
+      color: isColor(raw.color) ? raw.color : fallback.color,
+      skinColor: isColor(raw.skinColor) ? raw.skinColor : fallback.skinColor,
+      hairColor: isColor(raw.hairColor) ? raw.hairColor : fallback.hairColor,
+      hairStyle: typeof raw.hairStyle === "string" ? raw.hairStyle : fallback.hairStyle,
+      eyeColor: isColor(raw.eyeColor) ? raw.eyeColor : fallback.eyeColor,
+      legColor: isColor(raw.legColor) ? raw.legColor : fallback.legColor,
+      shoeColor: isColor(raw.shoeColor) ? raw.shoeColor : fallback.shoeColor,
+      feminineBody: raw.feminineBody !== undefined ? !!raw.feminineBody : !!fallback.feminineBody,
+      bustScale: num(raw.bustScale, fallback.bustScale),
+      hasDress: raw.hasDress !== undefined ? !!raw.hasDress : !!fallback.hasDress,
+      shortDress: raw.shortDress !== undefined ? !!raw.shortDress : !!fallback.shortDress
+    };
+  }
+
+  function ensureRuntimeProfile() {
+    ensureDocument();
+    state.document.runtimeProfile = normalizeRuntimeProfile(
+      state.document.runtimeProfile,
+      state.document.meta.baseTemplate
+    );
+    return state.document.runtimeProfile;
+  }
+
+  function applyRuntimeBasePreset(baseType) {
+    ensureDocument();
+    const baseTemplate = state.document.meta.baseTemplate;
+    const current = ensureRuntimeProfile();
+    const preset = createDefaultRuntimeProfile(baseTemplate);
+    if (CONSTRAINTS && typeof CONSTRAINTS.getRuntimeBaseDefs === "function") {
+      const selected = CONSTRAINTS.getRuntimeBaseDefs().find((def) => def.name === baseType);
+      if (selected) {
+        const normalizedPreset = normalizeRuntimeProfile({ ...selected, baseType: selected.name }, baseTemplate);
+        state.document.runtimeProfile = {
+          ...normalizedPreset,
+          npcType: `${selected.name}_custom`
+        };
+      } else {
+        state.document.runtimeProfile = {
+          ...preset,
+          npcType: current.npcType || preset.npcType
+        };
+      }
+    } else {
+      state.document.runtimeProfile = {
+        ...preset,
+        baseType: baseType || preset.baseType,
+        npcType: current.npcType || preset.npcType
+      };
+    }
+    syncRuntimeProfileInputs();
+  }
+
+  function syncRuntimeProfileInputs() {
+    const profile = ensureRuntimeProfile();
+    if (ui.runtimeBaseTypeSelect.querySelector(`option[value="${profile.baseType}"]`)) {
+      ui.runtimeBaseTypeSelect.value = profile.baseType;
+    } else {
+      ui.runtimeBaseTypeSelect.value = ui.runtimeBaseTypeSelect.options[0]?.value || "normal";
+    }
+    ui.runtimeNpcTypeInput.value = profile.npcType || "";
+    ui.runtimeWScaleInput.value = String(num(profile.wScale, 1));
+    ui.runtimeHScaleInput.value = String(num(profile.hScale, 1));
+    ui.runtimeHealthMinInput.value = String(Math.round(num(profile.healthMin, 60)));
+    ui.runtimeHealthMaxInput.value = String(Math.round(num(profile.healthMax, 100)));
+    ui.runtimeBodyColorInput.value = isColor(profile.color) ? profile.color : "#3182ce";
+    ui.runtimeSkinColorInput.value = isColor(profile.skinColor) ? profile.skinColor : "#f0c8a0";
+    ui.runtimeHairColorInput.value = isColor(profile.hairColor) ? profile.hairColor : "#8b4513";
+    if (ui.runtimeHairStyleSelect.querySelector(`option[value="${profile.hairStyle}"]`)) {
+      ui.runtimeHairStyleSelect.value = profile.hairStyle;
+    }
+    ui.runtimeEyeColorInput.value = isColor(profile.eyeColor) ? profile.eyeColor : "#1a1a2e";
+    ui.runtimeLegColorInput.value = isColor(profile.legColor) ? profile.legColor : "#4a5568";
+    ui.runtimeShoeColorInput.value = isColor(profile.shoeColor) ? profile.shoeColor : "#2d3748";
+    ui.runtimeFeminineBodyToggle.checked = !!profile.feminineBody;
+    ui.runtimeBustScaleInput.value = String(num(profile.bustScale, 0));
+    ui.runtimeHasDressToggle.checked = !!profile.hasDress;
+    ui.runtimeShortDressToggle.checked = !!profile.shortDress;
+  }
+
+  function updateReadinessToggleState() {
+    ui.strictVisualRulesToggle.checked = !!state.strictVisualRules;
+    ui.autoFixVisualToggle.checked = !!state.autoFixVisualIssues;
+    ui.autoFixVisualToggle.disabled = !state.strictVisualRules;
+  }
+
+  function updateRuntimePreviewLabels() {
+    ui.runtimePreviewPoseSelect.value = state.runtimePreview.pose;
+    ui.runtimePreviewFacingSelect.value = state.runtimePreview.facing === -1 ? "-1" : "1";
+    ui.runtimePreviewScaleInput.value = String(state.runtimePreview.scale);
+    ui.runtimePreviewTickInput.value = String(state.runtimePreview.tick);
+    ui.runtimePreviewScaleValue.textContent = `${state.runtimePreview.scale.toFixed(2)}x`;
+    ui.runtimePreviewTickValue.textContent = state.runtimePreview.tick.toFixed(2);
+    ui.runtimePreviewWorldToggle.checked = !!state.runtimePreview.worldContext;
+  }
+
+  function renderConstraintReferenceList() {
+    const frag = document.createDocumentFragment();
+    state.constraintReference.forEach((entry) => {
+      const li = document.createElement("li");
+      li.textContent = `${entry.type === "hard" ? "Hard" : "Visual"}: ${entry.title} - ${entry.guidance}`;
+      frag.append(li);
+    });
+    ui.constraintReferenceList.replaceChildren(frag);
   }
 
   function createBaseTemplate(templateId) {
@@ -1014,9 +1443,19 @@
   }
 
   function updatePoseTabs() {
+    const issueMaps = collectIssueMaps(state.validation);
     ui.poseTabs.forEach((btn) => {
-      const active = (btn.dataset.pose || "") === state.activePose;
+      const poseId = btn.dataset.pose || "";
+      const active = poseId === state.activePose;
+      const poseIssues = issueMaps.poseMap[poseId] || { hard: 0, visual: 0 };
       btn.classList.toggle("is-active", active);
+      btn.classList.toggle("has-hard-issue", poseIssues.hard > 0);
+      btn.classList.toggle("has-visual-issue", poseIssues.visual > 0 && poseIssues.hard === 0);
+      if (poseIssues.hard > 0 || poseIssues.visual > 0) {
+        btn.title = `${poseId}: ${poseIssues.hard} hard, ${poseIssues.visual} warning`;
+      } else {
+        btn.title = poseId;
+      }
     });
   }
 
@@ -1904,10 +2343,171 @@
   }
 
   function renderAll() {
+    const validation = runDesignerValidation({
+      applyAutoFix: state.skipAutoFixOnce ? false : true
+    });
+    state.skipAutoFixOnce = false;
+
     renderEditorCanvas();
     renderLayerList();
     renderSelectionInfo();
     renderPosePreviews();
+    renderDesignReadiness(validation);
+    renderInlineIssues(validation);
+    renderRuntimePreview(validation);
+    updatePoseTabs();
+  }
+
+  function runDesignerValidation(opts = {}) {
+    ensureDocument();
+    ensureRuntimeProfile();
+
+    if (!CONSTRAINTS || typeof CONSTRAINTS.validateDesignerDocument !== "function") {
+      state.validation = {
+        hardFailures: [{
+          kind: "hard",
+          target: "field:runtime-base-type",
+          message: "Constraint engine unavailable. Cannot verify runtime safety."
+        }],
+        visualWarnings: [],
+        autoFixes: [],
+        canExport: false,
+        summary: {
+          hardFailureCount: 1,
+          visualWarningCount: 0,
+          autoFixCount: 0,
+          strictVisualRules: state.strictVisualRules,
+          autoFixVisualIssues: state.autoFixVisualIssues
+        },
+        metadata: {
+          strictVisualRules: state.strictVisualRules,
+          autoFixVisualIssues: state.autoFixVisualIssues,
+          overrideEnabled: !state.strictVisualRules
+        }
+      };
+      return state.validation;
+    }
+
+    const validation = CONSTRAINTS.validateDesignerDocument(state.document, {
+      strictVisualRules: state.strictVisualRules,
+      autoFixVisualIssues: state.autoFixVisualIssues,
+      applyAutoFix: opts.applyAutoFix !== false
+    });
+
+    const normalizedProfile = normalizeRuntimeProfile(
+      validation?.resolvedDocument?.runtimeProfile || state.document.runtimeProfile,
+      state.document.meta.baseTemplate
+    );
+    const beforeProfile = JSON.stringify(state.document.runtimeProfile || {});
+    const afterProfile = JSON.stringify(normalizedProfile || {});
+    if (beforeProfile !== afterProfile) {
+      state.document.runtimeProfile = normalizedProfile;
+      if (!opts.silent) stampUpdatedAt();
+      syncRuntimeProfileInputs();
+    }
+
+    state.validation = validation;
+    return validation;
+  }
+
+  function collectIssueMaps(validation) {
+    const poseMap = Object.create(null);
+    const layerMap = Object.create(null);
+    const fieldMap = Object.create(null);
+
+    const all = [...(validation?.hardFailures || []), ...(validation?.visualWarnings || [])];
+    all.forEach((entry) => {
+      const target = entry?.target || "";
+      const severity = entry?.kind === "hard" ? "hard" : "visual";
+      if (target.startsWith("pose:")) {
+        const poseId = target.slice("pose:".length);
+        if (!poseMap[poseId]) poseMap[poseId] = { hard: 0, visual: 0 };
+        poseMap[poseId][severity] += 1;
+      } else if (target.startsWith("layer:")) {
+        const parts = target.split(":");
+        const poseId = parts[1] || state.activePose;
+        const layerId = parts[2] || "";
+        const key = `${poseId}:${layerId}`;
+        if (!layerMap[key]) layerMap[key] = { hard: 0, visual: 0 };
+        layerMap[key][severity] += 1;
+      } else if (target.startsWith("field:")) {
+        if (!fieldMap[target]) fieldMap[target] = { hard: [], visual: [] };
+        fieldMap[target][severity].push(entry.message);
+      }
+    });
+
+    return { poseMap, layerMap, fieldMap };
+  }
+
+  function renderDesignReadiness(validation) {
+    const hard = validation?.hardFailures || [];
+    const visual = validation?.visualWarnings || [];
+
+    ui.exportCompactBtn.disabled = hard.length > 0;
+    ui.copyCompactBtn.disabled = hard.length > 0;
+
+    if (hard.length) {
+      ui.readinessSummary.textContent = `Blocked: ${hard.length} hard safety issue(s) must be fixed before compact export.`;
+      ui.readinessSummary.classList.add("is-hard");
+    } else if (visual.length && !state.strictVisualRules) {
+      ui.readinessSummary.textContent = `Export ready with ${visual.length} visual warning(s). Override mode is active.`;
+      ui.readinessSummary.classList.remove("is-hard");
+    } else if (visual.length) {
+      ui.readinessSummary.textContent = `Export ready. ${visual.length} visual warning(s) detected.`;
+      ui.readinessSummary.classList.remove("is-hard");
+    } else {
+      ui.readinessSummary.textContent = "Export ready. No blockers or warnings.";
+      ui.readinessSummary.classList.remove("is-hard");
+    }
+
+    ui.readinessMeta.textContent = `Strict visual rules: ${state.strictVisualRules ? "ON" : "OFF"} | Auto-fix: ${state.autoFixVisualIssues ? "ON" : "OFF"} | Auto-fixes applied: ${(validation?.autoFixes || []).length}`;
+    renderIssueList(ui.hardBlockerList, hard, "hard");
+    renderIssueList(ui.warningList, visual, "warn");
+  }
+
+  function renderIssueList(listEl, issues, className) {
+    listEl.classList.remove("hard", "warn");
+    listEl.classList.add(className);
+    const frag = document.createDocumentFragment();
+    if (!issues.length) {
+      const li = document.createElement("li");
+      li.textContent = className === "hard" ? "No hard blockers." : "No warnings.";
+      frag.append(li);
+      listEl.replaceChildren(frag);
+      return;
+    }
+    issues.forEach((entry) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.target = entry.target || "";
+      button.textContent = entry.message || "Issue";
+      li.append(button);
+      frag.append(li);
+    });
+    listEl.replaceChildren(frag);
+  }
+
+  function renderInlineIssues(validation) {
+    const issueMaps = collectIssueMaps(validation);
+    Object.entries(ui.issueFieldMap).forEach(([target, el]) => {
+      if (!el) return;
+      const bucket = issueMaps.fieldMap[target];
+      const hardMsg = bucket?.hard?.[0] || "";
+      const warnMsg = bucket?.visual?.[0] || "";
+      el.classList.remove("is-warning");
+      if (hardMsg) {
+        el.textContent = hardMsg;
+        el.dataset.target = target;
+      } else if (warnMsg) {
+        el.textContent = warnMsg;
+        el.dataset.target = target;
+        el.classList.add("is-warning");
+      } else {
+        el.textContent = "";
+        el.dataset.target = "";
+      }
+    });
   }
 
   function renderEditorCanvas() {
@@ -2217,6 +2817,7 @@
 
   function renderLayerList() {
     const layers = getLayers();
+    const issueMaps = collectIssueMaps(state.validation);
     const frag = document.createDocumentFragment();
 
     [...layers].reverse().forEach((layer) => {
@@ -2224,6 +2825,9 @@
       li.className = "layer-item";
       if (state.selectedIds.has(layer.id)) li.classList.add("is-selected");
       if (layer.locked) li.classList.add("is-locked");
+      const layerIssue = issueMaps.layerMap[`${state.activePose}:${layer.id}`] || { hard: 0, visual: 0 };
+      if (layerIssue.hard > 0) li.classList.add("has-hard-issue");
+      if (layerIssue.visual > 0 && layerIssue.hard === 0) li.classList.add("has-visual-issue");
       li.dataset.layerId = layer.id;
 
       const vis = document.createElement("input");
@@ -2246,7 +2850,19 @@
       type.className = "layer-type";
       type.textContent = layer.type;
 
-      li.append(vis, lock, name, type);
+      const issue = document.createElement("span");
+      issue.className = "layer-issue";
+      if (layerIssue.hard > 0) {
+        issue.textContent = `H${layerIssue.hard}`;
+        issue.title = `${layerIssue.hard} hard issue(s)`;
+      } else if (layerIssue.visual > 0) {
+        issue.textContent = `W${layerIssue.visual}`;
+        issue.title = `${layerIssue.visual} warning(s)`;
+      } else {
+        issue.textContent = "";
+      }
+
+      li.append(vis, lock, name, type, issue);
       frag.append(li);
     });
 
@@ -2313,6 +2929,158 @@
 
     layers.forEach((layer) => drawLayer(ctx, layer));
     ctx.restore();
+  }
+
+  function renderRuntimePreview(validation) {
+    const ctx = ui.runtimePreviewCtx;
+    const canvas = ui.runtimePreviewCanvas;
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, "#0f172a");
+    sky.addColorStop(1, "#12263c");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    const baselineY = h * 0.82;
+    if (state.runtimePreview.worldContext) {
+      drawRuntimePreviewWorldContext(ctx, w, h, baselineY);
+    }
+
+    if (!state.runtimeRenderer) {
+      ui.runtimePreviewStatus.textContent = "Runtime renderer unavailable (missing runtime/npc-render-shared.js).";
+      return;
+    }
+
+    const profile = ensureRuntimeProfile();
+    if (profile.npcType) {
+      state.runtimeCharDefs[profile.npcType] = {
+        ...(state.runtimeCharDefs[profile.baseType] || {}),
+        name: profile.npcType
+      };
+    }
+
+    const scale = GAME_TO_EDITOR_SCALE * state.runtimePreview.scale;
+    const widthPx = GAME_BASE_W * num(profile.wScale, 1) * scale;
+    const heightPx = GAME_BASE_H * num(profile.hScale, 1) * scale;
+    const tick = state.runtimePreview.tick;
+    const pose = state.runtimePreview.pose;
+
+    const drawOpts = {
+      facing: state.runtimePreview.facing,
+      npcType: profile.npcType || profile.baseType || "normal",
+      color: profile.color,
+      skinColor: profile.skinColor,
+      hairColor: profile.hairColor,
+      hairStyle: profile.hairStyle,
+      eyeColor: profile.eyeColor,
+      legColor: profile.legColor,
+      shoeColor: profile.shoeColor,
+      feminineBody: !!profile.feminineBody,
+      bustScale: num(profile.bustScale, 0),
+      hasDress: !!profile.hasDress,
+      shortDress: !!profile.shortDress,
+      walkPhase: tick * Math.PI,
+      breathing: Math.sin(tick * 2.2) * 1.2,
+      blinkTimer: (Math.sin(tick * 1.9) > 0.93) ? 0.05 : 0.6,
+      isMovingJump: pose === "panic",
+      airState: pose === "panic" ? "rising" : null,
+      isFleeing: pose === "panic",
+      openMouth: pose === "panic",
+      isKO: pose === "ko",
+      opacity: 1
+    };
+
+    state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, drawOpts);
+
+    const hard = validation?.hardFailures?.length || 0;
+    const warnings = validation?.visualWarnings?.length || 0;
+    ui.runtimePreviewStatus.textContent = `Runtime renderer active | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
+  }
+
+  function drawRuntimePreviewWorldContext(ctx, w, h, baselineY) {
+    ctx.strokeStyle = "rgba(249,115,22,0.85)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, baselineY + 0.5);
+    ctx.lineTo(w, baselineY + 0.5);
+    ctx.stroke();
+
+    const silhouettes = [
+      { id: "small", x: w * 0.18, alpha: 0.3 },
+      { id: "normal", x: w * 0.33, alpha: 0.34 },
+      { id: "tall", x: w * 0.68, alpha: 0.28 },
+      { id: "giant", x: w * 0.84, alpha: 0.22 }
+    ];
+
+    silhouettes.forEach((silhouette) => {
+      const ref = GAME_CHARACTER_HEIGHT_REFERENCES.find((entry) => entry.id === silhouette.id);
+      if (!ref) return;
+      const sh = ref.heightPx * 2.1;
+      const sw = ref.widthPx * 2.1;
+      const y = baselineY - sh;
+      ctx.fillStyle = `rgba(148, 163, 184, ${silhouette.alpha})`;
+      fillRoundRect(ctx, silhouette.x - sw * 0.5, y + sh * 0.2, sw, sh * 0.8, Math.max(3, sw * 0.2));
+      ctx.beginPath();
+      ctx.ellipse(silhouette.x, y + sh * 0.13, sw * 0.24, sh * 0.13, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(226,232,240,0.72)";
+      ctx.font = "9px monospace";
+      ctx.fillText(ref.id, silhouette.x - sw * 0.45, baselineY + 12);
+    });
+  }
+
+  function jumpToIssueTarget(target) {
+    if (!target) return;
+
+    if (target.startsWith("field:")) {
+      const fieldInput = getFieldInputForTarget(target);
+      if (fieldInput && typeof fieldInput.focus === "function") {
+        fieldInput.focus();
+      }
+      return;
+    }
+
+    if (target.startsWith("pose:")) {
+      const poseId = target.slice("pose:".length);
+      if (POSE_IDS.includes(poseId)) {
+        setActivePose(poseId);
+      }
+      return;
+    }
+
+    if (target.startsWith("layer:")) {
+      const [, poseId, layerId] = target.split(":");
+      if (POSE_IDS.includes(poseId)) {
+        state.activePose = poseId;
+      }
+      updatePoseTabs();
+      if (layerId) {
+        setSelection([layerId]);
+      }
+      requestRender();
+      window.setTimeout(() => {
+        const selector = `[data-layer-id="${layerId}"]`;
+        const row = ui.layerList.querySelector(selector);
+        if (row) row.scrollIntoView({ block: "center" });
+      }, 0);
+    }
+  }
+
+  function getFieldInputForTarget(target) {
+    const map = {
+      "field:char-id": ui.charIdInput,
+      "field:char-label": ui.charLabelInput,
+      "field:runtime-base-type": ui.runtimeBaseTypeSelect,
+      "field:runtime-npc-type": ui.runtimeNpcTypeInput,
+      "field:runtime-scale": ui.runtimeWScaleInput,
+      "field:runtime-health": ui.runtimeHealthMinInput,
+      "field:runtime-colors": ui.runtimeBodyColorInput,
+      "field:runtime-dress": ui.runtimeHasDressToggle
+    };
+    return map[target] || null;
   }
 
   function buildCanvasStatusText() {
@@ -2668,6 +3436,14 @@
     state.document.meta.id = ui.charIdInput.value.trim() || state.document.meta.id;
     state.document.meta.label = ui.charLabelInput.value || state.document.meta.label;
     state.document.meta.baseTemplate = ui.templateSelect.value;
+    ensureRuntimeProfile();
+    const validation = runDesignerValidation({ applyAutoFix: true, silent: true });
+    state.document.validation = {
+      summary: deepClone(validation.summary),
+      metadata: deepClone(validation.metadata),
+      hardFailures: (validation.hardFailures || []).map((entry) => ({ target: entry.target, message: entry.message })),
+      visualWarnings: (validation.visualWarnings || []).map((entry) => ({ target: entry.target, message: entry.message }))
+    };
     persistEditorView();
     stampUpdatedAt();
 
@@ -2686,14 +3462,22 @@
 
     const normalized = normalizeImportedDocument(parsed);
     state.document = normalized;
+    state.skipAutoFixOnce = true;
 
     state.activePose = POSE_IDS.includes(state.activePose) ? state.activePose : "normal";
     state.selectedIds.clear();
     state.layerListAnchorId = null;
     syncControlsFromDocument();
     fitToModel();
+    const validation = runDesignerValidation({ applyAutoFix: false, silent: true });
     requestRender();
-    setStatus("JSON imported successfully.");
+    if (validation.hardFailures.length) {
+      setStatus(`JSON imported with ${validation.hardFailures.length} hard blocker(s). Fix blockers before compact export.`);
+    } else if (validation.visualWarnings.length) {
+      setStatus(`JSON imported with ${validation.visualWarnings.length} warning(s).`);
+    } else {
+      setStatus("JSON imported successfully.");
+    }
   }
 
   function normalizeImportedDocument(doc) {
@@ -2725,6 +3509,15 @@
       out.editor.showGrid = doc.editor.showGrid !== false;
       out.editor.showHeightLines = doc.editor.showHeightLines !== false;
       out.editor.showSilhouettes = !!doc.editor.showSilhouettes;
+    }
+
+    out.runtimeProfile = normalizeRuntimeProfile(
+      doc?.runtimeProfile,
+      out.meta.baseTemplate
+    );
+
+    if (doc?.validation && typeof doc.validation === "object") {
+      out.validation = deepClone(doc.validation);
     }
 
     POSE_IDS.forEach((poseId) => {
@@ -2813,15 +3606,36 @@
 
   function exportIntegrationPayload() {
     ensureDocument();
+    ensureRuntimeProfile();
+    const validation = runDesignerValidation({ applyAutoFix: true, silent: true });
+    if (validation.hardFailures.length) {
+      setStatus(`Compact export blocked: ${validation.hardFailures.length} hard safety issue(s).`);
+      return null;
+    }
+
     const payload = {
       version: 1,
       id: state.document.meta.id,
       label: state.document.meta.label,
       baseTemplate: state.document.meta.baseTemplate,
+      runtimeProfile: deepClone(state.document.runtimeProfile),
       bounds: {
         w: GAME_BASE_W,
         h: GAME_BASE_H,
         editorScale: GAME_TO_EDITOR_SCALE
+      },
+      metadata: {
+        exportedAt: new Date().toISOString(),
+        validation: {
+          summary: deepClone(validation.summary),
+          metadata: deepClone(validation.metadata),
+          hardFailures: [],
+          visualWarnings: (validation.visualWarnings || []).map((entry) => ({
+            target: entry.target,
+            message: entry.message
+          })),
+          autoFixes: (validation.autoFixes || []).slice()
+        }
       },
       poses: {}
     };
@@ -2988,6 +3802,22 @@
 
   function degToRad(deg) {
     return (deg * Math.PI) / 180;
+  }
+
+  function fillRoundRect(ctx, x, y, w, h, r) {
+    const radius = Math.max(0, Math.min(r, Math.abs(w) * 0.5, Math.abs(h) * 0.5));
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + w - radius, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+    ctx.lineTo(x + w, y + h - radius);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+    ctx.lineTo(x + radius, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
   }
 
   function isEditableTarget(target) {

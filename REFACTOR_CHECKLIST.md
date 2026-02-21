@@ -1,119 +1,73 @@
-# GameContext Refactor Checklist
+# NPC Designer Refactor Checklist (Constraint UX + Runtime Parity)
 
-Execution checklist derived from `REFACTOR_SLICES.md`.
+## Phase 1 Gate (Read-Only First)
 
-## Preconditions
+- [x] Read `SCHEMATICS.md` before planning/editing.
+- [x] Created `NPC_DESIGNER_CONSTRAINTS_READONLY.md` with anchors and contract.
+- [x] Updated `REFACTOR_SLICES.md` with ordered mechanical slices.
+- [x] Updated `REFACTOR_CHECKLIST.md` with acceptance gates.
+- [x] No implementation edits performed before these artifacts.
 
-- [ ] Confirm working tree is clean or intentionally staged.
-- [ ] Re-read `REFACTOR_SLICES.md` scope and out-of-scope boundaries.
-- [ ] Confirm this run is Phase A (coordinator context), not deep system rewrite.
+## Scope and Invariant Gate
 
-## Slice A0: Context Scaffold
+- [x] Diff scope limited to expected files.
+- [x] No gameplay constants/tuning values changed.
+- [x] No spawn/combat/zone rebalance.
+- [x] Existing designer core capabilities preserved.
 
-- [ ] Add `createGameContext()` near game state section.
-- [ ] Add `const GAME_CTX = createGameContext()`.
-- [ ] Include facades: `config`, `input`, `services`, `state` (with primitive accessors), `refs`.
-- [ ] No behavior logic changes in this slice.
-- [ ] Run syntax check.
+## Preserved Existing Designer Capabilities (Must Stay PASS)
 
-## Slice A1: Loop Boundary
+- [x] Tools still available: select/move/rect/ellipse/line/curve/polygon/color/gradient/eyedropper/hand/zoom controls.
+- [x] Layer workflow still available: reorder/lock/hide/multi-select/group transforms.
+- [x] Pose workflow still available: normal/panic/ko with pose isolation.
+- [x] Existing JSON round-trip behavior still operational.
+- [x] Height reference workflow still operational.
 
-- [ ] Change `update(dt)` -> `update(ctx, dt)` and `render(dt)` -> `render(ctx, dt)` call sites in `loop`.
-- [ ] Extract `endFrameInputReset(ctx)` with same ordering as current clear logic.
-- [ ] Ensure `requestAnimationFrame(loop)` behavior unchanged.
-- [ ] Run syntax check.
+## Constraint UX Gate
 
-## Slice A2: Update Dispatcher
+- [x] Shared constraints source used by inline validation + readiness + export-readiness.
+- [x] Hard Safety rules non-bypassable and export-blocking.
+- [x] Visual rules separated from hard rules.
+- [x] Strict Visual Rules toggle defaults ON.
+- [x] Auto-fix Visual Issues toggle defaults ON when strict is ON.
+- [x] Strict OFF keeps visual issues as warnings only.
+- [x] Design Readiness panel always visible.
+- [x] Constraint Reference panel always visible.
+- [x] Inline errors provide jump-to-target behavior.
 
-- [ ] Thread `ctx` through update dispatcher helpers.
-- [ ] Keep deep update internals unchanged where possible.
-- [ ] Verify pause gate still short-circuits correctly.
-- [ ] Run syntax check.
+## Runtime-Parity Preview Gate
 
-## Slice A3: Startup/Progression/Menu/Pause
+- [x] Runtime preview uses shared game render logic (not a parallel renderer).
+- [x] Preview controls include pose/facing/scale/animation tick.
+- [x] World-context preview includes ground line and reference silhouettes.
+- [x] Non-designer NPC runtime render parity unchanged.
 
-- [ ] Thread `ctx` into `startGame`, `triggerPrestige`, menu, pause helpers.
-- [ ] Preserve menu transitions and mode/zone selection behavior.
-- [ ] Preserve SFX pause-row behavior (`mute`/`volume`).
-- [ ] Run syntax check.
+## Import/Export/Converter Gate
 
-## Slice A4: Render Dispatcher
+- [x] Compact/runtime export blocked only by hard failures.
+- [x] Visual warnings do not block export when strict OFF.
+- [x] Export metadata includes validation summary + override status.
+- [x] Import validation explicit and non-destructive where possible.
+- [x] Converter script added and executable.
+- [x] Fixture payloads added: strict-valid / visual-override / hard-fail.
 
-- [ ] Thread `ctx` into render dispatcher/front/overlay helpers.
-- [ ] Keep draw order identical.
-- [ ] Preserve pause overlay draw position and sidebar behavior.
-- [ ] Run syntax check.
+## Documentation Gate
 
-## Slice A5: Coordinator State Access
+- [x] `README.md` updated for user-facing enhancement.
+- [x] `SCHEMATICS.md` updated when game file changed.
 
-- [ ] Move coordinator-level direct global reads/writes to `ctx.state` accessors.
-- [ ] Keep low-level systems unchanged unless required for compile.
-- [ ] Re-run syntax check.
+## Validation Gate
 
-## Validation
+- [x] Syntax checks passed for changed JS files.
+- [x] Converter runs reported (strict-valid + visual-override + hard-fail).
+- [x] Non-designer render parity check passed.
+- [x] Runtime validation status reported (executed or exact skip reason).
+- [x] Sound-path validation reported not required unless changed.
 
-- [ ] Gameplay flow sanity path reported when runtime validation is available: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
-- [ ] Touch sanity: menu nav + jump/bag/pause unchanged on mobile.
-- [ ] Verify frame-end input reset semantics are unchanged.
+## Final PASS/FAIL Gate
 
-## Documentation
-
-- [ ] Update `SCHEMATICS.md` for all line/signature shifts after each game-file edit task.
-- [ ] Add brief mechanics change log to final report (impact + risks).
-
----
-
-## NPC Designer Feature Checklist (2026-02-21)
-
-### Preconditions
-
-- [ ] Confirm branch is based on `refactor/update-render-split`.
-- [ ] Confirm `NPC_DESIGNER_READONLY.md` exists and is complete.
-- [ ] Confirm implementation edits are limited to tooling/docs scope.
-
-### Slice N1: Scaffold
-
-- [ ] Add `npc-designer.html`, `npc-designer.css`, `npc-designer.js`.
-- [ ] Wire responsive desktop/mobile-safe layout and core toolbar.
-
-### Slice N2: Document/Pose Model
-
-- [ ] Implement editable document schema and state container.
-- [ ] Implement `male_base` and `female_base` templates.
-- [ ] Implement independent pose workspaces (`normal`, `panic`, `ko`).
-- [ ] Implement copy-pose and reset-to-template actions.
-
-### Slice N3: Tooling Surface
-
-- [ ] Implement select, move, resize handles, rect, ellipse, line, curve, polygon.
-- [ ] Implement color select tool, gradient workflow, eyedropper tool.
-- [ ] Implement hand pan tool and zoom controls.
-- [ ] Implement Shift aspect-ratio locking for rect/ellipse resize.
-
-### Slice N4: Layer System
-
-- [ ] Layer list UI with rename/reorder/hide/lock/duplicate/delete.
-- [ ] Multi-select layer controls (Shift/Cmd/Ctrl).
-- [ ] Group move/resize for multi-selection.
-
-### Slice N5: Preview + Height References
-
-- [ ] Render live preview for all three poses.
-- [ ] Add facing-direction toggle.
-- [ ] Add height reference lines/labels using existing game character dimensions.
-- [ ] Add optional silhouette overlay toggle.
-
-### Slice N6: JSON + Docs
-
-- [ ] Implement editable JSON export/import round-trip.
-- [ ] Implement copy-to-clipboard and download export actions.
-- [ ] Implement compact integration payload export.
-- [ ] Update `README.md` with tool usage/workflow.
-
-### Final Validation
-
-- [ ] Syntax check passes for changed JS files.
-- [ ] Runtime validation status reported (executed or explicit skip reason).
-- [ ] Sound-path validation status reported (executed or explicit skip reason).
-- [ ] `SCHEMATICS.md` updated only if any game file changed.
-- [ ] Final handoff includes mechanics change log (surface, impact, risks).
+- [x] Pre-commit scope check PASS.
+- [x] Planned edits from `NPC_DESIGNER_CONSTRAINTS_READONLY.md` present PASS.
+- [x] Invariants PASS.
+- [x] Validation reporting PASS.
+- [x] Mechanics change log included PASS.

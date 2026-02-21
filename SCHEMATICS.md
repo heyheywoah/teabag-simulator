@@ -34,6 +34,13 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
 | Title / mode / zone picker / pause menus | 4201-4502 |
 | Main loop + frame reset + boot | 4503-4527 |
 
+## Recent Integration Notes (2026-02-21)
+
+- Shared NPC renderer module: `runtime/npc-render-shared.js` now owns the runtime `drawCharacter` implementation body.
+- Runtime include anchor: `teabag-simulator.html:22` (`<script src="runtime/npc-render-shared.js"></script>`).
+- Runtime wrapper anchor: `teabag-simulator.html:2104-2113` (`SHARED_CHARACTER_RENDERER` + delegating `drawCharacter(...)`).
+- Runtime call sites are unchanged and still target `drawCharacter(...)`; parity checks should compare shared module body against baseline runtime body before/after refactors.
+
 ## Runtime State Machine
 
 `gameState` source of truth: `teabag-simulator.html:2906`
@@ -186,8 +193,8 @@ Use these from repo root:
 - Chain combo decays only when not mounted (`3405`) and refreshes on remount (`3383`).
 - Teabag uses crouch release timing (`3208-3211`), not crouch press.
 - Zone unlocks happen both on crossing into a zone (`3571`) and on prestige (`3033`).
-- `drawCharacter` is shared by player, NPCs, bus-stop NPCs, title screen, and gallery (`2107`, `3618`, `4073`, `2598`).
-- Frame-end input reset ordering is critical and now centralized in `endFrameInputReset(gameCtx)` (`4503-4508`); keep it after `render(gameCtx, dt)` in `loop` (`4514-4516`).
+- `drawCharacter` remains the single runtime character draw entrypoint for player/NPC/gallery flows, but now delegates through `SHARED_CHARACTER_RENDERER` (`teabag-simulator.html:2104-2113`) into `runtime/npc-render-shared.js`.
+- Frame-end input reset ordering is critical and centralized in `endFrameInputReset(gameCtx)` (`teabag-simulator.html:4038`); keep it after `render(gameCtx, dt)` in `loop` (`teabag-simulator.html:4045`).
 - Bootstrap world warmup and spawn burst values are centralized in `TUNING.world` (`444-465`); keep bootstrap (`452+`) and streaming (`448`, `3582`) margins intentionally aligned for pacing.
 - FG and BG both use `advanceCityCursor(...)` for width-aware symmetric stride; keep left-anchor placement as `b.x = cursor - b.w` so right/left parity is preserved.
 - `drawGalleryCompanionDog(...)` is gallery-only; it should not be called from `renderEntityLayer` or NPC update paths.

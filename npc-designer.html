@@ -63,7 +63,59 @@
         <section class="panel-block">
           <h2>Meta</h2>
           <label>Character ID <input id="charIdInput" type="text" value="npc_custom_001"></label>
+          <div class="field-issue" id="issue-char-id"></div>
           <label>Character Label <input id="charLabelInput" type="text" value="Custom NPC"></label>
+          <div class="field-issue" id="issue-char-label"></div>
+        </section>
+
+        <section class="panel-block">
+          <h2>Runtime Preview Profile</h2>
+          <label>Base NPC Type
+            <select id="runtimeBaseTypeSelect"></select>
+          </label>
+          <div class="field-issue" id="issue-runtime-base-type"></div>
+
+          <label>Runtime npcType <input id="runtimeNpcTypeInput" type="text" value="custom_designer_npc"></label>
+          <div class="field-issue" id="issue-runtime-npc-type"></div>
+
+          <div class="field-grid-2">
+            <label>Width Scale <input id="runtimeWScaleInput" type="number" min="0.5" max="2.2" step="0.01" value="1"></label>
+            <label>Height Scale <input id="runtimeHScaleInput" type="number" min="0.5" max="2.2" step="0.01" value="1"></label>
+          </div>
+          <div class="field-issue" id="issue-runtime-scale"></div>
+
+          <div class="field-grid-2">
+            <label>Health Min <input id="runtimeHealthMinInput" type="number" min="1" step="1" value="100"></label>
+            <label>Health Max <input id="runtimeHealthMaxInput" type="number" min="1" step="1" value="180"></label>
+          </div>
+          <div class="field-issue" id="issue-runtime-health"></div>
+
+          <div class="field-grid-2">
+            <label>Body Color <input id="runtimeBodyColorInput" type="color" value="#3b82f6"></label>
+            <label>Skin Color <input id="runtimeSkinColorInput" type="color" value="#fbbf6b"></label>
+          </div>
+          <div class="field-grid-2">
+            <label>Hair Color <input id="runtimeHairColorInput" type="color" value="#3d2b1f"></label>
+            <label>Hair Style
+              <select id="runtimeHairStyleSelect"></select>
+            </label>
+          </div>
+          <div class="field-grid-2">
+            <label>Eye Color <input id="runtimeEyeColorInput" type="color" value="#1a1a2e"></label>
+            <label>Leg Color <input id="runtimeLegColorInput" type="color" value="#4a5568"></label>
+          </div>
+          <label>Shoe Color <input id="runtimeShoeColorInput" type="color" value="#2d3748"></label>
+          <div class="field-issue" id="issue-runtime-colors"></div>
+
+          <div class="field-grid-2">
+            <label class="toggle-row"><input id="runtimeFeminineBodyToggle" type="checkbox"> Feminine Body</label>
+            <label>Bust Scale <input id="runtimeBustScaleInput" type="number" min="0" max="2" step="0.01" value="0.85"></label>
+          </div>
+          <div class="field-grid-2">
+            <label class="toggle-row"><input id="runtimeHasDressToggle" type="checkbox"> Has Dress</label>
+            <label class="toggle-row"><input id="runtimeShortDressToggle" type="checkbox"> Short Dress</label>
+          </div>
+          <div class="field-issue" id="issue-runtime-dress"></div>
         </section>
 
         <section class="panel-block">
@@ -119,6 +171,28 @@
       </section>
 
       <aside class="panel panel-right">
+        <section class="panel-block sticky-block readiness-block">
+          <h2>Design Readiness</h2>
+          <div class="field-grid-2">
+            <label class="toggle-row"><input id="strictVisualRulesToggle" type="checkbox" checked> Strict Visual Rules</label>
+            <label class="toggle-row"><input id="autoFixVisualToggle" type="checkbox" checked> Auto-fix Visual Issues</label>
+          </div>
+          <p class="hint">
+            Hard Safety blockers always prevent compact/runtime export. Visual rules become warnings when strict mode is off.
+          </p>
+          <p id="readinessSummary" class="readiness-summary">Running validation...</p>
+          <h3>Hard Blockers</h3>
+          <ul id="hardBlockerList" class="issue-list"></ul>
+          <h3>Warnings</h3>
+          <ul id="warningList" class="issue-list"></ul>
+          <p id="readinessMeta" class="hint"></p>
+        </section>
+
+        <section class="panel-block">
+          <h2>Constraint Reference</h2>
+          <ul id="constraintReferenceList" class="issue-list reference-list"></ul>
+        </section>
+
         <section class="panel-block">
           <h2>Layers</h2>
           <div class="button-row compact">
@@ -174,10 +248,44 @@
           </div>
           <p class="hint" id="selectionInfo">No layer selected.</p>
         </section>
+
+        <section class="panel-block">
+          <h2>Runtime-Parity Preview</h2>
+          <div class="field-grid-2">
+            <label>Pose
+              <select id="runtimePreviewPoseSelect">
+                <option value="normal">normal</option>
+                <option value="panic">panic</option>
+                <option value="ko">ko</option>
+              </select>
+            </label>
+            <label>Facing
+              <select id="runtimePreviewFacingSelect">
+                <option value="1">Right</option>
+                <option value="-1">Left</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-grid-2">
+            <label>Scale
+              <input id="runtimePreviewScaleInput" type="range" min="0.5" max="1.8" step="0.01" value="1">
+              <span id="runtimePreviewScaleValue">1.00x</span>
+            </label>
+            <label>Animation Tick
+              <input id="runtimePreviewTickInput" type="range" min="0" max="10" step="0.01" value="0">
+              <span id="runtimePreviewTickValue">0.00</span>
+            </label>
+          </div>
+          <label class="toggle-row"><input id="runtimePreviewWorldToggle" type="checkbox" checked> World Context (ground + silhouettes)</label>
+          <canvas id="runtimePreviewCanvas" width="320" height="220"></canvas>
+          <p id="runtimePreviewStatus" class="hint">Runtime renderer: waiting...</p>
+        </section>
       </aside>
     </main>
   </div>
 
+  <script src="./runtime/npc-render-shared.js"></script>
+  <script src="./npc-designer-constraints.js"></script>
   <script src="./npc-designer.js"></script>
 </body>
 </html>

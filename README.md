@@ -145,6 +145,9 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 - **Layer workflow** — Multi-select (Shift/Cmd/Ctrl), rename, reorder, hide/show, lock/unlock, duplicate, delete, group move/resize
 - **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
 - **Live previews** — Side-by-side previews for all three poses with facing-direction toggle
+- **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer with pose/facing/scale/tick controls plus world-context silhouettes
+- **Constraint UX** — Always-visible Design Readiness panel and Constraint Reference panel with hard blockers vs warnings and jump-to-target issue navigation
+- **Visual-rule override workflow** — Hard Safety rules always block compact export; visual issues become warnings when Strict Visual Rules is OFF (optional auto-fix when strict is ON)
 - **JSON round-trip** — Export/import full editable JSON, copy/download JSON, plus compact integration payload export for downstream character conversion
 
 #### NPC Designer Usage
@@ -152,10 +155,13 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 1. Open `npc-designer.html`.
 2. Pick a base template (`male_base` or `female_base`).
 3. Choose a pose tab (`normal`, `panic`, `ko`) and edit layers.
-4. Use layer controls for selection/group transforms and ordering.
-5. Toggle height references to compare proportions against existing roster sizes.
-6. Export editable JSON for continued iteration or import JSON to restore state.
-7. Export compact payload when preparing downstream game-definition integration.
+4. Configure Runtime Preview Profile values (base NPC type, runtime npcType, scale/health/colors/hair/body toggles).
+5. Use layer controls for selection/group transforms and ordering.
+6. Toggle height references to compare proportions against existing roster sizes.
+7. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
+8. Use Runtime-Parity Preview to validate runtime shape/animation parity before export.
+9. Export editable JSON for continued iteration or import JSON to restore state.
+10. Export compact payload when hard blockers are clear.
 
 ## Tech
 

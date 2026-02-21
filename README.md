@@ -70,7 +70,7 @@ Land on an NPC's head to mount them. Mash crouch to teabag. Each bob does damage
 
 ### Zone-Exclusive
 
-Shopaholic, Influencer, Jogger, Dog Walker, Club Dude, Party Girl, Sundress Girl, Bouncer, Hard Hat, Forklift Phil, Soccer Mom, Mailman, Lawn Dad
+Shopaholic, Influencer, Jogger, Dog Walker (gallery preview includes companion dog), Club Dude, Party Girl, Sundress Girl, Bouncer, Hard Hat, Forklift Phil, Soccer Mom, Mailman, Lawn Dad
 
 ## Mechanics
 
@@ -134,6 +134,28 @@ Standalone tool for crafting game sounds using the Web Audio API. Modular synth-
 - **Real-time visualization** — Oscilloscope waveform, frequency spectrum, envelope/filter curves
 - **12 sound slots** with randomize, copy/paste, export JSON, import JSON, copy as JS
 - **Keyboard shortcuts** — Space to preview, R to randomize, 1-0 for quick slot select
+
+### NPC Character Designer (`npc-designer.html`)
+
+Standalone character-authoring tool for building layered NPC pose sheets before game integration.
+
+- **Editable base forms** — Start from `male_base` or `female_base`, then fully edit every base layer
+- **Three independent poses** — `normal`, `panic`, `ko` workspaces with copy-pose actions
+- **Tool surface** — Select, move, resize handles, rectangle, ellipse, line, curve, polygon, color, gradient, eyedropper, hand + zoom controls
+- **Layer workflow** — Multi-select (Shift/Cmd/Ctrl), rename, reorder, hide/show, lock/unlock, duplicate, delete, group move/resize
+- **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
+- **Live previews** — Side-by-side previews for all three poses with facing-direction toggle
+- **JSON round-trip** — Export/import full editable JSON, copy/download JSON, plus compact integration payload export for downstream character conversion
+
+#### NPC Designer Usage
+
+1. Open `npc-designer.html`.
+2. Pick a base template (`male_base` or `female_base`).
+3. Choose a pose tab (`normal`, `panic`, `ko`) and edit layers.
+4. Use layer controls for selection/group transforms and ordering.
+5. Toggle height references to compare proportions against existing roster sizes.
+6. Export editable JSON for continued iteration or import JSON to restore state.
+7. Export compact payload when preparing downstream game-definition integration.
 
 ## Tech
 

@@ -218,3 +218,56 @@ Exit points to keep as services:
 
 Proceed with Phase A only first (A0-A5), then ship/verify.
 Defer deep system threading (A6) until after stability confirmation.
+
+---
+
+## NPC Designer Feature Slices (2026-02-21)
+
+Purpose: deliver a standalone NPC character designer without touching gameplay runtime behavior.
+
+### In-Scope Boundaries
+
+1. Add standalone tool files: `npc-designer.html`, `npc-designer.css`, `npc-designer.js`.
+2. Add layer-based editor with required tools, pose workspaces, and JSON import/export.
+3. Add height reference overlays based on existing game character dimensions.
+4. Update `README.md` for new tool usage.
+
+### Out-of-Scope Boundaries
+
+1. No changes to gameplay logic/runtime loops.
+2. No changes to save schema or migration in gameplay saves.
+3. No changes to SFX definitions/runtime paths.
+4. No renderer rewrites in `teabag-simulator.html`.
+
+### Entry Points
+
+1. `npc-designer.html` UI shell + script/style linkage.
+2. `npc-designer.js` state/input/render/io modules.
+3. `README.md` dev tool documentation section.
+
+### Exit Points / Side Effects
+
+1. Clipboard copy for JSON export.
+2. File download for JSON exports.
+3. File import via local file picker.
+
+### Coupling Risks
+
+1. Height references drifting from game values if source constants change later.
+2. Group transform math inconsistencies across shape types.
+3. Pose workspace bleed (shared object references) causing unintended cross-pose edits.
+
+### Mechanical Slice Plan
+
+1. Slice N1: scaffold files and base UI shell.
+2. Slice N2: core document model + base templates + pose management.
+3. Slice N3: tool interactions (select/move/resize/draw/eyedropper/hand/zoom).
+4. Slice N4: layer panel operations + multi-select/group transforms.
+5. Slice N5: height overlays + three-pose live preview + facing toggle.
+6. Slice N6: JSON import/export + compact integration payload + README docs.
+
+### Validation Gates
+
+1. Syntax check on changed JS files (`node --check npc-designer.js`).
+2. Runtime smoke in browser (manual execution) for required tool paths.
+3. Sound-path validation explicitly reported as not required unless sound scope changed.

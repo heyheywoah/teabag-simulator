@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NPC Character Designer — Teabag Simulator</title>
+<link rel="stylesheet" href="./npc-designer.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1>NPC Character Designer</h1>
+        <p>Layered pose editor with JSON round-trip</p>
+      </div>
+      <div class="topbar-right">
+        <label>
+          Base Template
+          <select id="templateSelect">
+            <option value="male_base">male_base</option>
+            <option value="female_base">female_base</option>
+          </select>
+        </label>
+        <button id="resetPoseBtn" type="button">Reset Current Pose</button>
+        <button id="resetAllBtn" type="button">Reset All Poses</button>
+      </div>
+    </header>
+
+    <section class="subbar">
+      <div class="pose-controls">
+        <span class="subhead">Pose</span>
+        <button class="pose-tab is-active" data-pose="normal" type="button">normal</button>
+        <button class="pose-tab" data-pose="panic" type="button">panic</button>
+        <button class="pose-tab" data-pose="ko" type="button">ko</button>
+      </div>
+      <div class="pose-copy-controls">
+        <span class="subhead">Copy Current Pose To</span>
+        <select id="copyToPoseSelect">
+          <option value="normal">normal</option>
+          <option value="panic">panic</option>
+          <option value="ko">ko</option>
+        </select>
+        <button id="copyPoseBtn" type="button">Copy Pose</button>
+      </div>
+      <div class="view-controls">
+        <span class="subhead">View</span>
+        <button id="facingToggleBtn" type="button">Facing: Right</button>
+        <button id="zoomOutBtn" type="button">-</button>
+        <input id="zoomRange" type="range" min="0.25" max="4" step="0.01" value="1">
+        <button id="zoomInBtn" type="button">+</button>
+        <button id="zoomFitBtn" type="button">Fit</button>
+        <span id="zoomValue">100%</span>
+      </div>
+      <div class="preset-controls">
+        <span class="subhead">Presets</span>
+        <button id="applySundressHairBtn" type="button">Sundress Hair (Pose)</button>
+        <button id="applySundressHairAllBtn" type="button">Sundress Hair (All)</button>
+      </div>
+    </section>
+
+    <main class="workspace">
+      <aside class="panel panel-left">
+        <section class="panel-block">
+          <h2>Meta</h2>
+          <label>Character ID <input id="charIdInput" type="text" value="npc_custom_001"></label>
+          <label>Character Label <input id="charLabelInput" type="text" value="Custom NPC"></label>
+        </section>
+
+        <section class="panel-block">
+          <h2>Tools</h2>
+          <div class="tool-grid" id="toolGrid">
+            <button class="tool-btn is-active" data-tool="select" type="button">Select</button>
+            <button class="tool-btn" data-tool="move" type="button">Move</button>
+            <button class="tool-btn" data-tool="rect" type="button">Rectangle</button>
+            <button class="tool-btn" data-tool="ellipse" type="button">Ellipse</button>
+            <button class="tool-btn" data-tool="line" type="button">Line</button>
+            <button class="tool-btn" data-tool="curve" type="button">Curve</button>
+            <button class="tool-btn" data-tool="polygon" type="button">Polygon</button>
+            <button class="tool-btn" data-tool="color" type="button">Color</button>
+            <button class="tool-btn" data-tool="gradient" type="button">Gradient</button>
+            <button class="tool-btn" data-tool="eyedropper" type="button">Eyedropper</button>
+            <button class="tool-btn" data-tool="hand" type="button">Hand</button>
+          </div>
+          <p class="hint">
+            Multi-select: Shift/Cmd/Ctrl click. Keep aspect: hold Shift while drawing/resizing rectangles or ellipses.
+          </p>
+        </section>
+
+        <section class="panel-block">
+          <h2>References</h2>
+          <label class="toggle-row"><input id="showGridToggle" type="checkbox" checked> Show grid</label>
+          <label class="toggle-row"><input id="showHeightToggle" type="checkbox" checked> Show height lines</label>
+          <label class="toggle-row"><input id="showSilhouetteToggle" type="checkbox"> Show silhouettes</label>
+          <label>Filter labels <input id="heightFilterInput" type="text" placeholder="e.g. giant"></label>
+        </section>
+
+        <section class="panel-block">
+          <h2>JSON</h2>
+          <div class="button-row">
+            <button id="exportJsonBtn" type="button">Export Editable JSON</button>
+            <button id="importJsonBtn" type="button">Import JSON</button>
+            <button id="copyJsonBtn" type="button">Copy JSON</button>
+            <button id="downloadJsonBtn" type="button">Download JSON</button>
+          </div>
+          <div class="button-row">
+            <button id="exportCompactBtn" type="button">Export Compact Payload</button>
+            <button id="copyCompactBtn" type="button">Copy Compact Payload</button>
+          </div>
+          <textarea id="jsonWorkspace" spellcheck="false" aria-label="JSON workspace"></textarea>
+          <input id="importFileInput" type="file" accept="application/json,.json">
+        </section>
+      </aside>
+
+      <section class="panel panel-center">
+        <div class="canvas-wrap">
+          <canvas id="editorCanvas" width="960" height="540"></canvas>
+        </div>
+        <div class="canvas-status" id="canvasStatus">Ready.</div>
+      </section>
+
+      <aside class="panel panel-right">
+        <section class="panel-block">
+          <h2>Layers</h2>
+          <div class="button-row compact">
+            <button id="layerUpBtn" type="button">Up</button>
+            <button id="layerDownBtn" type="button">Down</button>
+            <button id="layerDuplicateBtn" type="button">Duplicate</button>
+            <button id="layerDeleteBtn" type="button">Delete</button>
+          </div>
+          <ul id="layerList" class="layer-list"></ul>
+        </section>
+
+        <section class="panel-block">
+          <h2>Style</h2>
+          <label>Fill <input id="fillColorInput" type="color" value="#3b82f6"></label>
+          <label>Stroke <input id="strokeColorInput" type="color" value="#0f172a"></label>
+          <label>Stroke Width
+            <input id="strokeWidthInput" type="range" min="0" max="12" step="0.25" value="2">
+            <span id="strokeWidthValue">2</span>
+          </label>
+          <label>Opacity
+            <input id="opacityInput" type="range" min="0.05" max="1" step="0.01" value="1">
+            <span id="opacityValue">1</span>
+          </label>
+          <div class="button-row compact">
+            <button id="applyStyleBtn" type="button">Apply Solid Style</button>
+            <button id="solidFillBtn" type="button">Set Fill Solid</button>
+          </div>
+          <h3>Gradient Editor</h3>
+          <label>Start <input id="gradStartInput" type="color" value="#f97316"></label>
+          <label>End <input id="gradEndInput" type="color" value="#06b6d4"></label>
+          <label>Angle
+            <input id="gradAngleInput" type="range" min="0" max="360" step="1" value="90">
+            <span id="gradAngleValue">90°</span>
+          </label>
+          <button id="applyGradientBtn" type="button">Apply Gradient</button>
+        </section>
+
+        <section class="panel-block">
+          <h2>Live Preview</h2>
+          <div class="preview-grid">
+            <figure>
+              <figcaption>normal</figcaption>
+              <canvas id="previewNormal" width="220" height="180"></canvas>
+            </figure>
+            <figure>
+              <figcaption>panic</figcaption>
+              <canvas id="previewPanic" width="220" height="180"></canvas>
+            </figure>
+            <figure>
+              <figcaption>ko</figcaption>
+              <canvas id="previewKo" width="220" height="180"></canvas>
+            </figure>
+          </div>
+          <p class="hint" id="selectionInfo">No layer selected.</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="./npc-designer.js"></script>
+</body>
+</html>

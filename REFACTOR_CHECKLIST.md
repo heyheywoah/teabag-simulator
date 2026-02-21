@@ -60,3 +60,60 @@ Execution checklist derived from `REFACTOR_SLICES.md`.
 
 - [ ] Update `SCHEMATICS.md` for all line/signature shifts after each game-file edit task.
 - [ ] Add brief mechanics change log to final report (impact + risks).
+
+---
+
+## NPC Designer Feature Checklist (2026-02-21)
+
+### Preconditions
+
+- [ ] Confirm branch is based on `refactor/update-render-split`.
+- [ ] Confirm `NPC_DESIGNER_READONLY.md` exists and is complete.
+- [ ] Confirm implementation edits are limited to tooling/docs scope.
+
+### Slice N1: Scaffold
+
+- [ ] Add `npc-designer.html`, `npc-designer.css`, `npc-designer.js`.
+- [ ] Wire responsive desktop/mobile-safe layout and core toolbar.
+
+### Slice N2: Document/Pose Model
+
+- [ ] Implement editable document schema and state container.
+- [ ] Implement `male_base` and `female_base` templates.
+- [ ] Implement independent pose workspaces (`normal`, `panic`, `ko`).
+- [ ] Implement copy-pose and reset-to-template actions.
+
+### Slice N3: Tooling Surface
+
+- [ ] Implement select, move, resize handles, rect, ellipse, line, curve, polygon.
+- [ ] Implement color select tool, gradient workflow, eyedropper tool.
+- [ ] Implement hand pan tool and zoom controls.
+- [ ] Implement Shift aspect-ratio locking for rect/ellipse resize.
+
+### Slice N4: Layer System
+
+- [ ] Layer list UI with rename/reorder/hide/lock/duplicate/delete.
+- [ ] Multi-select layer controls (Shift/Cmd/Ctrl).
+- [ ] Group move/resize for multi-selection.
+
+### Slice N5: Preview + Height References
+
+- [ ] Render live preview for all three poses.
+- [ ] Add facing-direction toggle.
+- [ ] Add height reference lines/labels using existing game character dimensions.
+- [ ] Add optional silhouette overlay toggle.
+
+### Slice N6: JSON + Docs
+
+- [ ] Implement editable JSON export/import round-trip.
+- [ ] Implement copy-to-clipboard and download export actions.
+- [ ] Implement compact integration payload export.
+- [ ] Update `README.md` with tool usage/workflow.
+
+### Final Validation
+
+- [ ] Syntax check passes for changed JS files.
+- [ ] Runtime validation status reported (executed or explicit skip reason).
+- [ ] Sound-path validation status reported (executed or explicit skip reason).
+- [ ] `SCHEMATICS.md` updated only if any game file changed.
+- [ ] Final handoff includes mechanics change log (surface, impact, risks).

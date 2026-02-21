@@ -2993,11 +2993,47 @@
       opacity: 1
     };
 
-    state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, drawOpts);
+    let payloadMode = "payload";
+    let fallbackReason = "";
+    let livePayload = null;
+
+    try {
+      livePayload = buildDesignerRuntimePayload({
+        cloneLayerData: false
+      });
+    } catch (err) {
+      payloadMode = "fallback";
+      fallbackReason = `payload build failed: ${err.message}`;
+    }
+
+    const payloadReadiness = getRuntimePreviewPayloadReadiness(livePayload, pose);
+    if (payloadMode !== "fallback" && !payloadReadiness.usable) {
+      payloadMode = "fallback";
+      fallbackReason = payloadReadiness.reason;
+    }
+
+    if (payloadMode === "payload") {
+      try {
+        state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, {
+          ...drawOpts,
+          designerPayload: livePayload,
+          designerPose: pose
+        });
+      } catch (err) {
+        payloadMode = "fallback";
+        fallbackReason = `payload draw failed: ${err.message}`;
+        state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, drawOpts);
+      }
+    } else {
+      state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, drawOpts);
+    }
 
     const hard = validation?.hardFailures?.length || 0;
     const warnings = validation?.visualWarnings?.length || 0;
-    ui.runtimePreviewStatus.textContent = `Runtime renderer active | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
+    const modeLabel = payloadMode === "payload"
+      ? "payload parity active"
+      : `fallback to legacy preview (${fallbackReason || "payload unavailable"})`;
+    ui.runtimePreviewStatus.textContent = `Runtime renderer active | ${modeLabel} | pose: ${pose} | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
   }
 
   function drawRuntimePreviewWorldContext(ctx, w, h, baselineY) {
@@ -3604,6 +3640,81 @@
     return maxNum;
   }
 
+  function mapLayerToRuntimePayloadLayer(layer, cloneLayerData = true) {
+    if (!layer || typeof layer !== "object") return null;
+    return {
+      id: layer.id,
+      name: layer.name,
+      type: layer.type,
+      visible: layer.visible !== false,
+      geometry: cloneLayerData ? deepClone(layer.geometry) : layer.geometry,
+      style: cloneLayerData ? deepClone(layer.style) : layer.style
+    };
+  }
+
+  function buildRuntimePayloadPoses(doc, cloneLayerData = true) {
+    const poses = {};
+    POSE_IDS.forEach((poseId) => {
+      const layers = Array.isArray(doc?.poses?.[poseId]?.layers) ? doc.poses[poseId].layers : [];
+      poses[poseId] = layers
+        .map((layer) => mapLayerToRuntimePayloadLayer(layer, cloneLayerData))
+        .filter(Boolean);
+    });
+    return poses;
+  }
+
+  function buildDesignerRuntimePayload(opts = {}) {
+    ensureDocument();
+    const doc = opts.document || state.document;
+    const cloneLayerData = opts.cloneLayerData !== false;
+    const payload = {
+      version: 1,
+      id: doc?.meta?.id,
+      label: doc?.meta?.label,
+      bounds: {
+        w: GAME_BASE_W,
+        h: GAME_BASE_H,
+        editorScale: GAME_TO_EDITOR_SCALE
+      },
+      origin: {
+        centerX: DESIGN_CENTER_X,
+        baselineY: DESIGN_BASELINE_Y
+      },
+      poses: buildRuntimePayloadPoses(doc, cloneLayerData)
+    };
+
+    if (opts.includeBaseTemplate) {
+      payload.baseTemplate = doc?.meta?.baseTemplate;
+    }
+    if (opts.includeRuntimeProfile) {
+      const runtimeProfile = doc?.runtimeProfile || ensureRuntimeProfile();
+      payload.runtimeProfile = cloneLayerData ? deepClone(runtimeProfile) : runtimeProfile;
+    }
+
+    return payload;
+  }
+
+  function getRuntimePreviewPayloadReadiness(payload, poseId) {
+    if (!payload || typeof payload !== "object") {
+      return { usable: false, reason: "payload build failed" };
+    }
+    if (!payload.bounds || typeof payload.bounds !== "object") {
+      return { usable: false, reason: "payload bounds missing" };
+    }
+    if (!payload.origin || typeof payload.origin !== "object") {
+      return { usable: false, reason: "payload origin missing" };
+    }
+
+    const poseLayers = Array.isArray(payload?.poses?.[poseId]) ? payload.poses[poseId] : [];
+    if (!poseLayers.length) {
+      return { usable: false, reason: `pose ${poseId} has no layers` };
+    }
+    if (!poseLayers.some((layer) => layer && layer.visible !== false)) {
+      return { usable: false, reason: `pose ${poseId} has no visible layers` };
+    }
+    return { usable: true, reason: "" };
+  }
+
   function exportIntegrationPayload() {
     ensureDocument();
     ensureRuntimeProfile();
@@ -3614,16 +3725,11 @@
     }
 
     const payload = {
-      version: 1,
-      id: state.document.meta.id,
-      label: state.document.meta.label,
-      baseTemplate: state.document.meta.baseTemplate,
-      runtimeProfile: deepClone(state.document.runtimeProfile),
-      bounds: {
-        w: GAME_BASE_W,
-        h: GAME_BASE_H,
-        editorScale: GAME_TO_EDITOR_SCALE
-      },
+      ...buildDesignerRuntimePayload({
+        includeBaseTemplate: true,
+        includeRuntimeProfile: true,
+        cloneLayerData: true
+      }),
       metadata: {
         exportedAt: new Date().toISOString(),
         validation: {
@@ -3636,20 +3742,8 @@
           })),
           autoFixes: (validation.autoFixes || []).slice()
         }
-      },
-      poses: {}
+      }
     };
-
-    POSE_IDS.forEach((poseId) => {
-      payload.poses[poseId] = getLayers(poseId).map((layer) => ({
-        id: layer.id,
-        name: layer.name,
-        type: layer.type,
-        visible: layer.visible,
-        geometry: deepClone(layer.geometry),
-        style: deepClone(layer.style)
-      }));
-    });
 
     return payload;
   }

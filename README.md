@@ -146,7 +146,7 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 - **Hair preset bootstrap** — Apply a layered Sundress hair preset (current pose or all poses) with back mass, temple coverage, and front bangs/wisps ready for fine tuning
 - **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
 - **Live previews** — Side-by-side previews for all three poses with facing-direction toggle
-- **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer with pose/facing/scale/tick controls plus world-context silhouettes
+- **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer using live in-memory designer payload data (`designerPayload` + `designerPose`) with legacy fallback safety, plus pose/facing/scale/tick controls and world-context silhouettes
 - **Constraint UX** — Always-visible Design Readiness panel and Constraint Reference panel with hard blockers vs warnings and jump-to-target issue navigation
 - **Visual-rule override workflow** — Hard Safety rules always block compact export; visual issues become warnings when Strict Visual Rules is OFF (optional auto-fix when strict is ON)
 - **JSON round-trip** — Export/import full editable JSON, copy/download JSON, plus compact integration payload export for downstream character conversion
@@ -163,7 +163,7 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 6. Use layer controls for selection/group transforms and ordering.
 7. Toggle height references to compare proportions against existing roster sizes.
 8. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
-9. Use Runtime-Parity Preview to validate runtime shape/animation parity before export.
+9. Use Runtime-Parity Preview to validate runtime shape/animation parity before export, and watch the status line for `payload parity active` vs `fallback to legacy preview (...)`.
 10. Export editable JSON for continued iteration or import JSON to restore state.
 11. Export compact payload when hard blockers are clear.
 

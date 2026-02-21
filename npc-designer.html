@@ -21,6 +21,13 @@
             <option value="female_base">female_base</option>
           </select>
         </label>
+        <label>
+          Session
+          <select id="sessionSnapshotSelect"></select>
+        </label>
+        <button id="sessionSaveBtn" type="button">Save</button>
+        <button id="sessionSaveAsBtn" type="button">Save As</button>
+        <button id="sessionLoadBtn" type="button">Load</button>
         <button id="resetPoseBtn" type="button">Reset Current Pose</button>
         <button id="resetAllBtn" type="button">Reset All Poses</button>
       </div>
@@ -116,6 +123,36 @@
             <label class="toggle-row"><input id="runtimeShortDressToggle" type="checkbox"> Short Dress</label>
           </div>
           <div class="field-issue" id="issue-runtime-dress"></div>
+        </section>
+
+        <section class="panel-block">
+          <h2>Face</h2>
+          <p class="hint">Managed face controls for eyes, brows, and mouth. Changes apply to layer geometry used by runtime parity preview and export.</p>
+          <div class="field-grid-2">
+            <label>Eye Size
+              <input id="faceEyeSizeInput" type="range" min="0.6" max="1.8" step="0.01" value="1">
+              <span id="faceEyeSizeValue">1.00x</span>
+            </label>
+            <label>Eye Spacing
+              <input id="faceEyeSpacingInput" type="range" min="0.7" max="1.6" step="0.01" value="1">
+              <span id="faceEyeSpacingValue">1.00x</span>
+            </label>
+          </div>
+          <div class="field-grid-2">
+            <label>Brow Tilt
+              <input id="faceBrowTiltInput" type="range" min="-1" max="1" step="0.01" value="0">
+              <span id="faceBrowTiltValue">0.00</span>
+            </label>
+            <label>Mouth Curve
+              <input id="faceMouthCurveInput" type="range" min="-1" max="1" step="0.01" value="0">
+              <span id="faceMouthCurveValue">0.00</span>
+            </label>
+          </div>
+          <div class="button-row compact">
+            <button id="applyFacePoseBtn" type="button">Apply Face (Pose)</button>
+            <button id="applyFaceAllBtn" type="button">Apply Face (All)</button>
+          </div>
+          <p id="faceStatus" class="hint">Face controls update managed face layers.</p>
         </section>
 
         <section class="panel-block">
@@ -275,6 +312,9 @@
               <input id="runtimePreviewTickInput" type="range" min="0" max="10" step="0.01" value="0">
               <span id="runtimePreviewTickValue">0.00</span>
             </label>
+          </div>
+          <div class="button-row compact">
+            <button id="runtimePreviewLoopToggleBtn" type="button" aria-pressed="false">Start Loop</button>
           </div>
           <label class="toggle-row"><input id="runtimePreviewWorldToggle" type="checkbox" checked> World Context (ground + silhouettes)</label>
           <canvas id="runtimePreviewCanvas" width="320" height="220"></canvas>

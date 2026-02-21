@@ -48,6 +48,9 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
 - Gallery-only sample routing anchor: `teabag-simulator.html:2320` (`GALLERY_TYPES` includes `designerPayloadId: "npc_strict_valid"`).
 - Offline payload cache path: `sw.js` precaches `runtime/npc-render-shared.js` plus payload registry files (`data/npc_payloads/index.json`, `strict-valid.json`, `visual-override.json`); bump `CACHE_NAME` when payload cache manifest changes.
 - Runtime call sites still target `drawCharacter(...)`; unresolved/missing payload ids fall back to legacy rendering.
+- Shared renderer now uses one legacy-equivalent motion state for both legacy and payload branches; payload shoe layers pivot from their matching leg pivots (left/right) when `partRole`/layer naming maps them to shoes.
+- Designer runtime preview now has a single `Start Loop` / `Stop Loop` toggle (`npc-designer.html`, `npc-designer.js`) that advances the same `tick -> walkPhase` surface used by game-exact motion parity rendering.
+- Designer now persists current workspace state to `localStorage` and exposes a simple session snapshot menu (`Save`, `Save As`, `Load`) with unsaved-change confirmation before load.
 
 ## Runtime State Machine
 
@@ -204,3 +207,4 @@ Use these from repo root:
 - `drawGalleryCompanionDog(...)` is gallery-only; it should not be called from `renderEntityLayer` or NPC update paths.
 - `party_girl` keeps `hasDress`/`shortDress` and the special bare-leg look through renderer options; keep flag plumbing aligned (`spawnNPC` -> `npcVisualOpts` -> renderer opts).
 - `shoeColor` flows from `CHARACTER_DEFS` into bus-stop/world NPC objects (`1368-1391`, `2571-2603`), then through `npcVisualOpts` (`2546`) into `drawCharacter`; preserve that pipeline and fallback order.
+- Payload branch coupling: keep `partRole` semantics (`left_leg`/`right_leg`/`left_shoe`/`right_shoe`) stable so shoe layers inherit leg pivot swing, matching legacy leg+shoe attachment behavior.

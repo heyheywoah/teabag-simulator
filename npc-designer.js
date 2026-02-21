@@ -12,6 +12,10 @@
   const GAME_BASE_H = 46;
   const GAME_TO_EDITOR_SCALE = 3.2;
   const HANDLE_SCREEN_SIZE = 10;
+  const WORKSPACE_STORAGE_KEY = "npc_designer_workspace_v1";
+  const SNAPSHOTS_STORAGE_KEY = "npc_designer_snapshots_v1";
+  const SNAPSHOT_SELECTION_STORAGE_KEY = "npc_designer_snapshot_selection_v1";
+  const WORKSPACE_AUTOSAVE_DEBOUNCE_MS = 180;
   const CONSTRAINTS = window.NPCDesignerConstraints || null;
   const SHARED_RENDER = window.NPCRenderShared || null;
   const SUNDRESS_HAIR_PROFILE = Object.freeze({
@@ -24,6 +28,35 @@
     bangLift: 0.54,
     bangDrop: 0.22
   });
+  const MANAGED_FACE_LAYER_NAMES = Object.freeze({
+    leftEye: "Face Left Eye",
+    rightEye: "Face Right Eye",
+    leftBrow: "Face Left Brow",
+    rightBrow: "Face Right Brow",
+    mouth: "Face Mouth"
+  });
+  const FACE_DRAFT_DEFAULT = Object.freeze({
+    eyeSize: 1,
+    eyeSpacing: 1,
+    browTilt: 0,
+    mouthCurve: 0
+  });
+  const RUNTIME_PART_ROLES = Object.freeze([
+    "other",
+    "torso",
+    "head",
+    "hair",
+    "face",
+    "eye",
+    "brow",
+    "mouth",
+    "left_arm",
+    "right_arm",
+    "left_leg",
+    "right_leg",
+    "left_shoe",
+    "right_shoe"
+  ]);
 
   // Mirrored from teabag-simulator.html BASE_W/BASE_H + CHARACTER_DEFS wScale/hScale.
   const GAME_CHARACTER_HEIGHT_REFERENCES = [
@@ -83,6 +116,12 @@
       gradientEnd: "#06b6d4",
       gradientAngle: 90
     },
+    faceDraft: {
+      eyeSize: FACE_DRAFT_DEFAULT.eyeSize,
+      eyeSpacing: FACE_DRAFT_DEFAULT.eyeSpacing,
+      browTilt: FACE_DRAFT_DEFAULT.browTilt,
+      mouthCurve: FACE_DRAFT_DEFAULT.mouthCurve
+    },
     layerIdCounter: 1,
     hitCanvas: null,
     hitCtx: null,
@@ -96,9 +135,17 @@
       facing: 1,
       scale: 1,
       tick: 0,
-      worldContext: true
+      worldContext: true,
+      isPlaying: false
     },
     runtimeCharDefs: Object.create(null),
+    runtimePreviewLoopRaf: 0,
+    runtimePreviewLoopLastTs: 0,
+    snapshotSlots: Object.create(null),
+    selectedSnapshotId: "",
+    hasUnsavedChanges: false,
+    autosaveTimer: 0,
+    lastAutosavePayload: "",
     skipAutoFixOnce: false
   };
 
@@ -117,6 +164,10 @@
 
   function cacheUI() {
     ui.templateSelect = document.getElementById("templateSelect");
+    ui.sessionSnapshotSelect = document.getElementById("sessionSnapshotSelect");
+    ui.sessionSaveBtn = document.getElementById("sessionSaveBtn");
+    ui.sessionSaveAsBtn = document.getElementById("sessionSaveAsBtn");
+    ui.sessionLoadBtn = document.getElementById("sessionLoadBtn");
     ui.resetPoseBtn = document.getElementById("resetPoseBtn");
     ui.resetAllBtn = document.getElementById("resetAllBtn");
     ui.poseTabs = Array.from(document.querySelectorAll(".pose-tab"));
@@ -161,6 +212,17 @@
     ui.runtimeBustScaleInput = document.getElementById("runtimeBustScaleInput");
     ui.runtimeHasDressToggle = document.getElementById("runtimeHasDressToggle");
     ui.runtimeShortDressToggle = document.getElementById("runtimeShortDressToggle");
+    ui.faceEyeSizeInput = document.getElementById("faceEyeSizeInput");
+    ui.faceEyeSizeValue = document.getElementById("faceEyeSizeValue");
+    ui.faceEyeSpacingInput = document.getElementById("faceEyeSpacingInput");
+    ui.faceEyeSpacingValue = document.getElementById("faceEyeSpacingValue");
+    ui.faceBrowTiltInput = document.getElementById("faceBrowTiltInput");
+    ui.faceBrowTiltValue = document.getElementById("faceBrowTiltValue");
+    ui.faceMouthCurveInput = document.getElementById("faceMouthCurveInput");
+    ui.faceMouthCurveValue = document.getElementById("faceMouthCurveValue");
+    ui.applyFacePoseBtn = document.getElementById("applyFacePoseBtn");
+    ui.applyFaceAllBtn = document.getElementById("applyFaceAllBtn");
+    ui.faceStatus = document.getElementById("faceStatus");
 
     ui.toolButtons = Array.from(document.querySelectorAll(".tool-btn"));
 
@@ -223,6 +285,7 @@
     ui.runtimePreviewScaleValue = document.getElementById("runtimePreviewScaleValue");
     ui.runtimePreviewTickInput = document.getElementById("runtimePreviewTickInput");
     ui.runtimePreviewTickValue = document.getElementById("runtimePreviewTickValue");
+    ui.runtimePreviewLoopToggleBtn = document.getElementById("runtimePreviewLoopToggleBtn");
     ui.runtimePreviewWorldToggle = document.getElementById("runtimePreviewWorldToggle");
     ui.runtimePreviewCanvas = document.getElementById("runtimePreviewCanvas");
     ui.runtimePreviewStatus = document.getElementById("runtimePreviewStatus");
@@ -347,11 +410,13 @@
       }
       state.autoFixVisualIssues = !!ui.autoFixVisualToggle.checked;
       updateReadinessToggleState();
+      touchWorkspace();
       requestRender();
     });
 
     ui.autoFixVisualToggle.addEventListener("change", () => {
       state.autoFixVisualIssues = !!ui.autoFixVisualToggle.checked;
+      touchWorkspace();
       requestRender();
     });
 
@@ -379,29 +444,82 @@
       state.runtimePreview.pose = POSE_IDS.includes(ui.runtimePreviewPoseSelect.value)
         ? ui.runtimePreviewPoseSelect.value
         : "normal";
+      touchWorkspace();
       requestRender();
     });
 
     ui.runtimePreviewFacingSelect.addEventListener("change", () => {
       state.runtimePreview.facing = ui.runtimePreviewFacingSelect.value === "-1" ? -1 : 1;
+      touchWorkspace();
       requestRender();
     });
 
     ui.runtimePreviewScaleInput.addEventListener("input", () => {
       state.runtimePreview.scale = clamp(parseFloat(ui.runtimePreviewScaleInput.value), 0.5, 1.8);
       updateRuntimePreviewLabels();
+      touchWorkspace();
       requestRender();
     });
 
     ui.runtimePreviewTickInput.addEventListener("input", () => {
       state.runtimePreview.tick = clamp(parseFloat(ui.runtimePreviewTickInput.value), 0, 10);
       updateRuntimePreviewLabels();
+      touchWorkspace();
+      requestRender();
+    });
+
+    ui.runtimePreviewLoopToggleBtn.addEventListener("click", () => {
+      setRuntimePreviewLoopPlaying(!state.runtimePreview.isPlaying);
+      touchWorkspace();
       requestRender();
     });
 
     ui.runtimePreviewWorldToggle.addEventListener("change", () => {
       state.runtimePreview.worldContext = !!ui.runtimePreviewWorldToggle.checked;
+      touchWorkspace();
       requestRender();
+    });
+  }
+
+  function bindFaceControlsEvents() {
+    const onDraftInput = () => {
+      state.faceDraft.eyeSize = clamp(num(ui.faceEyeSizeInput.value, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
+      state.faceDraft.eyeSpacing = clamp(num(ui.faceEyeSpacingInput.value, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6);
+      state.faceDraft.browTilt = clamp(num(ui.faceBrowTiltInput.value, FACE_DRAFT_DEFAULT.browTilt), -1, 1);
+      state.faceDraft.mouthCurve = clamp(num(ui.faceMouthCurveInput.value, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1);
+      updateFaceDraftLabels();
+      const applied = applyManagedFaceToPose(state.activePose);
+      if (applied) {
+        stampUpdatedAt();
+        requestRender();
+      }
+    };
+
+    ui.faceEyeSizeInput.addEventListener("input", onDraftInput);
+    ui.faceEyeSpacingInput.addEventListener("input", onDraftInput);
+    ui.faceBrowTiltInput.addEventListener("input", onDraftInput);
+    ui.faceMouthCurveInput.addEventListener("input", onDraftInput);
+
+    ui.applyFacePoseBtn.addEventListener("click", () => {
+      const applied = applyManagedFaceToPose(state.activePose, { report: true });
+      if (applied) {
+        stampUpdatedAt();
+        requestRender();
+      }
+    });
+
+    ui.applyFaceAllBtn.addEventListener("click", () => {
+      let appliedCount = 0;
+      POSE_IDS.forEach((poseId) => {
+        if (applyManagedFaceToPose(poseId)) appliedCount += 1;
+      });
+      if (appliedCount > 0) {
+        stampUpdatedAt();
+        requestRender();
+        setFaceStatus(`Applied managed face layers to ${appliedCount} pose(s).`);
+      } else {
+        setFaceStatus("No head layer found; could not apply face layers.");
+      }
     });
   }
 
@@ -441,10 +559,42 @@
   }
 
   function bindUI() {
+    ui.sessionSnapshotSelect.addEventListener("change", () => {
+      state.selectedSnapshotId = ui.sessionSnapshotSelect.value || "";
+      saveSnapshotSlotsToStorage();
+      updateSessionControlsState();
+      touchWorkspace();
+    });
+    ui.sessionSaveBtn.addEventListener("click", handleSessionSaveClick);
+    ui.sessionSaveAsBtn.addEventListener("click", handleSessionSaveAsClick);
+    ui.sessionLoadBtn.addEventListener("click", handleSessionLoadClick);
+
     ui.templateSelect.addEventListener("change", () => {
       ensureDocument();
-      state.document.meta.baseTemplate = ui.templateSelect.value;
-      ensureRuntimeProfile();
+      const nextTemplate = ui.templateSelect.value;
+      const prevTemplate = state.document.meta.baseTemplate || "male_base";
+      if (nextTemplate === prevTemplate) return;
+
+      const shouldApply = window.confirm(`Switch base template to ${nextTemplate} and reset all poses?`);
+      if (!shouldApply) {
+        ui.templateSelect.value = prevTemplate;
+        return;
+      }
+
+      resetAllPosesToTemplate(nextTemplate);
+
+      // Keep runtime profile defaults aligned with selected base template.
+      const profile = ensureRuntimeProfile();
+      if (nextTemplate === "female_base") {
+        profile.feminineBody = true;
+        if (!Number.isFinite(profile.bustScale) || profile.bustScale <= 0) profile.bustScale = 0.85;
+      } else {
+        profile.feminineBody = false;
+        profile.bustScale = 0;
+        profile.hasDress = false;
+        profile.shortDress = false;
+      }
+      syncRuntimeProfileInputs();
       stampUpdatedAt();
       requestRender();
     });
@@ -484,6 +634,7 @@
     ui.facingToggleBtn.addEventListener("click", () => {
       state.view.facing = state.view.facing === 1 ? -1 : 1;
       ui.facingToggleBtn.textContent = state.view.facing === 1 ? "Facing: Right" : "Facing: Left";
+      persistEditorView();
       requestRender();
     });
 
@@ -516,19 +667,25 @@
     ui.showGridToggle.addEventListener("change", () => {
       ensureDocument();
       state.document.editor.showGrid = ui.showGridToggle.checked;
+      markWorkspaceChanged();
       requestRender();
     });
     ui.showHeightToggle.addEventListener("change", () => {
       ensureDocument();
       state.document.editor.showHeightLines = ui.showHeightToggle.checked;
+      markWorkspaceChanged();
       requestRender();
     });
     ui.showSilhouetteToggle.addEventListener("change", () => {
       ensureDocument();
       state.document.editor.showSilhouettes = ui.showSilhouetteToggle.checked;
+      markWorkspaceChanged();
       requestRender();
     });
-    ui.heightFilterInput.addEventListener("input", requestRender);
+    ui.heightFilterInput.addEventListener("input", () => {
+      touchWorkspace();
+      requestRender();
+    });
 
     ui.strokeWidthInput.addEventListener("input", () => {
       state.styleDraft.strokeWidth = parseFloat(ui.strokeWidthInput.value);
@@ -638,8 +795,11 @@
 
     window.addEventListener("keydown", onWindowKeyDown);
     window.addEventListener("resize", requestRender);
+    window.addEventListener("pagehide", flushWorkspaceAutosave);
+    window.addEventListener("beforeunload", flushWorkspaceAutosave);
 
     bindRuntimeProfileEvents();
+    bindFaceControlsEvents();
     bindReadinessPanelEvents();
     bindRuntimePreviewEvents();
   }
@@ -657,14 +817,386 @@
     }
   }
 
+  function readStorageJson(key, fallbackValue = null) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallbackValue;
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : fallbackValue;
+    } catch (_err) {
+      return fallbackValue;
+    }
+  }
+
+  function writeStorageJson(key, value) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function buildWorkspaceSnapshot() {
+    ensureDocument();
+    ensureRuntimeProfile();
+    const snapshotDoc = deepClone(state.document);
+    snapshotDoc.editor.zoom = state.view.zoom;
+    snapshotDoc.editor.panX = state.view.panX;
+    snapshotDoc.editor.panY = state.view.panY;
+    snapshotDoc.editor.facing = state.view.facing;
+
+    return {
+      version: 1,
+      capturedAt: new Date().toISOString(),
+      document: snapshotDoc,
+      activePose: state.activePose,
+      strictVisualRules: !!state.strictVisualRules,
+      autoFixVisualIssues: !!state.autoFixVisualIssues,
+      styleDraft: deepClone(state.styleDraft),
+      faceDraft: deepClone(state.faceDraft),
+      runtimePreview: {
+        pose: state.runtimePreview.pose,
+        facing: state.runtimePreview.facing,
+        scale: state.runtimePreview.scale,
+        tick: state.runtimePreview.tick,
+        worldContext: !!state.runtimePreview.worldContext
+      },
+      copyToPose: ui.copyToPoseSelect ? ui.copyToPoseSelect.value : "normal",
+      heightFilter: ui.heightFilterInput ? ui.heightFilterInput.value : "",
+      jsonWorkspace: ui.jsonWorkspace ? ui.jsonWorkspace.value : ""
+    };
+  }
+
+  function normalizeStyleDraft(styleDraft) {
+    const raw = (styleDraft && typeof styleDraft === "object") ? styleDraft : {};
+    return {
+      fill: isColor(raw.fill) ? raw.fill : "#3b82f6",
+      stroke: isColor(raw.stroke) ? raw.stroke : "#0f172a",
+      strokeWidth: clamp(num(raw.strokeWidth, 2), 0, 12),
+      opacity: clamp(num(raw.opacity, 1), 0.05, 1),
+      gradientStart: isColor(raw.gradientStart) ? raw.gradientStart : "#f97316",
+      gradientEnd: isColor(raw.gradientEnd) ? raw.gradientEnd : "#06b6d4",
+      gradientAngle: clamp(num(raw.gradientAngle, 90), 0, 360)
+    };
+  }
+
+  function normalizeFaceDraft(faceDraft) {
+    const raw = (faceDraft && typeof faceDraft === "object") ? faceDraft : {};
+    return {
+      eyeSize: clamp(num(raw.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8),
+      eyeSpacing: clamp(num(raw.eyeSpacing, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6),
+      browTilt: clamp(num(raw.browTilt, FACE_DRAFT_DEFAULT.browTilt), -1, 1),
+      mouthCurve: clamp(num(raw.mouthCurve, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1)
+    };
+  }
+
+  function normalizeRuntimePreviewState(runtimePreview) {
+    const raw = (runtimePreview && typeof runtimePreview === "object") ? runtimePreview : {};
+    return {
+      pose: POSE_IDS.includes(raw.pose) ? raw.pose : "normal",
+      facing: raw.facing === -1 ? -1 : 1,
+      scale: clamp(num(raw.scale, 1), 0.5, 1.8),
+      tick: clamp(num(raw.tick, 0), 0, 10),
+      worldContext: raw.worldContext !== false,
+      isPlaying: false
+    };
+  }
+
+  function applyWorkspaceSnapshot(snapshot, opts = {}) {
+    if (!snapshot || typeof snapshot !== "object") return false;
+    const sourceDocument = snapshot.document || snapshot;
+    const normalized = normalizeImportedDocument(sourceDocument);
+    state.document = normalized;
+    state.skipAutoFixOnce = true;
+    state.activePose = POSE_IDS.includes(snapshot.activePose) ? snapshot.activePose : "normal";
+    state.selectedIds.clear();
+    state.layerListAnchorId = null;
+    state.validation = null;
+
+    state.strictVisualRules = snapshot.strictVisualRules !== false;
+    state.autoFixVisualIssues = snapshot.autoFixVisualIssues !== false;
+    state.styleDraft = normalizeStyleDraft(snapshot.styleDraft);
+    state.faceDraft = normalizeFaceDraft(snapshot.faceDraft);
+    state.runtimePreview = {
+      ...state.runtimePreview,
+      ...normalizeRuntimePreviewState(snapshot.runtimePreview)
+    };
+    setRuntimePreviewLoopPlaying(false);
+
+    syncControlsFromDocument();
+    if (POSE_IDS.includes(snapshot.copyToPose)) {
+      ui.copyToPoseSelect.value = snapshot.copyToPose;
+    }
+    if (typeof snapshot.heightFilter === "string") {
+      ui.heightFilterInput.value = snapshot.heightFilter;
+    }
+    if (typeof snapshot.jsonWorkspace === "string") {
+      ui.jsonWorkspace.value = snapshot.jsonWorkspace;
+    }
+    requestRender();
+    if (!opts.silentStatus) {
+      const sourceLabel = opts.sourceLabel ? ` from ${opts.sourceLabel}` : "";
+      setStatus(`Workspace restored${sourceLabel}.`);
+    }
+    return true;
+  }
+
+  function renderSnapshotSelectOptions() {
+    if (!ui.sessionSnapshotSelect) return;
+    const select = ui.sessionSnapshotSelect;
+    select.replaceChildren();
+
+    const emptyOpt = document.createElement("option");
+    emptyOpt.value = "";
+    emptyOpt.textContent = "(No saved sessions)";
+    select.append(emptyOpt);
+
+    const entries = Object.entries(state.snapshotSlots || {});
+    entries.sort((a, b) => (b[1]?.savedAt || "").localeCompare(a[1]?.savedAt || ""));
+    entries.forEach(([slotId, entry]) => {
+      if (!entry || typeof entry !== "object") return;
+      const option = document.createElement("option");
+      option.value = slotId;
+      const savedAt = typeof entry.savedAt === "string" && entry.savedAt ? ` · ${entry.savedAt.slice(0, 19).replace("T", " ")}` : "";
+      option.textContent = `${entry.label || slotId}${savedAt}`;
+      select.append(option);
+    });
+
+    const hasSelected = !!(state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]);
+    select.value = hasSelected ? state.selectedSnapshotId : "";
+  }
+
+  function updateSessionControlsState() {
+    const hasSelected = !!(state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]);
+    if (ui.sessionSnapshotSelect) {
+      ui.sessionSnapshotSelect.value = hasSelected ? state.selectedSnapshotId : "";
+    }
+    if (ui.sessionSaveBtn) {
+      ui.sessionSaveBtn.textContent = state.hasUnsavedChanges ? "Save*" : "Save";
+    }
+    if (ui.sessionLoadBtn) {
+      ui.sessionLoadBtn.disabled = !hasSelected;
+    }
+  }
+
+  function loadSnapshotSlotsFromStorage() {
+    state.snapshotSlots = Object.create(null);
+    const payload = readStorageJson(SNAPSHOTS_STORAGE_KEY, {});
+    const rawSlots = payload && typeof payload.slots === "object" ? payload.slots : {};
+    Object.entries(rawSlots).forEach(([slotId, entry]) => {
+      if (!slotId || !entry || typeof entry !== "object") return;
+      if (typeof entry.label !== "string" || !entry.snapshot) return;
+      state.snapshotSlots[slotId] = {
+        label: entry.label,
+        savedAt: typeof entry.savedAt === "string" ? entry.savedAt : "",
+        snapshot: entry.snapshot
+      };
+    });
+    let preferred = "";
+    try {
+      preferred = window.localStorage.getItem(SNAPSHOT_SELECTION_STORAGE_KEY) || "";
+    } catch (_err) {
+      preferred = "";
+    }
+    if (preferred && state.snapshotSlots[preferred]) {
+      state.selectedSnapshotId = preferred;
+    } else {
+      state.selectedSnapshotId = Object.keys(state.snapshotSlots)[0] || "";
+    }
+    renderSnapshotSelectOptions();
+    updateSessionControlsState();
+  }
+
+  function saveSnapshotSlotsToStorage() {
+    writeStorageJson(SNAPSHOTS_STORAGE_KEY, {
+      version: 1,
+      slots: state.snapshotSlots
+    });
+    try {
+      window.localStorage.setItem(SNAPSHOT_SELECTION_STORAGE_KEY, state.selectedSnapshotId || "");
+    } catch (_err) {
+      // Ignore local storage selection write failures.
+    }
+  }
+
+  function persistWorkspaceToStorage() {
+    const snapshot = buildWorkspaceSnapshot();
+    const payload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      hasUnsavedChanges: !!state.hasUnsavedChanges,
+      selectedSnapshotId: state.selectedSnapshotId || "",
+      snapshot
+    };
+    const serialized = JSON.stringify(payload);
+    if (serialized === state.lastAutosavePayload) return;
+    if (writeStorageJson(WORKSPACE_STORAGE_KEY, payload)) {
+      state.lastAutosavePayload = serialized;
+    }
+    try {
+      window.localStorage.setItem(SNAPSHOT_SELECTION_STORAGE_KEY, state.selectedSnapshotId || "");
+    } catch (_err) {
+      // Ignore local storage selection write failures.
+    }
+  }
+
+  function scheduleWorkspaceAutosave() {
+    if (state.autosaveTimer) clearTimeout(state.autosaveTimer);
+    state.autosaveTimer = window.setTimeout(() => {
+      state.autosaveTimer = 0;
+      persistWorkspaceToStorage();
+    }, WORKSPACE_AUTOSAVE_DEBOUNCE_MS);
+  }
+
+  function flushWorkspaceAutosave() {
+    if (state.autosaveTimer) {
+      clearTimeout(state.autosaveTimer);
+      state.autosaveTimer = 0;
+    }
+    persistWorkspaceToStorage();
+  }
+
+  function markWorkspaceChanged() {
+    state.hasUnsavedChanges = true;
+    updateSessionControlsState();
+    scheduleWorkspaceAutosave();
+  }
+
+  function touchWorkspace() {
+    updateSessionControlsState();
+    scheduleWorkspaceAutosave();
+  }
+
+  function restoreWorkspaceFromStorage() {
+    let raw = "";
+    try {
+      raw = window.localStorage.getItem(WORKSPACE_STORAGE_KEY) || "";
+    } catch (_err) {
+      raw = "";
+    }
+    if (!raw) return false;
+
+    let payload;
+    try {
+      payload = JSON.parse(raw);
+    } catch (_err) {
+      return false;
+    }
+    if (!payload || typeof payload !== "object") return false;
+    const snapshot = payload.snapshot && typeof payload.snapshot === "object"
+      ? payload.snapshot
+      : null;
+    if (!snapshot) return false;
+
+    const restored = applyWorkspaceSnapshot(snapshot, {
+      sourceLabel: "local workspace autosave",
+      silentStatus: true
+    });
+    if (!restored) return false;
+
+    state.hasUnsavedChanges = !!payload.hasUnsavedChanges;
+    if (payload.selectedSnapshotId && state.snapshotSlots[payload.selectedSnapshotId]) {
+      state.selectedSnapshotId = payload.selectedSnapshotId;
+    }
+    state.lastAutosavePayload = raw;
+    renderSnapshotSelectOptions();
+    updateSessionControlsState();
+    setStatus("Recovered workspace from local autosave.");
+    return true;
+  }
+
+  function confirmDiscardUnsavedChanges(actionLabel) {
+    if (!state.hasUnsavedChanges) return true;
+    return window.confirm(`You have unsaved session changes. Continue to ${actionLabel} and discard those changes?`);
+  }
+
+  function saveSnapshotToSlot(slotId, label) {
+    const snapshot = buildWorkspaceSnapshot();
+    state.snapshotSlots[slotId] = {
+      label: label || state.snapshotSlots[slotId]?.label || slotId,
+      savedAt: new Date().toISOString(),
+      snapshot
+    };
+    state.selectedSnapshotId = slotId;
+    state.hasUnsavedChanges = false;
+    saveSnapshotSlotsToStorage();
+    renderSnapshotSelectOptions();
+    updateSessionControlsState();
+    scheduleWorkspaceAutosave();
+    setStatus(`Saved session "${state.snapshotSlots[slotId].label}".`);
+  }
+
+  function handleSessionSaveClick() {
+    const selected = state.selectedSnapshotId;
+    if (!selected || !state.snapshotSlots[selected]) {
+      handleSessionSaveAsClick();
+      return;
+    }
+    saveSnapshotToSlot(selected);
+  }
+
+  function handleSessionSaveAsClick() {
+    ensureDocument();
+    const defaultName = state.snapshotSlots[state.selectedSnapshotId]?.label
+      || state.document.meta.label
+      || state.document.meta.id
+      || "session";
+    const input = window.prompt("Save session as", defaultName);
+    if (input === null) return;
+    const label = input.trim();
+    if (!label) {
+      setStatus("Save As canceled (name required).");
+      return;
+    }
+    let slotId = safeName(label);
+    if (!slotId) slotId = `session_${Date.now()}`;
+    if (state.snapshotSlots[slotId]) {
+      const ok = window.confirm(`Overwrite existing session "${state.snapshotSlots[slotId].label}"?`);
+      if (!ok) return;
+    }
+    saveSnapshotToSlot(slotId, label);
+  }
+
+  function handleSessionLoadClick() {
+    const selected = state.selectedSnapshotId;
+    if (!selected || !state.snapshotSlots[selected]) {
+      setStatus("Select a saved session to load.");
+      return;
+    }
+    if (!confirmDiscardUnsavedChanges("load a saved session")) return;
+    const entry = state.snapshotSlots[selected];
+    const loaded = applyWorkspaceSnapshot(entry.snapshot, {
+      sourceLabel: `saved session "${entry.label}"`,
+      silentStatus: true
+    });
+    if (!loaded) {
+      setStatus("Saved session could not be loaded.");
+      return;
+    }
+    state.hasUnsavedChanges = false;
+    renderSnapshotSelectOptions();
+    updateSessionControlsState();
+    scheduleWorkspaceAutosave();
+    setStatus(`Loaded session "${entry.label}".`);
+  }
+
   function loadInitialDocument() {
+    loadSnapshotSlotsFromStorage();
+    if (restoreWorkspaceFromStorage()) return;
+
     state.document = createDesignerDocument("male_base");
     state.activePose = "normal";
     state.selectedIds.clear();
     state.layerListAnchorId = null;
     state.validation = null;
+    state.hasUnsavedChanges = false;
     syncControlsFromDocument();
     fitToModel();
+    state.hasUnsavedChanges = false;
+    renderSnapshotSelectOptions();
+    updateSessionControlsState();
+    scheduleWorkspaceAutosave();
   }
 
   function createDesignerDocument(templateId) {
@@ -705,6 +1237,7 @@
   function stampUpdatedAt() {
     if (!state.document) return;
     state.document.meta.updatedAt = new Date().toISOString();
+    markWorkspaceChanged();
   }
 
   function syncControlsFromDocument() {
@@ -728,6 +1261,11 @@
     ui.strokeWidthValue.textContent = String(state.styleDraft.strokeWidth);
     ui.opacityValue.textContent = state.styleDraft.opacity.toFixed(2);
     ui.gradAngleValue.textContent = `${Math.round(state.styleDraft.gradientAngle)}°`;
+    ui.faceEyeSizeInput.value = String(state.faceDraft.eyeSize);
+    ui.faceEyeSpacingInput.value = String(state.faceDraft.eyeSpacing);
+    ui.faceBrowTiltInput.value = String(state.faceDraft.browTilt);
+    ui.faceMouthCurveInput.value = String(state.faceDraft.mouthCurve);
+    updateFaceDraftLabels();
     syncRuntimeProfileInputs();
     updateReadinessToggleState();
     updateRuntimePreviewLabels();
@@ -866,6 +1404,67 @@
     ui.runtimePreviewScaleValue.textContent = `${state.runtimePreview.scale.toFixed(2)}x`;
     ui.runtimePreviewTickValue.textContent = state.runtimePreview.tick.toFixed(2);
     ui.runtimePreviewWorldToggle.checked = !!state.runtimePreview.worldContext;
+    updateRuntimePreviewLoopButton();
+  }
+
+  function updateRuntimePreviewLoopButton() {
+    if (!ui.runtimePreviewLoopToggleBtn) return;
+    const playing = !!state.runtimePreview.isPlaying;
+    ui.runtimePreviewLoopToggleBtn.textContent = playing ? "Stop Loop" : "Start Loop";
+    ui.runtimePreviewLoopToggleBtn.setAttribute("aria-pressed", playing ? "true" : "false");
+  }
+
+  function setRuntimePreviewLoopPlaying(shouldPlay) {
+    const next = !!shouldPlay;
+    if (state.runtimePreview.isPlaying === next) return;
+    state.runtimePreview.isPlaying = next;
+    updateRuntimePreviewLoopButton();
+
+    if (!next) {
+      if (state.runtimePreviewLoopRaf) {
+        cancelAnimationFrame(state.runtimePreviewLoopRaf);
+        state.runtimePreviewLoopRaf = 0;
+      }
+      state.runtimePreviewLoopLastTs = 0;
+      return;
+    }
+
+    if (!state.runtimePreviewLoopRaf) {
+      state.runtimePreviewLoopLastTs = 0;
+      state.runtimePreviewLoopRaf = requestAnimationFrame(stepRuntimePreviewLoop);
+    }
+  }
+
+  function stepRuntimePreviewLoop(ts) {
+    if (!state.runtimePreview.isPlaying) {
+      state.runtimePreviewLoopRaf = 0;
+      return;
+    }
+
+    const lastTs = state.runtimePreviewLoopLastTs || ts;
+    const dt = clamp((ts - lastTs) / 1000, 0, 0.05);
+    state.runtimePreviewLoopLastTs = ts;
+
+    // Keep tick in the same input range while driving walkPhase continuously.
+    const LOOP_SPEED = 3.2;
+    const TICK_MAX = 10;
+    state.runtimePreview.tick = (state.runtimePreview.tick + dt * LOOP_SPEED) % TICK_MAX;
+    updateRuntimePreviewLabels();
+    requestRender();
+
+    state.runtimePreviewLoopRaf = requestAnimationFrame(stepRuntimePreviewLoop);
+  }
+
+  function updateFaceDraftLabels() {
+    ui.faceEyeSizeValue.textContent = `${state.faceDraft.eyeSize.toFixed(2)}x`;
+    ui.faceEyeSpacingValue.textContent = `${state.faceDraft.eyeSpacing.toFixed(2)}x`;
+    ui.faceBrowTiltValue.textContent = state.faceDraft.browTilt.toFixed(2);
+    ui.faceMouthCurveValue.textContent = state.faceDraft.mouthCurve.toFixed(2);
+  }
+
+  function setFaceStatus(text) {
+    if (!ui.faceStatus) return;
+    ui.faceStatus.textContent = text;
   }
 
   function renderConstraintReferenceList() {
@@ -955,6 +1554,20 @@
         strokeWidth: 1.5
       }));
     }
+
+    const headBounds = {
+      x: cx - headW / 2,
+      y: baseline - bodyH - headH * 0.14,
+      w: headW,
+      h: headH
+    };
+    const faceBlueprints = buildManagedFaceLayerBlueprints(poseId, headBounds, {
+      eyeColor: "#1A1A2E",
+      hairColor: palette.hair
+    }, FACE_DRAFT_DEFAULT);
+    faceBlueprints.forEach((bp) => {
+      layers.push(createManagedFaceLayer(bp));
+    });
 
     layers.push(createRectLayer("Torso", cx - torsoW / 2, baseline - bodyH * 0.68, torsoW, torsoH, {
       fill: palette.clothMain,
@@ -1067,6 +1680,20 @@
       stroke: "#111827",
       strokeWidth: 1
     }));
+
+    const headBounds = {
+      x: torsoL + torsoW + bodyW * 0.05,
+      y: baseline - bodyW * 0.58,
+      w: bodyW * 0.64,
+      h: bodyW * 0.64
+    };
+    const faceBlueprints = buildManagedFaceLayerBlueprints("ko", headBounds, {
+      eyeColor: "#1A1A2E",
+      hairColor: palette.hair
+    }, FACE_DRAFT_DEFAULT);
+    faceBlueprints.forEach((bp) => {
+      layers.push(createManagedFaceLayer(bp));
+    });
 
     layers.push(createLineLayer("Left Arm", torsoL + torsoW * 0.2, torsoY + torsoH * 0.18, torsoL - bodyW * 0.2, torsoY + torsoH * 0.1, {
       fill: "#000000",
@@ -1334,11 +1961,194 @@
     return name === "hair" || name === "bangs" || name === "front bangs" || name === "hair highlight";
   }
 
+  function isRuntimePartRole(role) {
+    return typeof role === "string" && RUNTIME_PART_ROLES.includes(role);
+  }
+
+  function inferRuntimePartRole(layerOrName, idHint = "") {
+    const name = typeof layerOrName === "string"
+      ? layerOrName
+      : (layerOrName?.name || "");
+    const id = typeof layerOrName === "string"
+      ? idHint
+      : (layerOrName?.id || "");
+    const key = `${String(name).toLowerCase()} ${String(id).toLowerCase()}`;
+
+    if (key.includes("left arm") || key.includes("arm left")) return "left_arm";
+    if (key.includes("right arm") || key.includes("arm right")) return "right_arm";
+    if (key.includes("left leg") || key.includes("leg left")) return "left_leg";
+    if (key.includes("right leg") || key.includes("leg right")) return "right_leg";
+    if (key.includes("left shoe") || key.includes("shoe left") || key.includes("left boot")) return "left_shoe";
+    if (key.includes("right shoe") || key.includes("shoe right") || key.includes("right boot")) return "right_shoe";
+    if (key.includes("torso") || key.includes("body") || key.includes("chest")) return "torso";
+    if (key.includes("head")) return "head";
+    if (key.includes("hair") || key.includes("bang")) return "hair";
+    if (key.includes("mouth") || key.includes("lip")) return "mouth";
+    if (key.includes("brow")) return "brow";
+    if (key.includes("eye") || key.includes("pupil")) return "eye";
+    if (key.includes("face") || key.includes("nose")) return "face";
+    return "other";
+  }
+
+  function isManagedFaceLayer(layer) {
+    const name = layer && typeof layer.name === "string" ? layer.name : "";
+    return Object.values(MANAGED_FACE_LAYER_NAMES).includes(name);
+  }
+
+  function findLastHairLayerIndex(layers) {
+    let found = -1;
+    for (let i = 0; i < layers.length; i++) {
+      const name = (layers[i].name || "").toLowerCase();
+      if (name.includes("hair") || name.includes("bang")) found = i;
+    }
+    return found;
+  }
+
+  function buildManagedFaceLayerBlueprints(poseId, headBounds, colors = {}, draftOverride = null) {
+    const draft = draftOverride || state.faceDraft || FACE_DRAFT_DEFAULT;
+    const pose = POSE_IDS.includes(poseId) ? poseId : "normal";
+    const eyeColor = isColor(colors.eyeColor) ? colors.eyeColor : "#1A1A2E";
+    const browColor = isColor(colors.hairColor) ? colors.hairColor : "#1F2937";
+    const mouthColor = browColor;
+    const cx = headBounds.x + headBounds.w * 0.5;
+    const topY = headBounds.y;
+    const eyeY = topY + headBounds.h * (pose === "ko" ? 0.52 : 0.45);
+    const baseEyeW = headBounds.w * (pose === "panic" ? 0.16 : 0.14);
+    const baseEyeH = headBounds.h * (pose === "panic" ? 0.13 : 0.11);
+    const eyeW = baseEyeW * clamp(num(draft.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
+    const eyeH = baseEyeH * clamp(num(draft.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
+    const eyeOffsetX = headBounds.w * 0.2 * clamp(num(draft.eyeSpacing, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6);
+    const browBaseY = eyeY - headBounds.h * 0.16;
+    const browHalfW = headBounds.w * 0.16;
+    const browTilt = clamp(num(draft.browTilt, FACE_DRAFT_DEFAULT.browTilt), -1, 1) * headBounds.h * 0.08;
+    const panicBias = pose === "panic" ? headBounds.h * 0.03 : 0;
+    const mouthY = topY + headBounds.h * (pose === "ko" ? 0.68 : 0.7);
+    const mouthHalfW = headBounds.w * (pose === "panic" ? 0.18 : 0.2);
+    const mouthCurve = clamp(num(draft.mouthCurve, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1) * headBounds.h * 0.11;
+    const panicOpen = pose === "panic" ? headBounds.h * 0.04 : 0;
+
+    return [
+      {
+        name: MANAGED_FACE_LAYER_NAMES.leftEye,
+        type: "ellipse",
+        geometry: { x: cx - eyeOffsetX - eyeW * 0.5, y: eyeY - eyeH * 0.5, w: eyeW, h: eyeH },
+        style: { fill: eyeColor, stroke: "#0F172A", strokeWidth: 1.2 }
+      },
+      {
+        name: MANAGED_FACE_LAYER_NAMES.rightEye,
+        type: "ellipse",
+        geometry: { x: cx + eyeOffsetX - eyeW * 0.5, y: eyeY - eyeH * 0.5, w: eyeW, h: eyeH },
+        style: { fill: eyeColor, stroke: "#0F172A", strokeWidth: 1.2 }
+      },
+      {
+        name: MANAGED_FACE_LAYER_NAMES.leftBrow,
+        type: "line",
+        geometry: {
+          x1: cx - eyeOffsetX - browHalfW,
+          y1: browBaseY + browTilt + panicBias,
+          x2: cx - eyeOffsetX + browHalfW,
+          y2: browBaseY - browTilt - panicBias
+        },
+        style: { stroke: browColor, strokeWidth: 2.2, fill: browColor }
+      },
+      {
+        name: MANAGED_FACE_LAYER_NAMES.rightBrow,
+        type: "line",
+        geometry: {
+          x1: cx + eyeOffsetX - browHalfW,
+          y1: browBaseY - browTilt - panicBias,
+          x2: cx + eyeOffsetX + browHalfW,
+          y2: browBaseY + browTilt + panicBias
+        },
+        style: { stroke: browColor, strokeWidth: 2.2, fill: browColor }
+      },
+      {
+        name: MANAGED_FACE_LAYER_NAMES.mouth,
+        type: "curve",
+        geometry: {
+          x1: cx - mouthHalfW,
+          y1: mouthY,
+          cx,
+          cy: mouthY + mouthCurve + panicOpen,
+          x2: cx + mouthHalfW,
+          y2: mouthY
+        },
+        style: { stroke: mouthColor, strokeWidth: 2.1, fill: mouthColor }
+      }
+    ];
+  }
+
+  function applyManagedFaceLayer(target, blueprint) {
+    target.type = blueprint.type;
+    target.name = blueprint.name;
+    target.visible = true;
+    target.geometry = deepClone(blueprint.geometry);
+    target.style = normalizeStyle(blueprint.style);
+  }
+
+  function createManagedFaceLayer(blueprint) {
+    return createLayerBase(blueprint.name, blueprint.type, deepClone(blueprint.geometry), blueprint.style);
+  }
+
+  function applyManagedFaceToPose(poseId, opts = {}) {
+    if (!POSE_IDS.includes(poseId)) return false;
+    const layers = getLayers(poseId);
+    if (!layers.length) return false;
+
+    const headIdx = findHeadLayerIndex(layers);
+    if (headIdx === -1) {
+      if (opts.report) setFaceStatus(`No head layer in ${poseId}; face controls skipped.`);
+      return false;
+    }
+    const headLayer = layers[headIdx];
+    const headBounds = getLayerBounds(headLayer);
+    if (!headBounds) {
+      if (opts.report) setFaceStatus(`Head geometry invalid in ${poseId}; face controls skipped.`);
+      return false;
+    }
+
+    const profile = ensureRuntimeProfile();
+    const blueprints = buildManagedFaceLayerBlueprints(poseId, headBounds, {
+      eyeColor: profile.eyeColor,
+      hairColor: profile.hairColor
+    });
+
+    let insertIndex = layers.findIndex((layer) => layer.id === headLayer.id) + 1;
+    const hairIdx = findLastHairLayerIndex(layers);
+    if (hairIdx !== -1) insertIndex = Math.max(insertIndex, hairIdx + 1);
+
+    blueprints.forEach((blueprint) => {
+      const existing = layers.find((layer) => layer.name === blueprint.name);
+      if (existing) {
+        applyManagedFaceLayer(existing, blueprint);
+      } else {
+        layers.splice(insertIndex, 0, createManagedFaceLayer(blueprint));
+        insertIndex += 1;
+      }
+    });
+
+    // Prune duplicate managed layers if they exist from prior versions.
+    const seen = new Set();
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const layer = layers[i];
+      if (!isManagedFaceLayer(layer)) continue;
+      if (seen.has(layer.name)) {
+        layers.splice(i, 1);
+      } else {
+        seen.add(layer.name);
+      }
+    }
+
+    if (opts.report) setFaceStatus(`Applied managed face controls to ${poseId}.`);
+    return true;
+  }
+
   function createLayerBase(name, type, geometry, style = {}) {
     return {
       id: nextLayerId(),
       name,
       type,
+      partRole: inferRuntimePartRole(name),
       visible: true,
       locked: false,
       transform: { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 },
@@ -1420,6 +2230,7 @@
     state.activePose = poseId;
     state.selectedIds.clear();
     state.layerListAnchorId = null;
+    touchWorkspace();
     updatePoseTabs();
     requestRender();
   }
@@ -1547,13 +2358,13 @@
     ui.zoomValue.textContent = `${Math.round(state.view.zoom * 100)}%`;
   }
 
-  function persistEditorView() {
+  function persistEditorView(opts = {}) {
     ensureDocument();
     state.document.editor.zoom = state.view.zoom;
     state.document.editor.panX = state.view.panX;
     state.document.editor.panY = state.view.panY;
     state.document.editor.facing = state.view.facing;
-    stampUpdatedAt();
+    if (!opts.skipStamp) stampUpdatedAt();
   }
 
   function onCanvasPointerDown(e) {
@@ -2982,8 +3793,8 @@
       bustScale: num(profile.bustScale, 0),
       hasDress: !!profile.hasDress,
       shortDress: !!profile.shortDress,
-      walkPhase: tick * Math.PI,
-      breathing: Math.sin(tick * 2.2) * 1.2,
+      walkPhase: tick,
+      breathing: Math.sin(tick * 2) * 1,
       blinkTimer: (Math.sin(tick * 1.9) > 0.93) ? 0.05 : 0.6,
       isMovingJump: pose === "panic",
       airState: pose === "panic" ? "rising" : null,
@@ -3016,6 +3827,7 @@
       try {
         state.runtimeRenderer.drawCharacter(w * 0.5, baselineY, widthPx, heightPx, {
           ...drawOpts,
+          squash: 1,
           designerPayload: livePayload,
           designerPose: pose
         });
@@ -3030,10 +3842,11 @@
 
     const hard = validation?.hardFailures?.length || 0;
     const warnings = validation?.visualWarnings?.length || 0;
+    const loopState = state.runtimePreview.isPlaying ? "on" : "off";
     const modeLabel = payloadMode === "payload"
-      ? "payload parity active"
+      ? "payload parity active (game-exact motion)"
       : `fallback to legacy preview (${fallbackReason || "payload unavailable"})`;
-    ui.runtimePreviewStatus.textContent = `Runtime renderer active | ${modeLabel} | pose: ${pose} | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
+    ui.runtimePreviewStatus.textContent = `Runtime renderer active | ${modeLabel} | pose: ${pose} | loop: ${loopState} | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
   }
 
   function drawRuntimePreviewWorldContext(ctx, w, h, baselineY) {
@@ -3506,6 +4319,7 @@
     syncControlsFromDocument();
     fitToModel();
     const validation = runDesignerValidation({ applyAutoFix: false, silent: true });
+    markWorkspaceChanged();
     requestRender();
     if (validation.hardFailures.length) {
       setStatus(`JSON imported with ${validation.hardFailures.length} hard blocker(s). Fix blockers before compact export.`);
@@ -3574,6 +4388,7 @@
       id,
       name: typeof layer?.name === "string" ? layer.name : `Layer ${id}`,
       type,
+      partRole: isRuntimePartRole(layer?.partRole) ? layer.partRole : inferRuntimePartRole(layer),
       visible: layer?.visible !== false,
       locked: !!layer?.locked,
       transform: {
@@ -3646,6 +4461,7 @@
       id: layer.id,
       name: layer.name,
       type: layer.type,
+      partRole: isRuntimePartRole(layer.partRole) ? layer.partRole : inferRuntimePartRole(layer),
       visible: layer.visible !== false,
       geometry: cloneLayerData ? deepClone(layer.geometry) : layer.geometry,
       style: cloneLayerData ? deepClone(layer.style) : layer.style

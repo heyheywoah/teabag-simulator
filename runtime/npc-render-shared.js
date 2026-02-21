@@ -241,6 +241,199 @@
       return gradient;
     }
 
+    function getLegacyAnimationState(opts) {
+      const safeOpts = (opts && typeof opts === 'object') ? opts : {};
+      const walkPhase = toNumber(safeOpts.walkPhase, 0);
+      const breathOffset = toNumber(safeOpts.breathing, 0);
+      const isKO = !!safeOpts.isKO;
+      const isFleeing = !!safeOpts.isFleeing;
+      const isCrouching = !!safeOpts.isCrouching;
+      const isMovingJump = !!safeOpts.isMovingJump;
+      const airState = safeOpts.airState || null;
+      const openMouth = !!safeOpts.openMouth;
+      const absWalk = Math.abs(walkPhase);
+
+      let legLAngle = 0;
+      let legRAngle = 0;
+      if (isKO) {
+        legLAngle = 0.5;
+        legRAngle = 0;
+      } else if (airState && !isCrouching && isMovingJump) {
+        if (airState === 'rising') {
+          legLAngle = 0.6;
+          legRAngle = 0.4;
+        } else {
+          legLAngle = -0.7;
+          legRAngle = -0.5;
+        }
+      } else if (airState && !isCrouching) {
+        legLAngle = 0.22;
+        legRAngle = 0.28;
+      } else if (absWalk > 0.01 && !isCrouching) {
+        legLAngle = Math.sin(walkPhase) * 0.45;
+        legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
+      }
+
+      let armLAngle = 0;
+      let armRAngle = 0;
+      const armsUp = isKO || isFleeing;
+      if (armsUp && absWalk > 0.01) {
+        armLAngle = Math.sin(walkPhase) * 0.45;
+        armRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
+      } else if (armsUp) {
+        armLAngle = 0.2;
+        armRAngle = -0.2;
+      } else if (airState && !isCrouching && isMovingJump) {
+        if (airState === 'rising') {
+          armLAngle = 0.5;
+          armRAngle = 0.4;
+        } else {
+          armLAngle = -0.6;
+          armRAngle = -0.5;
+        }
+      } else if (airState && !isCrouching) {
+        armLAngle = 0.15;
+        armRAngle = 0.15;
+      } else if (absWalk > 0.01 && !isCrouching) {
+        armLAngle = Math.sin(walkPhase + Math.PI) * 0.35;
+        armRAngle = Math.sin(walkPhase) * 0.35;
+      }
+
+      return {
+        walkPhase,
+        breathOffset,
+        legLAngle,
+        legRAngle,
+        armLAngle,
+        armRAngle,
+        armsUp,
+        mouthOpenScale: (isFleeing || openMouth) ? 1.35 : 1.0,
+      };
+    }
+
+    function inferDesignerLayerPart(layer) {
+      const explicitPart = (layer && typeof layer.partRole === 'string') ? layer.partRole : '';
+      if (explicitPart) {
+        const known = [
+          'left_arm', 'right_arm', 'left_leg', 'right_leg', 'left_shoe', 'right_shoe',
+          'torso', 'head', 'hair', 'mouth', 'brow', 'eye', 'face', 'other'
+        ];
+        if (known.includes(explicitPart)) return explicitPart;
+      }
+      const name = ((layer && layer.name) || '').toLowerCase();
+      const id = ((layer && layer.id) || '').toLowerCase();
+      const key = `${name} ${id}`;
+
+      if (key.includes('left arm') || key.includes('arm left')) return 'left_arm';
+      if (key.includes('right arm') || key.includes('arm right')) return 'right_arm';
+      if (key.includes('left leg') || key.includes('leg left')) return 'left_leg';
+      if (key.includes('right leg') || key.includes('leg right')) return 'right_leg';
+      if (key.includes('left shoe') || key.includes('shoe left') || key.includes('left boot')) return 'left_shoe';
+      if (key.includes('right shoe') || key.includes('shoe right') || key.includes('right boot')) return 'right_shoe';
+      if (key.includes('torso') || key.includes('body') || key.includes('chest')) return 'torso';
+      if (key.includes('head')) return 'head';
+      if (key.includes('hair') || key.includes('bang')) return 'hair';
+      if (key.includes('mouth') || key.includes('lip')) return 'mouth';
+      if (key.includes('brow')) return 'brow';
+      if (key.includes('eye') || key.includes('pupil')) return 'eye';
+      if (key.includes('face') || key.includes('nose')) return 'face';
+      return 'other';
+    }
+
+    function getDesignerRigMotion(opts) {
+      const legacy = getLegacyAnimationState(opts || {});
+      return {
+        legL: legacy.legLAngle,
+        legR: legacy.legRAngle,
+        armL: legacy.armLAngle,
+        armR: legacy.armRAngle,
+        armsUp: legacy.armsUp,
+        bodyDy: legacy.breathOffset * 0.7,
+        headDy: legacy.breathOffset,
+        mouthOpenScale: legacy.mouthOpenScale,
+      };
+    }
+
+    function buildDesignerPartBounds(layers) {
+      const partBounds = Object.create(null);
+      const partArea = Object.create(null);
+      for (const layer of layers) {
+        if (!layer || layer.visible === false) continue;
+        const part = inferDesignerLayerPart(layer);
+        if (part === 'other') continue;
+        const bounds = getDesignerLayerBounds(layer);
+        if (!bounds) continue;
+        const area = Math.max(1, bounds.w * bounds.h);
+        if (!(part in partBounds) || area > partArea[part]) {
+          partBounds[part] = bounds;
+          partArea[part] = area;
+        }
+      }
+      return partBounds;
+    }
+
+    function getLegPivot(bounds) {
+      return {
+        x: bounds.x + bounds.w * 0.5,
+        y: bounds.y + bounds.h * 0.1,
+      };
+    }
+
+    function getDesignerLayerPivot(part, bounds, partBounds) {
+      const cx = bounds.x + bounds.w * 0.5;
+      const cy = bounds.y + bounds.h * 0.5;
+
+      if (part === 'left_arm') return { x: bounds.x + bounds.w * 0.86, y: bounds.y + bounds.h * 0.12 };
+      if (part === 'right_arm') return { x: bounds.x + bounds.w * 0.14, y: bounds.y + bounds.h * 0.12 };
+      if (part === 'left_leg') {
+        const source = (partBounds && partBounds.left_leg) || bounds;
+        return getLegPivot(source);
+      }
+      if (part === 'right_leg') {
+        const source = (partBounds && partBounds.right_leg) || bounds;
+        return getLegPivot(source);
+      }
+      if (part === 'left_shoe') {
+        const source = partBounds && partBounds.left_leg;
+        if (source) return getLegPivot(source);
+        return { x: cx, y: bounds.y + bounds.h * 0.06 };
+      }
+      if (part === 'right_shoe') {
+        const source = partBounds && partBounds.right_leg;
+        if (source) return getLegPivot(source);
+        return { x: cx, y: bounds.y + bounds.h * 0.06 };
+      }
+      if (part === 'head') return { x: cx, y: bounds.y + bounds.h * 0.68 };
+      if (part === 'hair') return { x: cx, y: bounds.y + bounds.h * 0.55 };
+      if (part === 'eye' || part === 'brow' || part === 'mouth' || part === 'face') return { x: cx, y: cy };
+      if (part === 'torso') return { x: cx, y: cy };
+      return { x: cx, y: cy };
+    }
+
+    function getDesignerLayerMotion(part, rig, bounds) {
+      if (part === 'left_arm') return { angle: rig.armL, dy: rig.bodyDy, flipY: rig.armsUp };
+      if (part === 'right_arm') return { angle: rig.armR, dy: rig.bodyDy, flipY: rig.armsUp };
+      if (part === 'left_leg') return { angle: rig.legL, dy: rig.bodyDy };
+      if (part === 'right_leg') return { angle: rig.legR, dy: rig.bodyDy };
+      if (part === 'left_shoe') return { angle: rig.legL, dy: rig.bodyDy };
+      if (part === 'right_shoe') return { angle: rig.legR, dy: rig.bodyDy };
+      if (part === 'torso') return { dy: rig.bodyDy };
+      if (part === 'head') return { dy: rig.headDy };
+      if (part === 'hair') return { dy: rig.headDy };
+      if (part === 'brow') return { dy: rig.headDy };
+      if (part === 'mouth') {
+        const safeH = Math.max(0.001, bounds.h || 0);
+        const pivotY = bounds.y + safeH * 0.5;
+        return {
+          dy: rig.headDy,
+          scaleY: rig.mouthOpenScale,
+          scalePivotY: pivotY
+        };
+      }
+      if (part === 'eye' || part === 'face') return { dy: rig.headDy };
+      return null;
+    }
+
     function drawDesignerPayloadCharacter(x, y, w, h, opts) {
       if (!opts || typeof opts !== 'object' || !opts.designerPayload || typeof opts.designerPayload !== 'object') {
         return false;
@@ -264,6 +457,8 @@
       const opacity = clamp(opts.opacity !== undefined ? opts.opacity : 1, 0, 1);
       const scaleX = w / designW;
       const scaleY = h / designH;
+      const rig = getDesignerRigMotion(opts || {});
+      const partBounds = buildDesignerPartBounds(layers);
 
       let drewAny = false;
       ctx.save();
@@ -279,8 +474,31 @@
           const strokeW = Math.max(0, toNumber(style.strokeWidth, 0));
           const layerOpacity = clamp(toNumber(style.opacity, 1), 0, 1);
           const bounds = getDesignerLayerBounds(layer);
+          const part = inferDesignerLayerPart(layer);
+          const motion = bounds ? getDesignerLayerMotion(part, rig, bounds) : null;
 
           try {
+            ctx.save();
+            if (motion && bounds) {
+              const pivot = getDesignerLayerPivot(part, bounds, partBounds);
+              const dx = toNumber(motion.dx, 0);
+              const dy = toNumber(motion.dy, 0);
+              const angle = toNumber(motion.angle, 0);
+              const scaleLayerX = toNumber(motion.scaleX, 1);
+              const scaleLayerY = toNumber(motion.scaleY, 1);
+              const flipY = !!motion.flipY;
+
+              if (dx || dy) ctx.translate(dx, dy);
+              if (angle || scaleLayerX !== 1 || scaleLayerY !== 1 || flipY) {
+                const scalePivotY = toNumber(motion.scalePivotY, pivot.y);
+                ctx.translate(pivot.x, scalePivotY);
+                if (flipY) ctx.scale(1, -1);
+                if (angle) ctx.rotate(angle);
+                if (scaleLayerX !== 1 || scaleLayerY !== 1) ctx.scale(scaleLayerX, scaleLayerY);
+                ctx.translate(-pivot.x, -scalePivotY);
+              }
+            }
+
             if (!buildDesignerLayerPath(layer)) continue;
             ctx.globalAlpha = opacity * layerOpacity;
             if (layerShouldFill(layer.type)) {
@@ -300,7 +518,9 @@
               ctx.stroke();
               drewAny = true;
             }
+            ctx.restore();
           } catch (_err) {
+            ctx.restore();
             // Skip malformed layer and continue rendering remaining layers.
           }
         }
@@ -314,16 +534,17 @@
 function drawCharacter(x, y, w, h, opts) {
   opts = opts || {};
   if (drawDesignerPayloadCharacter(x, y, w, h, opts)) return;
+  const legacyMotion = getLegacyAnimationState(opts);
   const f = opts.facing || 1;
   const bodyColor = opts.color || '#3B82F6';
   const skin = opts.skinColor || '#FBBF6B';
   const hair = opts.hairColor || '#3D2B1F';
   const sqX = opts.squash || 1;
   const sqY = sqX !== 1 ? 1 / sqX : 1;
-  const breathOffset = opts.breathing || 0;
+  const breathOffset = legacyMotion.breathOffset;
   const isBlinking = (opts.blinkTimer || 0) < 0.12;
   const isCrouching = opts.isCrouching || false;
-  const walkPhase = opts.walkPhase || 0;
+  const walkPhase = legacyMotion.walkPhase;
   const opacity = opts.opacity !== undefined ? opts.opacity : 1;
   const npcType = opts.npcType || 'normal';
   const charDef = CHAR_BY_NAME[npcType] || {};
@@ -365,18 +586,8 @@ function drawCharacter(x, y, w, h, opts) {
         const legW = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
         const legH = h * 0.35;
         const legSpread = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
-        let legLAngle = 0, legRAngle = 0;
-        if (opts.isKO) {
-          legLAngle = 0.5; legRAngle = 0;
-        } else if (airState && opts.isMovingJump) {
-          if (airState === 'rising') { legLAngle = 0.6; legRAngle = 0.4; }
-          else { legLAngle = -0.7; legRAngle = -0.5; }
-        } else if (airState) {
-          legLAngle = 0.22; legRAngle = 0.28;
-        } else if (Math.abs(walkPhase) > 0.01) {
-          legLAngle = Math.sin(walkPhase) * 0.45;
-          legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
-        }
+        const legLAngle = legacyMotion.legLAngle;
+        const legRAngle = legacyMotion.legRAngle;
         for (const [sign, angle] of [[-1, legLAngle], [1, legRAngle]]) {
           ctx.save(); ctx.translate(sign * legSpread, bodyDrawY + bodyH); ctx.rotate(angle);
           ctx.fillStyle = skin; ctx.fillRect(-legW / 2, 0, legW, legH);
@@ -413,18 +624,8 @@ function drawCharacter(x, y, w, h, opts) {
       const legW = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
       const legH = isCrouching ? h * 0.2 : h * 0.35;
       const legSpread = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
-      let legLAngle = 0, legRAngle = 0;
-      if (opts.isKO) {
-        legLAngle = 0.5; legRAngle = 0;
-      } else if (airState && !isCrouching && opts.isMovingJump) {
-        if (airState === 'rising') { legLAngle = 0.6; legRAngle = 0.4; }
-        else { legLAngle = -0.7; legRAngle = -0.5; }
-      } else if (airState && !isCrouching) {
-        legLAngle = 0.22; legRAngle = 0.28;
-      } else if (Math.abs(walkPhase) > 0.01 && !isCrouching) {
-        legLAngle = Math.sin(walkPhase) * 0.45;
-        legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
-      }
+      const legLAngle = legacyMotion.legLAngle;
+      const legRAngle = legacyMotion.legRAngle;
       for (const [sign, angle] of [[-1, legLAngle], [1, legRAngle]]) {
         ctx.save(); ctx.translate(sign * legSpread, bodyDrawY + bodyH); ctx.rotate(angle);
         ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
@@ -532,27 +733,9 @@ function drawCharacter(x, y, w, h, opts) {
   // Arms
   {
     const armW = w * (isBig ? 0.2 : 0.14), armH = isCrouching ? h * 0.22 : h * 0.32;
-    let armLAngle = 0, armRAngle = 0;
-    const armsUp = opts.isKO || opts.isFleeing;
-    if (armsUp && Math.abs(walkPhase) > 0.01) {
-      // Panic run: arms swing overhead like legs
-      armLAngle = Math.sin(walkPhase) * 0.45;
-      armRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
-    } else if (armsUp) {
-      // Static arms up (\o/ splay)
-      armLAngle = 0.2;
-      armRAngle = -0.2;
-    } else if (airState && !isCrouching && opts.isMovingJump) {
-      // Moving jump: arms swing opposite to legs
-      if (airState === 'rising') { armLAngle = 0.5; armRAngle = 0.4; }
-      else { armLAngle = -0.6; armRAngle = -0.5; }
-    } else if (airState && !isCrouching) {
-      // Static jump: arms relaxed at sides, slight outward
-      armLAngle = 0.15; armRAngle = 0.15;
-    } else if (Math.abs(walkPhase) > 0.01 && !isCrouching) {
-      armLAngle = Math.sin(walkPhase + Math.PI) * 0.35;
-      armRAngle = Math.sin(walkPhase) * 0.35;
-    }
+    const armLAngle = legacyMotion.armLAngle;
+    const armRAngle = legacyMotion.armRAngle;
+    const armsUp = legacyMotion.armsUp;
     const armUpper = (charDef.bareArm) ? skin : bodyColor;
     for (const [sign, angle] of [[-1, armLAngle], [1, armRAngle]]) {
       ctx.save(); ctx.translate(sign * (bodyW/2 + armW * 0.3), bodyDrawY + 2);

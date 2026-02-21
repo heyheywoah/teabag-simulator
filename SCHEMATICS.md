@@ -106,7 +106,7 @@ Central tuning object: `TUNING` at `teabag-simulator.html:370`
 | Drop-through platforms | player flags (`2677`) + movement tuning (`380`, `384`) | trigger/clear (`3093-3098`, `3173-3175`) | one-way platform collision (`3148-3170`) |
 | Mount + teabag DPS | `TEABAG_WINDOW`, `TEABAG_DAMAGE` (`362-363`) + `TUNING.combat` (`396-415`) | teabag loop (`3208-3279`) | hit popups/announcements (`3219-3220`, `3797-3813`) |
 | KO + chain scoring | character KO metadata in `CHARACTER_DEFS` (`667+`) | KO branch + chain timers (`3222-3243`, `3270`, `3292`) | chain HUD + center KO (`3769-3787`, `3791-3813`) |
-| NPC archetypes | `CHARACTER_DEFS` + `CHAR_BY_NAME` (`667-958`) | spawn composition (`2694-2756`) | `drawCharacter` (`2107-2560`) + tracker (`2764-2773`, `3815+`) |
+| NPC archetypes | `CHARACTER_DEFS` + `CHAR_BY_NAME` (`667-958`) including visual fields like `legColor`/`shoeColor` | spawn composition (`2694-2756`) + bus-stop ambient NPC seeds (`1362-1393`) | `drawCharacter` (`2107-2560`) + tracker (`2764-2773`, `3815+`) |
 | NPC density / pacing | global caps (`365-367`) + `TUNING.spawn` (`416-443`) | spawn/despawn loops (`3382-3410`) | world pressure in same frame |
 | Zone progression / prestige | `ZONES` (`491-584`), `zoneLayout` (`587+`) | zone tracking + prestige (`3449-3459`, `2914-2945`) | zone pill + transition banner (`3848-3884`) |
 | Procedural world gen | generation funcs (`1412`, `1662`) + `TUNING.world` margins (`448`, `452`) | startup/prestige/per-frame generation (`2893-2894`, `2939-2940`, `3469-3470`) | rendered in layer order (`3530-3890`) |
@@ -151,6 +151,7 @@ Within `update(gameCtx, dt)` (`3491`), dispatch flow is:
 | Change teabag damage curve | `362-363`, `398-405`, `3205-3208` |
 | Change chain window length | `405`, `3226`, `3264`, `3777` |
 | Add new NPC type | `667-957` (definition), zone `npcPool` in `491-584` |
+| Retune NPC shoe color | `CHARACTER_DEFS` visual fields (`667-957`), spawn pass-through (`1362-1393`, `2712-2777`), renderer shoe fallback/draw (`2122-2220`) |
 | Add new zone | `491-584`, blend assumptions `653-664`, render pattern branch `3564+`, silhouettes `3926+` |
 | Retune city spacing profile | `1532-1573` (gap profile + helpers), FG/BG stride logic `1664-1697` |
 | Change spawn pressure | `365-367`, `416-443`, `3390-3410` |
@@ -172,6 +173,7 @@ Use these from repo root:
 - `rg -n "TEABAG_DAMAGE|TEABAG_WINDOW|chainWindowSeconds|comboDamageStep" teabag-simulator.html`
 - `rg -n "gameState ===|gameState =" teabag-simulator.html`
 - `rg -n "const ZONES =|npcPool|triggerPrestige" teabag-simulator.html`
+- `rg -n "shoeColor|legColor|function spawnBusStopNPCs|function npcVisualOpts|function spawnNPC|function drawCharacter" teabag-simulator.html`
 - `rg -n "MIN_NPCS_ON_SCREEN|MAX_NPCS|NPC_DESPAWN_DIST|visibleNPCs|sprintAheadDistance" teabag-simulator.html`
 - `rg -n "localStorage|teabag_save|teabag_sfx" teabag-simulator.html`
 
@@ -185,3 +187,5 @@ Use these from repo root:
 - Frame-end input reset ordering is critical and now centralized in `endFrameInputReset(gameCtx)` (`4375-4379`); keep it after `render(gameCtx, dt)` in `loop` (`4385-4387`).
 - Bootstrap world warmup and spawn burst values are centralized in `TUNING.world` (`444-465`); keep bootstrap (`452+`) and streaming (`448`, `3469-3470`) margins intentionally aligned for pacing.
 - FG and BG both use `advanceCityCursor(...)` for width-aware symmetric stride; keep left-anchor placement as `b.x = cursor - b.w` so right/left parity is preserved.
+- `party_girl` keeps `hasDress`/`shortDress` but now renders full-length bare legs via the dress branch in `drawCharacter`; keep NPC flag plumbing aligned (`spawnNPC` -> `npcVisualOpts` -> renderer opts).
+- `shoeColor` now flows from `CHARACTER_DEFS` into both world and bus-stop NPC objects, then through `npcVisualOpts` into `drawCharacter`; if you add new shoe styling, preserve that pipeline and fallback order.

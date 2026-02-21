@@ -864,7 +864,7 @@ const CHARACTER_DEFS = [
   {
     name: 'party_girl', label: 'Party Girl', abbrev: 'PTY',
     color: '#FF1493', skinColor: '#F5E6D3', hairColor: '#DAA520', hairStyle: 'long',
-    eyeColor: null, legColor: '#2C2C3E',
+    eyeColor: null, legColor: '#2C2C3E', shoeColor: '#2D3748',
     wScale: 0.9, hScale: 0.95,
     healthMin: 70, healthMax: 120, spawnWeight: 0,
     isBig: false, isSpecial: false, bareArm: false,
@@ -1364,12 +1364,13 @@ function spawnBusStopNPCs(platW) {
   const result = [];
   const hasGothMommy = count === 1 ? Math.random() < 0.95 : Math.random() < 0.01;
   for (let i = 0; i < count; i++) {
-    let npcType, color, skinColor, hairColor, hairStyle, eyeColor, legColor, w, h, feminineBody, bustScale;
+    let npcType, color, skinColor, hairColor, hairStyle, eyeColor, legColor, shoeColor, w, h, feminineBody, bustScale;
     if ((count === 1 && hasGothMommy) || (count > 1 && hasGothMommy && i === 0)) {
       const def = CHAR_BY_NAME['gothmommy'];
       npcType = 'gothmommy'; color = def.color; skinColor = def.skinColor;
       hairColor = def.hairColor; hairStyle = def.hairStyle;
       eyeColor = def.eyeColor; legColor = def.legColor;
+      shoeColor = def.shoeColor;
       feminineBody = def.feminineBody; bustScale = def.bustScale;
       w = Math.round(BASE_W * def.wScale); h = Math.round(BASE_H * def.hScale);
     } else {
@@ -1378,7 +1379,7 @@ function spawnBusStopNPCs(platW) {
       hairColor = HAIR_COLORS[randInt(0, HAIR_COLORS.length - 1)];
       skinColor = SKIN_COLORS[randInt(0, SKIN_COLORS.length - 1)];
       hairStyle = HAIR_STYLES[randInt(0, HAIR_STYLES.length - 1)];
-      eyeColor = undefined; legColor = undefined;
+      eyeColor = undefined; legColor = undefined; shoeColor = undefined;
       feminineBody = false; bustScale = 0;
       w = BASE_W; h = BASE_H;
     }
@@ -1386,7 +1387,7 @@ function spawnBusStopNPCs(platW) {
     result.push({
       xOffset: spacing * (i + 1),
       w, h, facing: Math.random() > 0.5 ? 1 : -1,
-      color, skinColor, hairColor, hairStyle, eyeColor, legColor, npcType,
+      color, skinColor, hairColor, hairStyle, eyeColor, legColor, shoeColor, npcType,
       feminineBody, bustScale,
       breathPhase: rand(0, Math.PI * 2), blinkTimer: rand(1, 4),
       panicState: false, panicPhase: 0,
@@ -1499,7 +1500,7 @@ function drawBusStopNPCs(plat, playerScreenX, playerScreenY) {
     const drawOpts = {
       facing: bNpc.facing, color: bNpc.color, skinColor: bNpc.skinColor,
       hairColor: bNpc.hairColor, hairStyle: bNpc.hairStyle,
-      eyeColor: bNpc.eyeColor, legColor: bNpc.legColor,
+      eyeColor: bNpc.eyeColor, legColor: bNpc.legColor, shoeColor: bNpc.shoeColor,
       npcType: bNpc.npcType,
       feminineBody: bNpc.feminineBody, bustScale: bNpc.bustScale,
       breathing: Math.sin(bNpc.breathPhase) * 1,
@@ -2118,10 +2119,14 @@ function drawCharacter(x, y, w, h, opts) {
   const airState = opts.airState || null; // 'rising' or 'falling'
   const eyeColor = opts.eyeColor || '#1A1A2E';
   const customLegColor = opts.legColor || null;
+  const customShoeColor = opts.shoeColor || null;
+  const defaultShoeColor = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
+  const shoeColor = customShoeColor || charDef.shoeColor || defaultShoeColor;
   const isFeminine = opts.feminineBody || false;
   const bustScale = opts.bustScale || 0;
   const hasDress = opts.hasDress || false;
   const shortDress = opts.shortDress || false;
+  const shortDressBareLegs = npcType === 'party_girl' && shortDress;
 
   ctx.globalAlpha = opacity;
   ctx.save();
@@ -2142,6 +2147,31 @@ function drawCharacter(x, y, w, h, opts) {
   {
     const legColor = customLegColor || charDef.legColor || (isBig ? '#4A4A5A' : '#4A5568');
     if (hasDress && !isCrouching) {
+      if (shortDressBareLegs) {
+        // Party Girl: keep short dress, but render full-length bare legs like standard NPCs.
+        const legW = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
+        const legH = h * 0.35;
+        const legSpread = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
+        let legLAngle = 0, legRAngle = 0;
+        if (opts.isKO) {
+          legLAngle = 0.5; legRAngle = 0;
+        } else if (airState && opts.isMovingJump) {
+          if (airState === 'rising') { legLAngle = 0.6; legRAngle = 0.4; }
+          else { legLAngle = -0.7; legRAngle = -0.5; }
+        } else if (airState) {
+          legLAngle = 0.22; legRAngle = 0.28;
+        } else if (Math.abs(walkPhase) > 0.01) {
+          legLAngle = Math.sin(walkPhase) * 0.45;
+          legRAngle = Math.sin(walkPhase + Math.PI) * 0.45;
+        }
+        for (const [sign, angle] of [[-1, legLAngle], [1, legRAngle]]) {
+          ctx.save(); ctx.translate(sign * legSpread, bodyDrawY + bodyH); ctx.rotate(angle);
+          ctx.fillStyle = skin; ctx.fillRect(-legW / 2, 0, legW, legH);
+          ctx.fillStyle = shoeColor;
+          ctx.fillRect(-legW / 2 - 1, legH - 4, legW + 3, 5);
+          ctx.restore();
+        }
+      }
       // Dress: flared trapezoid, short or long
       const dressTop = bodyDrawY + bodyH * 0.55;
       const dressH = shortDress ? h * 0.18 : h * 0.38;
@@ -2155,14 +2185,16 @@ function drawCharacter(x, y, w, h, opts) {
       ctx.lineTo(botW / 2 + swish, dressTop + dressH);
       ctx.lineTo(-botW / 2 + swish, dressTop + dressH);
       ctx.closePath(); ctx.fill();
-      // Feet peeking out beneath dress
-      ctx.fillStyle = skin;
-      ctx.fillRect(-botW * 0.25 + swish, dressTop + dressH - 2, 4, 4);
-      ctx.fillRect(botW * 0.15 + swish, dressTop + dressH - 2, 4, 4);
-      // Heels
-      ctx.fillStyle = npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748';
-      ctx.fillRect(-botW * 0.25 + swish - 1, dressTop + dressH + 2, 5, 3);
-      ctx.fillRect(botW * 0.15 + swish - 1, dressTop + dressH + 2, 5, 3);
+      if (!shortDressBareLegs) {
+        // Feet peeking out beneath dress
+        ctx.fillStyle = skin;
+        ctx.fillRect(-botW * 0.25 + swish, dressTop + dressH - 2, 4, 4);
+        ctx.fillRect(botW * 0.15 + swish, dressTop + dressH - 2, 4, 4);
+        // Heels
+        ctx.fillStyle = shoeColor;
+        ctx.fillRect(-botW * 0.25 + swish - 1, dressTop + dressH + 2, 5, 3);
+        ctx.fillRect(botW * 0.15 + swish - 1, dressTop + dressH + 2, 5, 3);
+      }
     } else {
       // Standard legs
       const legW = w * (isBig ? 0.22 : (isFeminine ? 0.15 : 0.18));
@@ -2185,7 +2217,7 @@ function drawCharacter(x, y, w, h, opts) {
         ctx.fillStyle = legColor; ctx.fillRect(-legW/2, 0, legW, legH);
         if (npcType === 'gymgirl') { ctx.fillStyle = bodyColor; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
         if (npcType === 'gothmommy') { ctx.fillStyle = '#1A1A2E'; ctx.fillRect(-legW/2, 0, legW, legH * 0.25); }
-        ctx.fillStyle = npcType === 'sumo' ? '#8B7355' : (npcType === 'gothmommy' ? '#2D1B4E' : '#2D3748');
+        ctx.fillStyle = shoeColor;
         ctx.fillRect(-legW/2 - 1, legH - 4, legW + 3, npcType === 'gothmommy' ? 7 : 5); ctx.restore();
       }
     }
@@ -2582,6 +2614,7 @@ const GALLERY_TYPES = [
         npcType: def.name,
         ...(def.eyeColor && { eyeColor: def.eyeColor }),
         ...(def.legColor && { legColor: def.legColor }),
+        ...(def.shoeColor && { shoeColor: def.shoeColor }),
         ...(def.feminineBody && { feminineBody: true, bustScale: def.bustScale || 0 }),
         ...(def.hasDress && { hasDress: true }),
         ...(def.shortDress && { shortDress: true }),
@@ -2677,7 +2710,7 @@ const player = {
 // ── NPCs ──
 const npcs = [];
 function npcVisualOpts(npc) {
-  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, opacity: npc.fleeOpacity, feminineBody: npc.feminineBody, bustScale: npc.bustScale, hasDress: npc.hasDress, shortDress: npc.shortDress };
+  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, shoeColor: npc.shoeColor, opacity: npc.fleeOpacity, feminineBody: npc.feminineBody, bustScale: npc.bustScale, hasDress: npc.hasDress, shortDress: npc.shortDress };
 }
 const NPC_COLORS = ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5','#D53F8C','#319795'];
 const HAIR_COLORS = ['#3D2B1F','#1A1A2E','#8B4513','#DAA520','#C0392B','#2C3E50'];
@@ -2701,18 +2734,19 @@ function pickNPCType(zone) {
 function spawnNPC(x) {
   const zone = getZoneAtX(x).zone;
   const def = pickNPCType(zone);
-  let color, hairColor, skinColor, hairStyle, eyeColor, legColor;
+  let color, hairColor, skinColor, hairStyle, eyeColor, legColor, shoeColor;
   if (def.randomizeVisuals) {
     color = NPC_COLORS[randInt(0, NPC_COLORS.length - 1)];
     hairColor = HAIR_COLORS[randInt(0, HAIR_COLORS.length - 1)];
     skinColor = SKIN_COLORS[randInt(0, SKIN_COLORS.length - 1)];
     hairStyle = HAIR_STYLES[randInt(0, HAIR_STYLES.length - 1)];
-    eyeColor = undefined; legColor = undefined;
+    eyeColor = undefined; legColor = undefined; shoeColor = undefined;
   } else {
     color = def.color; hairColor = def.hairColor; skinColor = def.skinColor;
     hairStyle = def.hairStyle;
     eyeColor = def.eyeColor || undefined;
     legColor = def.legColor || undefined;
+    shoeColor = def.shoeColor || undefined;
   }
   const dir = Math.random() > 0.5 ? 1 : -1;
   const hp = Math.round(randInt(def.healthMin, def.healthMax) * (1 + prestigeLevel * 0.5));
@@ -2732,7 +2766,7 @@ function spawnNPC(x) {
     vx: dir * rand(20, def.isBig ? 40 : def.isSpecial ? 50 : 60),
     w: Math.round(BASE_W * def.wScale),
     h: Math.round(BASE_H * def.hScale),
-    color, hairColor, skinColor, hairStyle, eyeColor, legColor,
+    color, hairColor, skinColor, hairStyle, eyeColor, legColor, shoeColor,
     facing: dir,
     state: 'walking',
     health: hp, maxHealth: hp,

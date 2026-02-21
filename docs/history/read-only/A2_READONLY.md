@@ -95,4 +95,4 @@ Inside playing dispatcher:
 - Verify no edits to `loop`/`endFrameInputReset` for A2.
 
 5. Diff scope risk:
-- Limit edits to `teabag-simulator.html`, `SCHEMATICS.md`, and `A2_READONLY.md` only.
+- Limit edits to `teabag-simulator.html`, `SCHEMATICS.md`, and `docs/history/read-only/A2_READONLY.md` only.

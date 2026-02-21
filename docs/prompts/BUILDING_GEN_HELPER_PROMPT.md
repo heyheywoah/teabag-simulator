@@ -2,7 +2,7 @@
 
 Branch from `refactor/update-render-split` (or current integration branch as directed).
 
-Task: implement **B1 + B2 only** from `BUILDING_GEN_FIX_SLICES.md` (width-aware gap config + FG placement symmetry), with strict dual-pass workflow.
+Task: implement **B1 + B2 only** from `docs/planning/BUILDING_GEN_FIX_SLICES.md` (width-aware gap config + FG placement symmetry), with strict dual-pass workflow.
 
 ## Non-Negotiables
 
@@ -14,8 +14,8 @@ Task: implement **B1 + B2 only** from `BUILDING_GEN_FIX_SLICES.md` (width-aware 
 
 ## Phase 1: Read-Only Pass (Required)
 
-1. Read `AGENTS.md`, `SCHEMATICS.md`, `BUILDING_GEN_FIX_SLICES.md`.
-2. Create `B1_B2_READONLY.md` with:
+1. Read `AGENTS.md`, `SCHEMATICS.md`, `docs/planning/BUILDING_GEN_FIX_SLICES.md`.
+2. Create `docs/history/read-only/B1_B2_READONLY.md` with:
 1. exact functions/signatures to touch
 2. exact caller/callee map
 3. in-scope vs out-of-scope table

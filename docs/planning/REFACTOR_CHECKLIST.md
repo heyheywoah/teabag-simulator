@@ -3,9 +3,9 @@
 ## Phase 1 Gate (Read-Only First)
 
 - [x] Read `SCHEMATICS.md` before planning/editing.
-- [x] Created `NPC_JSON_REINTEGRATION_READONLY.md` with anchors/call-map/invariants/risks.
-- [x] Updated `REFACTOR_SLICES.md` with ordered mechanical slices.
-- [x] Updated `REFACTOR_CHECKLIST.md` with task gates.
+- [x] Created `docs/history/read-only/NPC_JSON_REINTEGRATION_READONLY.md` with anchors/call-map/invariants/risks.
+- [x] Updated `docs/planning/REFACTOR_SLICES.md` with ordered mechanical slices.
+- [x] Updated `docs/planning/REFACTOR_CHECKLIST.md` with task gates.
 - [x] No implementation edits performed before these artifacts.
 
 ## Scope Gate

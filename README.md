@@ -143,6 +143,7 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 - **Three independent poses** — `normal`, `panic`, `ko` workspaces with copy-pose actions
 - **Tool surface** — Select, move, resize handles, rectangle, ellipse, line, curve, polygon, color, gradient, eyedropper, hand + zoom controls
 - **Layer workflow** — Multi-select (Shift/Cmd/Ctrl), rename, reorder, hide/show, lock/unlock, duplicate, delete, group move/resize
+- **Hair preset bootstrap** — Apply a layered Sundress hair preset (current pose or all poses) with back mass, temple coverage, and front bangs/wisps ready for fine tuning
 - **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
 - **Live previews** — Side-by-side previews for all three poses with facing-direction toggle
 - **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer with pose/facing/scale/tick controls plus world-context silhouettes
@@ -158,12 +159,13 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 2. Pick a base template (`male_base` or `female_base`).
 3. Choose a pose tab (`normal`, `panic`, `ko`) and edit layers.
 4. Configure Runtime Preview Profile values (base NPC type, runtime npcType, scale/health/colors/hair/body toggles).
-5. Use layer controls for selection/group transforms and ordering.
-6. Toggle height references to compare proportions against existing roster sizes.
-7. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
-8. Use Runtime-Parity Preview to validate runtime shape/animation parity before export.
-9. Export editable JSON for continued iteration or import JSON to restore state.
-10. Export compact payload when hard blockers are clear.
+5. Use the `Sundress Hair (Pose)` or `Sundress Hair (All)` preset actions when you want the layered hair starting point.
+6. Use layer controls for selection/group transforms and ordering.
+7. Toggle height references to compare proportions against existing roster sizes.
+8. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
+9. Use Runtime-Parity Preview to validate runtime shape/animation parity before export.
+10. Export editable JSON for continued iteration or import JSON to restore state.
+11. Export compact payload when hard blockers are clear.
 
 ## Tech
 

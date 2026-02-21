@@ -7,8 +7,8 @@
 ## Required Inputs Read
 
 - `SCHEMATICS.md` (required initialization map)
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
 - `README.md`
 - `AGENTS.md` file is not present in this branch; applied AGENTS instructions from provided task prompt.
 
@@ -20,9 +20,9 @@
 - `data/npc_payloads/*.json` only if runtime sample wiring requires it
 - `README.md`
 - `SCHEMATICS.md`
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
-- `NPC_JSON_REINTEGRATION_READONLY.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
+- `docs/history/read-only/NPC_JSON_REINTEGRATION_READONLY.md`
 
 ## Out-of-Scope Files (Hard)
 

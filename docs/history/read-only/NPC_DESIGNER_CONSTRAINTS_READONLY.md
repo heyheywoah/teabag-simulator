@@ -18,8 +18,8 @@ Required preserved capabilities:
 ## Files Reviewed (Read-Only)
 
 - `SCHEMATICS.md` (read first, per repo rule)
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
 - `README.md`
 - `npc-designer.html`
 - `npc-designer.css`
@@ -72,9 +72,9 @@ Required preserved capabilities:
 - `data/npc_payloads/hard-fail.json` (new)
 - `README.md`
 - `SCHEMATICS.md`
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
-- `NPC_DESIGNER_CONSTRAINTS_READONLY.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
+- `docs/history/read-only/NPC_DESIGNER_CONSTRAINTS_READONLY.md`
 
 ## Hard Safety vs Visual Rules Contract
 

@@ -19,9 +19,9 @@ In scope:
 - `data/npc_payloads/*.json` only if required for runtime sample wiring
 - `README.md`
 - `SCHEMATICS.md`
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
-- `NPC_JSON_REINTEGRATION_READONLY.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
+- `docs/history/read-only/NPC_JSON_REINTEGRATION_READONLY.md`
 
 Out of scope:
 - `npc-designer.html`
@@ -35,9 +35,9 @@ Out of scope:
 ### Slice J1: Read-Only Artifacts (Required First)
 
 Targets:
-- `NPC_JSON_REINTEGRATION_READONLY.md`
-- `REFACTOR_SLICES.md`
-- `REFACTOR_CHECKLIST.md`
+- `docs/history/read-only/NPC_JSON_REINTEGRATION_READONLY.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
 
 Actions:
 - Lock exact anchors and call graph.

@@ -8,9 +8,9 @@ Task: build a standalone NPC character designer with layered pose authoring and 
 2. Add `npc-designer.css`
 3. Add `npc-designer.js`
 4. Edit `README.md` (new feature documentation section)
-5. Add `NPC_DESIGNER_READONLY.md` (this file)
-6. Edit `REFACTOR_SLICES.md` (large-task slice plan addendum)
-7. Edit `REFACTOR_CHECKLIST.md` (large-task execution checklist addendum)
+5. Add `docs/history/read-only/NPC_DESIGNER_READONLY.md` (this file)
+6. Edit `docs/planning/REFACTOR_SLICES.md` (large-task slice plan addendum)
+7. Edit `docs/planning/REFACTOR_CHECKLIST.md` (large-task execution checklist addendum)
 
 Notes:
 - No gameplay implementation files are planned for edit.

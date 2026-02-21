@@ -64,7 +64,7 @@ From `scripts/city-gen-metrics-baseline.js` with `--seeds 20 --span 120000`:
 - BG right overlap ~50% across zones; BG left ~1.5%.
 - Largest FG asymmetry: industrial, right-left delta = 62.75 percentage points.
 
-Details are in `BASELINE_GENERATION_METRICS.md`.
+Details are in `docs/history/metrics/BASELINE_GENERATION_METRICS.md`.
 
 ## B1+B2 In-Scope vs Out-of-Scope
 

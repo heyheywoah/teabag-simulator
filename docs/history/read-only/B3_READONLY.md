@@ -1,14 +1,14 @@
 # B3 Read-Only Plan: Background Placement Symmetry
 
-Scope: implement B3 only from `BUILDING_GEN_FIX_SLICES.md` after B1+B2.
+Scope: implement B3 only from `docs/planning/BUILDING_GEN_FIX_SLICES.md` after B1+B2.
 
 Primary references read:
 - `AGENTS.md`
 - `SCHEMATICS.md`
-- `BUILDING_GEN_FIX_SLICES.md`
-- `B0_READONLY.md`
-- `BASELINE_GENERATION_METRICS.md`
-- `B1_B2_READONLY.md`
+- `docs/planning/BUILDING_GEN_FIX_SLICES.md`
+- `docs/history/read-only/B0_READONLY.md`
+- `docs/history/metrics/BASELINE_GENERATION_METRICS.md`
+- `docs/history/read-only/B1_B2_READONLY.md`
 
 ## Exact Functions / Signatures To Touch
 
@@ -96,7 +96,7 @@ Required checks:
 6. Report before/after BG overlap and right-minus-left deltas by zone.
 7. Gameplay flow and visual skyline sanity status are reported when runtime validation is available.
 
-Expected delta direction (from baseline in `BASELINE_GENERATION_METRICS.md`):
+Expected delta direction (from baseline in `docs/history/metrics/BASELINE_GENERATION_METRICS.md`):
 
 - BG right overlap should drop sharply from ~49-51% toward low single digits.
 - BG left overlap may increase modestly from ~1.5% toward right-side range as symmetry is restored.

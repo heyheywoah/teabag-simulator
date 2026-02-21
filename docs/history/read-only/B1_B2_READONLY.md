@@ -1,10 +1,10 @@
 # B1+B2 Read-Only Plan: Width-Aware Gap Config + Foreground Symmetry
 
-Scope: implement B1+B2 only from `BUILDING_GEN_FIX_SLICES.md`.
+Scope: implement B1+B2 only from `docs/planning/BUILDING_GEN_FIX_SLICES.md`.
 
 Baseline references used for acceptance:
-- `B0_READONLY.md`
-- `BASELINE_GENERATION_METRICS.md`
+- `docs/history/read-only/B0_READONLY.md`
+- `docs/history/metrics/BASELINE_GENERATION_METRICS.md`
 
 ## Exact Functions/Signatures To Touch
 
@@ -70,7 +70,7 @@ New helper call graph:
 3. Width-aware stepping uses actual generated building width (`b.w`), not guessed `bw`.
 4. Syntax check passes (`node --check` on extracted inline JS).
 5. Overlap metrics report before/after FG overlap by zone:
-- Before baselines from `BASELINE_GENERATION_METRICS.md`
+- Before baselines from `docs/history/metrics/BASELINE_GENERATION_METRICS.md`
 - After run from current implementation harness comparison
 6. `SCHEMATICS.md` updated in same task because `teabag-simulator.html` changes.
 7. Gameplay flow sanity status reported when runtime validation is available: title -> mode select -> gameplay -> pause -> zone transition -> prestige.

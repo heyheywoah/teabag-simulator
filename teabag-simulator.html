@@ -2786,6 +2786,12 @@ function createGameContext() {
     set centerKO(v) { centerKO = v; },
     get dayTime() { return dayTime; },
     set dayTime(v) { dayTime = v; },
+    get sfxMuted() { return sfxMuted; },
+    set sfxMuted(v) { sfxMuted = v; },
+    get sfxVolume() { return sfxVolume; },
+    set sfxVolume(v) { sfxVolume = v; },
+    get galleryMode() { return galleryMode; },
+    set galleryMode(v) { galleryMode = v; },
   };
 
   return {
@@ -2837,15 +2843,15 @@ function startGame(gameCtx) {
   npcs.length = 0; buildings.length = 0; bgBuildings.length = 0;
   props.length = 0; platforms.length = 0; cars.length = 0;
   particles.length = 0; popups.length = 0;
-  score = 0; totalKOs = 0; centerKO = null;
+  gameCtx.state.score = 0; gameCtx.state.totalKOs = 0; gameCtx.state.centerKO = null;
   for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
   const startX = player.x;
   cityGenRight = startX - wt.bootstrapGenSeedPad; cityGenLeft = startX - wt.bootstrapGenSeedPad;
   bgGenRight = startX - wt.bootstrapGenSeedPad; bgGenLeft = startX - wt.bootstrapGenSeedPad;
   platGenRight = startX - wt.bootstrapGenSeedPad; platGenLeft = startX - wt.bootstrapGenSeedPad;
   cam.x = startX - W * wt.cameraLeadFactor; cam.targetX = cam.x;
-  currentZone = getZoneAtX(startX).zone;
-  currentZoneIndex = getZoneAtX(startX).index;
+  gameCtx.state.currentZone = getZoneAtX(startX).zone;
+  gameCtx.state.currentZoneIndex = getZoneAtX(startX).index;
   generateCity(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
   generatePlatforms(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
   for (let i = 0; i < wt.bootstrapNPCCount; i++) {
@@ -2863,7 +2869,7 @@ function startGame(gameCtx) {
       color,
     });
   }
-  dayTime = wt.startDayTime;
+  gameCtx.state.dayTime = wt.startDayTime;
   gameCtx.state.gameState = 'playing';
 }
 
@@ -2909,10 +2915,10 @@ function updateTitleMenuState(gameCtx, dt) {
 function updateModeSelectState(gameCtx) {
   if (wasPressed('W') || wasPressed('S') || gameCtx.input.touch.upJust || gameCtx.input.touch.downJust) {
     gameCtx.state.menuSelection = gameCtx.state.menuSelection === 0 ? 1 : 0;
-    playSFX('menuNav');
+    gameCtx.services.playSFX('menuNav');
   }
   if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || wasPressed('D') || gameCtx.input.touch.jumpJust) {
-    playSFX('menuSelect');
+    gameCtx.services.playSFX('menuSelect');
     if (gameCtx.state.menuSelection === 0) {
       gameCtx.state.gameMode = 'campaign';
       gameCtx.state.prestigeLevel = 0;
@@ -2928,16 +2934,16 @@ function updateModeSelectState(gameCtx) {
 function updateZonePickerState(gameCtx) {
   if (wasPressed('A') || gameCtx.input.touch.leftJust) {
     gameCtx.state.zonePickerIndex = (gameCtx.state.zonePickerIndex - 1 + ZONES.length) % ZONES.length;
-    playSFX('menuNav');
+    gameCtx.services.playSFX('menuNav');
   }
   if (wasPressed('D') || gameCtx.input.touch.rightJust) {
     gameCtx.state.zonePickerIndex = (gameCtx.state.zonePickerIndex + 1) % ZONES.length;
-    playSFX('menuNav');
+    gameCtx.services.playSFX('menuNav');
   }
   if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || gameCtx.input.touch.jumpJust) {
     const zone = ZONES[gameCtx.state.zonePickerIndex];
     if (gameCtx.state.unlockedZones.includes(zone.id)) {
-      playSFX('menuSelect');
+      gameCtx.services.playSFX('menuSelect');
       gameCtx.state.endlessZoneId = zone.id;
       startGame(gameCtx);
     }
@@ -2969,11 +2975,11 @@ function updateMenuState(gameCtx, dt) {
 function updatePauseNavigation(gameCtx) {
   if (wasPressed('W') || gameCtx.input.touch.upJust) {
     gameCtx.state.pauseSelection = (gameCtx.state.pauseSelection + 4 - 1) % 4;
-    playSFX('menuNav');
+    gameCtx.services.playSFX('menuNav');
   }
   if (wasPressed('S') || gameCtx.input.touch.downJust) {
     gameCtx.state.pauseSelection = (gameCtx.state.pauseSelection + 1) % 4;
-    playSFX('menuNav');
+    gameCtx.services.playSFX('menuNav');
   }
 }
 
@@ -2982,12 +2988,12 @@ function updatePauseSelectionAction(gameCtx) {
     gameCtx.state.gameState = 'playing';
   }
   if (gameCtx.input.justPressed['Enter'] || gameCtx.input.justPressed['Space'] || gameCtx.input.touch.jumpJust) {
-    if (gameCtx.state.pauseSelection === 0) { playSFX('menuSelect'); gameCtx.state.gameState = 'playing'; }
+    if (gameCtx.state.pauseSelection === 0) { gameCtx.services.playSFX('menuSelect'); gameCtx.state.gameState = 'playing'; }
     else if (gameCtx.state.pauseSelection === 1) { // SFX Vol down/toggle mute
-      sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuSelect');
+      gameCtx.state.sfxMuted = !gameCtx.state.sfxMuted; gameCtx.services.saveSFXSettings(); gameCtx.services.playSFX('menuSelect');
     }
-    else if (gameCtx.state.pauseSelection === 2) { playSFX('menuSelect'); } // test volume
-    else if (gameCtx.state.pauseSelection === 3) { playSFX('menuSelect'); gameCtx.state.gameState = 'modeselect'; gameCtx.state.menuSelection = 0; }
+    else if (gameCtx.state.pauseSelection === 2) { gameCtx.services.playSFX('menuSelect'); } // test volume
+    else if (gameCtx.state.pauseSelection === 3) { gameCtx.services.playSFX('menuSelect'); gameCtx.state.gameState = 'modeselect'; gameCtx.state.menuSelection = 0; }
   }
 }
 
@@ -2995,12 +3001,12 @@ function updatePauseAdjustments(gameCtx) {
   // Left/Right adjusts volume on SFX row
   if (gameCtx.state.pauseSelection === 1 || gameCtx.state.pauseSelection === 2) {
     if (wasPressed('A') || gameCtx.input.touch.leftJust) {
-      if (gameCtx.state.pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-      if (gameCtx.state.pauseSelection === 2) { sfxVolume = Math.max(0, sfxVolume - 0.1); saveSFXSettings(); playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 1) { gameCtx.state.sfxMuted = !gameCtx.state.sfxMuted; gameCtx.services.saveSFXSettings(); gameCtx.services.playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 2) { gameCtx.state.sfxVolume = Math.max(0, gameCtx.state.sfxVolume - 0.1); gameCtx.services.saveSFXSettings(); gameCtx.services.playSFX('menuNav'); }
     }
     if (wasPressed('D') || gameCtx.input.touch.rightJust) {
-      if (gameCtx.state.pauseSelection === 1) { sfxMuted = !sfxMuted; saveSFXSettings(); playSFX('menuNav'); }
-      if (gameCtx.state.pauseSelection === 2) { sfxVolume = Math.min(1, sfxVolume + 0.1); saveSFXSettings(); playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 1) { gameCtx.state.sfxMuted = !gameCtx.state.sfxMuted; gameCtx.services.saveSFXSettings(); gameCtx.services.playSFX('menuNav'); }
+      if (gameCtx.state.pauseSelection === 2) { gameCtx.state.sfxVolume = Math.min(1, gameCtx.state.sfxVolume + 0.1); gameCtx.services.saveSFXSettings(); gameCtx.services.playSFX('menuNav'); }
     }
   }
 }
@@ -3395,37 +3401,37 @@ function updateWorldState(gameCtx, dt, p) {
   cam.x = lerp(cam.x, cam.targetX, dt * wt.cameraFollowLerp);
 
   // Campaign left-boundary soft wall
-  if (gameMode === 'campaign' && zoneLayout.length > 0) {
+  if (gameCtx.state.gameMode === 'campaign' && zoneLayout.length > 0) {
     const leftLimit = zoneLayout[0].startX - wt.campaignLeftSoftWallPad;
     if (p.x < leftLimit) { p.x = leftLimit; if (p.vx < 0) p.vx = 0; }
   }
 
   // ── Zone Tracking ──
   const zoneResult = getZoneAtX(p.x);
-  if (gameMode === 'campaign' && zoneLayout.length > 0 && p.x >= zoneLayout[zoneLayout.length - 1].endX) {
+  if (gameCtx.state.gameMode === 'campaign' && zoneLayout.length > 0 && p.x >= zoneLayout[zoneLayout.length - 1].endX) {
     triggerPrestige(gameCtx);
-  } else if (zoneResult.zone !== currentZone) {
-    currentZone = zoneResult.zone;
-    currentZoneIndex = zoneResult.index;
-    playSFX('zoneTransition');
-    zoneTransitionAnim = { timer: ut.zoneTransitionDuration, maxTimer: ut.zoneTransitionDuration, zoneName: currentZone.name, color: currentZone.displayColor };
+  } else if (zoneResult.zone !== gameCtx.state.currentZone) {
+    gameCtx.state.currentZone = zoneResult.zone;
+    gameCtx.state.currentZoneIndex = zoneResult.index;
+    gameCtx.services.playSFX('zoneTransition');
+    gameCtx.state.zoneTransitionAnim = { timer: ut.zoneTransitionDuration, maxTimer: ut.zoneTransitionDuration, zoneName: gameCtx.state.currentZone.name, color: gameCtx.state.currentZone.displayColor };
     // Unlock zone for endless mode
-    if (gameMode === 'campaign' && !unlockedZones.includes(currentZone.id)) {
-      unlockedZones.push(currentZone.id);
-      saveProgress();
+    if (gameCtx.state.gameMode === 'campaign' && !gameCtx.state.unlockedZones.includes(gameCtx.state.currentZone.id)) {
+      gameCtx.state.unlockedZones.push(gameCtx.state.currentZone.id);
+      gameCtx.services.saveProgress();
     }
   }
   // Zone transition animation timer
-  if (zoneTransitionAnim) {
-    zoneTransitionAnim.timer -= dt;
-    if (zoneTransitionAnim.timer <= 0) zoneTransitionAnim = null;
+  if (gameCtx.state.zoneTransitionAnim) {
+    gameCtx.state.zoneTransitionAnim.timer -= dt;
+    if (gameCtx.state.zoneTransitionAnim.timer <= 0) gameCtx.state.zoneTransitionAnim = null;
   }
 
   // ── Generation ──
   generateCity(cam.x - wt.generationMargin, cam.x + W + wt.generationMargin);
   generatePlatforms(cam.x - wt.generationMargin, cam.x + W + wt.generationMargin);
 
-  dayTime = (dayTime + dt) % DAY_CYCLE;
+  gameCtx.state.dayTime = (gameCtx.state.dayTime + dt) % DAY_CYCLE;
   updateBirds(dt);
   updateCars(dt);
   updateParticles(dt);
@@ -3452,7 +3458,7 @@ function update(gameCtx, dt) {
 
 // ── Render ──
 function renderFrontScreen(gameCtx) {
-  if (galleryMode) {
+  if (gameCtx.state.galleryMode) {
     ctx.save(); ctx.translate(GAME_OX, 0);
     drawGallery();
     ctx.restore();
@@ -3856,7 +3862,7 @@ function render(gameCtx, dt) {
   ctx.save(); ctx.translate(GAME_OX, 0);
 
   // Sky (day/night cycle)
-  const dayPhase = dayTime / DAY_CYCLE;
+  const dayPhase = gameCtx.state.dayTime / DAY_CYCLE;
   const sky = getDayValues(dayPhase);
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, sky.top); grad.addColorStop(0.5, sky.mid); grad.addColorStop(1, sky.bot);

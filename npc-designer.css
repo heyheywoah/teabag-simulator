@@ -403,6 +403,22 @@ button:active {
   border-radius: 6px;
 }
 
+.live-preview-control {
+  display: block;
+  margin-top: 8px;
+}
+
+.live-preview-control-group {
+  margin-top: 8px;
+}
+
+.live-preview-control-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
 #runtimePreviewCanvas {
   width: 100%;
   height: auto;
@@ -438,6 +454,8 @@ input[type="range"] {
 }
 
 #runtimePreviewTickInput,
+#livePreviewPanicArmSpreadInput,
+#livePreviewPanicShoulderOffsetInput,
 #faceEyeSpacingInput,
 #faceMouthCurveInput {
   display: block;

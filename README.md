@@ -146,8 +146,8 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 - **Face controls** — Dedicated managed face panel for eyes, brows, and mouth that updates layer geometry used by runtime parity preview/export
 - **Hair preset bootstrap** — Apply a layered Sundress hair preset (current pose or all poses) with back mass, temple coverage, and front bangs/wisps ready for fine tuning
 - **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
-- **Live previews** — Side-by-side previews for all three poses with facing-direction toggle
-- **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer using live in-memory designer payload data (`designerPayload` + `designerPose`) with legacy fallback safety, plus pose/facing/scale/tick controls, a Start/Stop animation loop toggle, and world-context silhouettes
+- **Live previews** — Side-by-side previews for all three poses with facing-direction toggle; panic preview now derives from normal geometry with panic-face substitution, adjustable panic arm spread, and adjustable shoulder-bar pivot offset (plus `Snap 0` reset for spread)
+- **Runtime-parity preview** — Dedicated preview panel that calls the shared game `drawCharacter` renderer using live in-memory designer payload data (`designerPayload` + `designerPose`) with legacy fallback safety, plus pose/facing/scale/tick controls, a Start/Stop animation loop toggle, world-context silhouettes, and panic motion flags aligned to game NPC panic (`isFleeing` + walk phase, no jump-state injection)
 - **Constraint UX** — Always-visible Design Readiness panel and Constraint Reference panel with hard blockers vs warnings and jump-to-target issue navigation
 - **Visual-rule override workflow** — Hard Safety rules always block compact export; visual issues become warnings when Strict Visual Rules is OFF (optional auto-fix when strict is ON)
 - **JSON round-trip** — Export/import full editable JSON, copy/download JSON, plus compact integration payload export for downstream character conversion
@@ -166,10 +166,11 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 7. Use layer controls for selection/group transforms and ordering.
 8. Toggle height references to compare proportions against existing roster sizes.
 9. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
-10. Use Runtime-Parity Preview to validate runtime shape/animation parity before export, use `Start Loop` / `Stop Loop` to play animation continuously, and watch the status line for `payload parity active` vs `fallback to legacy preview (...)`.
-11. Use the top-bar Session controls: `Save As` creates a named snapshot, `Save` overwrites the selected snapshot, and `Load` restores it (with unsaved-change confirmation).
-12. Export editable JSON for continued iteration or import JSON to restore state.
-13. Export compact payload when hard blockers are clear.
+10. Use Live Preview `Panic Arm Spread` and `Shoulder Bar Offset Y` to tune panic arm behavior; use `Snap 0` to instantly return spread to an exact flip baseline.
+11. Use Runtime-Parity Preview to validate runtime shape/animation parity before export, use `Start Loop` / `Stop Loop` to play animation continuously, and watch the status line for `payload parity active` vs `fallback to legacy preview (...)`.
+12. Use the top-bar Session controls: `Save As` creates a named snapshot, `Save` overwrites the selected snapshot, and `Load` restores it (with unsaved-change confirmation).
+13. Export editable JSON for continued iteration or import JSON to restore state.
+14. Export compact payload when hard blockers are clear.
 
 ## Tech
 

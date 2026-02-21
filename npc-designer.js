@@ -57,6 +57,12 @@
     "left_shoe",
     "right_shoe"
   ]);
+  const LIVE_PREVIEW_FACE_PARTS = Object.freeze(["face", "eye", "brow", "mouth"]);
+  const LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT = 0;
+  const LIVE_PREVIEW_PANIC_ARM_SPREAD_MAX_RAD = Math.PI * 0.62;
+  const LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT = 0;
+  const LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MIN = -40;
+  const LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MAX = 40;
 
   // Mirrored from teabag-simulator.html BASE_W/BASE_H + CHARACTER_DEFS wScale/hScale.
   const GAME_CHARACTER_HEIGHT_REFERENCES = [
@@ -141,6 +147,10 @@
     runtimeCharDefs: Object.create(null),
     runtimePreviewLoopRaf: 0,
     runtimePreviewLoopLastTs: 0,
+    livePreview: {
+      panicArmSpread: LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT,
+      panicShoulderOffsetY: LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT
+    },
     snapshotSlots: Object.create(null),
     selectedSnapshotId: "",
     hasUnsavedChanges: false,
@@ -270,6 +280,11 @@
       panic: document.getElementById("previewPanic"),
       ko: document.getElementById("previewKo")
     };
+    ui.livePreviewPanicArmSpreadInput = document.getElementById("livePreviewPanicArmSpreadInput");
+    ui.livePreviewPanicArmSpreadResetBtn = document.getElementById("livePreviewPanicArmSpreadResetBtn");
+    ui.livePreviewPanicArmSpreadValue = document.getElementById("livePreviewPanicArmSpreadValue");
+    ui.livePreviewPanicShoulderOffsetInput = document.getElementById("livePreviewPanicShoulderOffsetInput");
+    ui.livePreviewPanicShoulderOffsetValue = document.getElementById("livePreviewPanicShoulderOffsetValue");
     ui.selectionInfo = document.getElementById("selectionInfo");
     ui.strictVisualRulesToggle = document.getElementById("strictVisualRulesToggle");
     ui.autoFixVisualToggle = document.getElementById("autoFixVisualToggle");
@@ -479,6 +494,38 @@
       touchWorkspace();
       requestRender();
     });
+
+    if (ui.livePreviewPanicArmSpreadInput) {
+      ui.livePreviewPanicArmSpreadInput.addEventListener("input", () => {
+        state.livePreview.panicArmSpread = clamp(
+          num(ui.livePreviewPanicArmSpreadInput.value, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT),
+          -1,
+          1
+        );
+        updateLivePreviewLabels();
+        requestRender();
+      });
+    }
+
+    if (ui.livePreviewPanicArmSpreadResetBtn) {
+      ui.livePreviewPanicArmSpreadResetBtn.addEventListener("click", () => {
+        state.livePreview.panicArmSpread = LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT;
+        updateLivePreviewLabels();
+        requestRender();
+      });
+    }
+
+    if (ui.livePreviewPanicShoulderOffsetInput) {
+      ui.livePreviewPanicShoulderOffsetInput.addEventListener("input", () => {
+        state.livePreview.panicShoulderOffsetY = clamp(
+          num(ui.livePreviewPanicShoulderOffsetInput.value, LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT),
+          LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MIN,
+          LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MAX
+        );
+        updateLivePreviewLabels();
+        requestRender();
+      });
+    }
   }
 
   function bindFaceControlsEvents() {
@@ -1266,6 +1313,7 @@
     ui.faceBrowTiltInput.value = String(state.faceDraft.browTilt);
     ui.faceMouthCurveInput.value = String(state.faceDraft.mouthCurve);
     updateFaceDraftLabels();
+    updateLivePreviewLabels();
     syncRuntimeProfileInputs();
     updateReadinessToggleState();
     updateRuntimePreviewLabels();
@@ -1405,6 +1453,21 @@
     ui.runtimePreviewTickValue.textContent = state.runtimePreview.tick.toFixed(2);
     ui.runtimePreviewWorldToggle.checked = !!state.runtimePreview.worldContext;
     updateRuntimePreviewLoopButton();
+  }
+
+  function updateLivePreviewLabels() {
+    if (!ui.livePreviewPanicArmSpreadInput || !ui.livePreviewPanicArmSpreadValue) return;
+    const shoulderOffsetY = clamp(
+      num(state.livePreview.panicShoulderOffsetY, LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT),
+      LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MIN,
+      LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MAX
+    );
+    ui.livePreviewPanicArmSpreadInput.value = String(state.livePreview.panicArmSpread);
+    ui.livePreviewPanicArmSpreadValue.textContent = state.livePreview.panicArmSpread.toFixed(2);
+    if (ui.livePreviewPanicShoulderOffsetInput && ui.livePreviewPanicShoulderOffsetValue) {
+      ui.livePreviewPanicShoulderOffsetInput.value = String(shoulderOffsetY);
+      ui.livePreviewPanicShoulderOffsetValue.textContent = `${Math.round(shoulderOffsetY)}px`;
+    }
   }
 
   function updateRuntimePreviewLoopButton() {
@@ -3695,6 +3758,208 @@
     ui.selectionInfo.textContent = `${selected.length} layers selected for group transform.`;
   }
 
+  function isLivePreviewFacePart(part) {
+    return LIVE_PREVIEW_FACE_PARTS.includes(part);
+  }
+
+  function isLivePreviewFaceLayer(layer) {
+    return isLivePreviewFacePart(inferRuntimePartRole(layer));
+  }
+
+  function buildLivePanicPreviewLayers(normalLayers, panicLayers) {
+    const panicFaceByName = new Map();
+    const panicFaceFallback = [];
+    panicLayers.forEach((layer) => {
+      if (!isLivePreviewFaceLayer(layer)) return;
+      panicFaceFallback.push(layer);
+      if (layer.name && !panicFaceByName.has(layer.name)) {
+        panicFaceByName.set(layer.name, layer);
+      }
+    });
+
+    if (!panicFaceFallback.length) return normalLayers;
+
+    const merged = [];
+    const usedPanicFaces = new Set();
+
+    normalLayers.forEach((layer) => {
+      if (!isLivePreviewFaceLayer(layer)) {
+        merged.push(layer);
+        return;
+      }
+
+      let replacement = null;
+      if (layer.name && panicFaceByName.has(layer.name)) {
+        replacement = panicFaceByName.get(layer.name);
+        if (usedPanicFaces.has(replacement)) {
+          replacement = null;
+        }
+      } else {
+        replacement = panicFaceFallback.find((candidate) => !usedPanicFaces.has(candidate)) || null;
+      }
+
+      if (!replacement) {
+        replacement = panicFaceFallback.find((candidate) => !usedPanicFaces.has(candidate)) || null;
+      }
+
+      if (replacement) {
+        merged.push(replacement);
+        usedPanicFaces.add(replacement);
+      }
+    });
+
+    panicFaceFallback.forEach((layer) => {
+      if (!usedPanicFaces.has(layer)) merged.push(layer);
+    });
+
+    return merged;
+  }
+
+  function getPosePreviewLayers(poseId) {
+    if (poseId !== "panic") return getLayers(poseId).filter((layer) => layer.visible);
+
+    const normalLayers = getLayers("normal").filter((layer) => layer.visible);
+    const panicLayers = getLayers("panic").filter((layer) => layer.visible);
+
+    if (!normalLayers.length) return panicLayers;
+    if (!panicLayers.length) return normalLayers;
+    return buildLivePanicPreviewLayers(normalLayers, panicLayers);
+  }
+
+  function buildLivePreviewPartBounds(layers) {
+    const partBounds = Object.create(null);
+    const partArea = Object.create(null);
+    layers.forEach((layer) => {
+      if (!layer || layer.visible === false) return;
+      const bounds = getLayerBounds(layer);
+      if (!bounds) return;
+      const part = inferRuntimePartRole(layer);
+      if (part === "other") return;
+      const area = Math.max(1, bounds.w * bounds.h);
+      if (!(part in partBounds) || area > partArea[part]) {
+        partBounds[part] = bounds;
+        partArea[part] = area;
+      }
+    });
+    return partBounds;
+  }
+
+  function resolveLivePanicShoulderBarY(partBounds) {
+    const offsetY = clamp(
+      num(state.livePreview.panicShoulderOffsetY, LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT),
+      LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MIN,
+      LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MAX
+    );
+    const torso = partBounds.torso;
+    if (torso) return torso.y + torso.h * 0.12 + offsetY;
+
+    const head = partBounds.head;
+    if (head) return head.y + head.h * 0.98 + offsetY;
+
+    const armAnchors = [];
+    if (partBounds.left_arm) armAnchors.push(partBounds.left_arm.y + partBounds.left_arm.h * 0.12);
+    if (partBounds.right_arm) armAnchors.push(partBounds.right_arm.y + partBounds.right_arm.h * 0.12);
+    if (armAnchors.length) return armAnchors.reduce((sum, y) => sum + y, 0) / armAnchors.length + offsetY;
+
+    return DESIGN_BASELINE_Y - GAME_BASE_H * GAME_TO_EDITOR_SCALE * 0.76 + offsetY;
+  }
+
+  function getLivePanicArmMotion(layer, shoulderBarY) {
+    const part = inferRuntimePartRole(layer);
+    if (part !== "left_arm" && part !== "right_arm") return null;
+
+    const bounds = getLayerBounds(layer);
+    if (!bounds) return null;
+
+    const spread = clamp(num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT), -1, 1);
+    const spreadRad = spread * LIVE_PREVIEW_PANIC_ARM_SPREAD_MAX_RAD;
+    const isLeftArm = part === "left_arm";
+
+    return {
+      flipY: true,
+      angle: isLeftArm ? -spreadRad : spreadRad,
+      pivotX: isLeftArm
+        ? bounds.x + bounds.w * 0.86
+        : bounds.x + bounds.w * 0.14,
+      // Shared shoulder bar keeps Y drag behavior truly inverted between normal/panic.
+      pivotY: shoulderBarY
+    };
+  }
+
+  function drawLayerWithPreviewMotion(ctx, layer, motion) {
+    if (!layer.visible) return;
+
+    const path = buildPath(layer);
+    if (!path) return;
+
+    ctx.save();
+    if (motion) {
+      const bounds = getLayerBounds(layer);
+      if (bounds) {
+        const dx = num(motion.dx, 0);
+        const dy = num(motion.dy, 0);
+        const angle = num(motion.angle, 0);
+        const flipY = !!motion.flipY;
+        const scaleX = num(motion.scaleX, 1);
+        const scaleY = num(motion.scaleY, 1);
+        const pivotX = num(motion.pivotX, bounds.x + bounds.w * 0.5);
+        const pivotY = num(motion.pivotY, bounds.y + bounds.h * 0.5);
+        const scalePivotY = num(motion.scalePivotY, pivotY);
+
+        if (dx || dy) ctx.translate(dx, dy);
+        if (flipY || angle || scaleX !== 1 || scaleY !== 1) {
+          ctx.translate(pivotX, scalePivotY);
+          if (flipY) ctx.scale(1, -1);
+          if (angle) ctx.rotate(angle);
+          if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY);
+          ctx.translate(-pivotX, -scalePivotY);
+        }
+      }
+    }
+
+    ctx.globalAlpha = clamp(num(layer.style.opacity, 1), 0.05, 1);
+    if (shouldFillLayer(layer)) {
+      if (layer.style.fillMode === "gradient") {
+        ctx.fillStyle = buildGradientForLayer(ctx, layer);
+      } else {
+        ctx.fillStyle = layer.style.fill || "#3b82f6";
+      }
+      ctx.fill(path);
+    }
+
+    const strokeW = num(layer.style.strokeWidth, 0);
+    if (strokeW > 0) {
+      ctx.strokeStyle = layer.style.stroke || "#0f172a";
+      ctx.lineWidth = strokeW;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke(path);
+    }
+
+    if (layer.locked) {
+      const bounds = getLayerBounds(layer);
+      if (bounds) {
+        ctx.fillStyle = "rgba(248,250,252,0.15)";
+        ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function renderLivePanicPosePreview(ctx, layers) {
+    const partBounds = buildLivePreviewPartBounds(layers);
+    const shoulderBarY = resolveLivePanicShoulderBarY(partBounds);
+    layers.forEach((layer) => {
+      const motion = getLivePanicArmMotion(layer, shoulderBarY);
+      if (motion) {
+        drawLayerWithPreviewMotion(ctx, layer, motion);
+      } else {
+        drawLayer(ctx, layer);
+      }
+    });
+  }
+
   function renderPosePreviews() {
     POSE_IDS.forEach((poseId) => {
       const canvas = ui.previewCanvases[poseId];
@@ -3721,7 +3986,7 @@
     ctx.lineTo(w, h * 0.82);
     ctx.stroke();
 
-    const layers = getLayers(poseId).filter((layer) => layer.visible);
+    const layers = getPosePreviewLayers(poseId);
     if (!layers.length) return;
 
     const bounds = getLayersBounds(layers);
@@ -3738,7 +4003,11 @@
     ctx.scale(scale * state.view.facing, scale);
     ctx.translate(-modelCenterX, -DESIGN_BASELINE_Y);
 
-    layers.forEach((layer) => drawLayer(ctx, layer));
+    if (poseId === "panic") {
+      renderLivePanicPosePreview(ctx, layers);
+    } else {
+      layers.forEach((layer) => drawLayer(ctx, layer));
+    }
     ctx.restore();
   }
 
@@ -3796,8 +4065,6 @@
       walkPhase: tick,
       breathing: Math.sin(tick * 2) * 1,
       blinkTimer: (Math.sin(tick * 1.9) > 0.93) ? 0.05 : 0.6,
-      isMovingJump: pose === "panic",
-      airState: pose === "panic" ? "rising" : null,
       isFleeing: pose === "panic",
       openMouth: pose === "panic",
       isKO: pose === "ko",

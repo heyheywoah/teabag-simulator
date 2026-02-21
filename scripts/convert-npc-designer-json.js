@@ -16,11 +16,16 @@ function parseArgs(argv) {
     strictVisualRules: true,
     autoFixVisualIssues: true,
   };
+  let positionalOutput = "";
 
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
-    if (!token.startsWith("--") && !args.input) {
-      args.input = token;
+    if (!token.startsWith("--")) {
+      if (!args.input) {
+        args.input = token;
+      } else if (!positionalOutput) {
+        positionalOutput = token;
+      }
       continue;
     }
     if (token === "--out") {
@@ -40,6 +45,11 @@ function parseArgs(argv) {
       i += 1;
       continue;
     }
+  }
+
+  // Allow legacy positional output path while keeping --out as the precedence path.
+  if (!args.output && positionalOutput) {
+    args.output = positionalOutput;
   }
 
   return args;
@@ -131,7 +141,7 @@ function createPayload(doc, validation) {
 (function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.input) {
-    die("Usage: node scripts/convert-npc-designer-json.js <input.json> [--out output.json] [--strict-visual on|off] [--auto-fix on|off]");
+    die("Usage: node scripts/convert-npc-designer-json.js <input.json> [output.json] [--out output.json] [--strict-visual on|off] [--auto-fix on|off]");
   }
 
   const inputPath = path.resolve(process.cwd(), args.input);

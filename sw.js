@@ -1,7 +1,11 @@
-const CACHE_NAME = 'teabag-sim-v3';
+const CACHE_NAME = 'teabag-sim-v4';
 const ASSETS = [
   './',
   './teabag-simulator.html',
+  './runtime/npc-render-shared.js',
+  './data/npc_payloads/index.json',
+  './data/npc_payloads/strict-valid.json',
+  './data/npc_payloads/visual-override.json',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

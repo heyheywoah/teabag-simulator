@@ -46,6 +46,7 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
   - `teabag-simulator.html:2282` (`drawCharacter(...)` wrapper bridge)
   - `teabag-simulator.html:4256` (boot-time `loadDesignerPayloadRegistry()` call)
 - Gallery-only sample routing anchor: `teabag-simulator.html:2320` (`GALLERY_TYPES` includes `designerPayloadId: "npc_strict_valid"`).
+- Offline payload cache path: `sw.js` precaches `runtime/npc-render-shared.js` plus payload registry files (`data/npc_payloads/index.json`, `strict-valid.json`, `visual-override.json`); bump `CACHE_NAME` when payload cache manifest changes.
 - Runtime call sites still target `drawCharacter(...)`; unresolved/missing payload ids fall back to legacy rendering.
 
 ## Runtime State Machine

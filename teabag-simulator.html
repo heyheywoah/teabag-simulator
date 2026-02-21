@@ -1502,7 +1502,7 @@ function drawBusStopNPCs(plat, playerScreenX, playerScreenY) {
       facing: bNpc.facing, color: bNpc.color, skinColor: bNpc.skinColor,
       hairColor: bNpc.hairColor, hairStyle: bNpc.hairStyle,
       eyeColor: bNpc.eyeColor, legColor: bNpc.legColor, shoeColor: bNpc.shoeColor,
-      npcType: bNpc.npcType,
+      npcType: bNpc.npcType, designerPayloadId: bNpc.designerPayloadId,
       feminineBody: bNpc.feminineBody, bustScale: bNpc.bustScale,
       breathing: Math.sin(bNpc.breathPhase) * 1,
       blinkTimer: bNpc.blinkTimer,
@@ -2101,6 +2101,180 @@ function drawCar(car) {
 const HAIR_STYLES = ['short','short','short','long','ponytail','mohawk','bun','spiky'];
 
 // ── Character Drawing ──
+const DESIGNER_PAYLOAD_INDEX_PATH = './data/npc_payloads/index.json';
+const DESIGNER_PAYLOAD_POSES = Object.freeze({ normal: 'normal', panic: 'panic', ko: 'ko' });
+const DESIGNER_PAYLOAD_REGISTRY = {
+  status: 'idle',
+  error: null,
+  payloads: new Map(),
+  indexEntries: [],
+  loadPromise: null,
+};
+
+function toFiniteNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function cloneJsonSafe(value, fallback = null) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch (_err) {
+    return fallback;
+  }
+}
+
+function normalizeDesignerLayer(layer) {
+  if (!layer || typeof layer !== 'object') return null;
+  const type = ['rect', 'ellipse', 'line', 'curve', 'polygon'].includes(layer.type) ? layer.type : null;
+  if (!type || !layer.geometry || typeof layer.geometry !== 'object') return null;
+  const styleSrc = (layer.style && typeof layer.style === 'object') ? layer.style : {};
+  const normalized = {
+    id: typeof layer.id === 'string' ? layer.id : '',
+    name: typeof layer.name === 'string' ? layer.name : '',
+    type,
+    visible: layer.visible !== false,
+    geometry: cloneJsonSafe(layer.geometry, {}),
+    style: {
+      fill: typeof styleSrc.fill === 'string' ? styleSrc.fill : '#3B82F6',
+      stroke: typeof styleSrc.stroke === 'string' ? styleSrc.stroke : '#0F172A',
+      strokeWidth: toFiniteNumber(styleSrc.strokeWidth, 0),
+      opacity: toFiniteNumber(styleSrc.opacity, 1),
+      fillMode: styleSrc.fillMode === 'gradient' ? 'gradient' : 'solid',
+    },
+  };
+  if (normalized.style.fillMode === 'gradient' && styleSrc.gradient && typeof styleSrc.gradient === 'object') {
+    normalized.style.gradient = {
+      angle: toFiniteNumber(styleSrc.gradient.angle, 90),
+      stops: Array.isArray(styleSrc.gradient.stops)
+        ? styleSrc.gradient.stops
+            .map(stop => ({
+              offset: toFiniteNumber(stop && stop.offset, 0),
+              color: typeof (stop && stop.color) === 'string' ? stop.color : '#FFFFFF',
+            }))
+            .filter(stop => Number.isFinite(stop.offset))
+        : [],
+    };
+  }
+  return normalized;
+}
+
+function normalizeDesignerPayload(rawPayload, entry = {}) {
+  if (!rawPayload || typeof rawPayload !== 'object') return null;
+  const payloadId = (
+    (typeof rawPayload.id === 'string' && rawPayload.id.trim()) ||
+    (typeof rawPayload.meta?.id === 'string' && rawPayload.meta.id.trim()) ||
+    (typeof entry.id === 'string' && entry.id.trim()) ||
+    ''
+  );
+  if (!payloadId) return null;
+
+  const poseMap = {};
+  for (const poseId of [DESIGNER_PAYLOAD_POSES.normal, DESIGNER_PAYLOAD_POSES.panic, DESIGNER_PAYLOAD_POSES.ko]) {
+    const poseNode = rawPayload.poses && rawPayload.poses[poseId];
+    const sourceLayers = Array.isArray(poseNode)
+      ? poseNode
+      : (poseNode && Array.isArray(poseNode.layers) ? poseNode.layers : []);
+    poseMap[poseId] = sourceLayers.map(normalizeDesignerLayer).filter(Boolean);
+  }
+
+  const boundsSrc = rawPayload.bounds && typeof rawPayload.bounds === 'object' ? rawPayload.bounds : {};
+  const originSrc = rawPayload.origin && typeof rawPayload.origin === 'object'
+    ? rawPayload.origin
+    : (rawPayload.metadata && rawPayload.metadata.origin && typeof rawPayload.metadata.origin === 'object'
+      ? rawPayload.metadata.origin
+      : {});
+
+  return {
+    id: payloadId,
+    label: (typeof rawPayload.label === 'string' && rawPayload.label) || (typeof rawPayload.meta?.label === 'string' && rawPayload.meta.label) || payloadId,
+    bounds: {
+      w: toFiniteNumber(boundsSrc.w, 24),
+      h: toFiniteNumber(boundsSrc.h, 46),
+      editorScale: Math.max(0.001, toFiniteNumber(boundsSrc.editorScale, 3.2)),
+    },
+    origin: {
+      centerX: toFiniteNumber(originSrc.centerX, toFiniteNumber(entry.designCenterX, 480)),
+      baselineY: toFiniteNumber(originSrc.baselineY, toFiniteNumber(entry.designBaselineY, 430)),
+    },
+    poses: poseMap,
+  };
+}
+
+function normalizePayloadIndexEntries(indexDoc) {
+  const runtimeEntries = Array.isArray(indexDoc && indexDoc.runtimePayloads) ? indexDoc.runtimePayloads : null;
+  const fixtureEntries = Array.isArray(indexDoc && indexDoc.fixtures)
+    ? indexDoc.fixtures.filter(entry => entry && entry.expected !== 'fail-hard')
+    : [];
+  const sourceEntries = runtimeEntries && runtimeEntries.length ? runtimeEntries : fixtureEntries;
+  return sourceEntries
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object' || typeof entry.file !== 'string') return null;
+      const trimmedFile = entry.file.trim();
+      if (!trimmedFile) return null;
+      return {
+        id: typeof entry.id === 'string' ? entry.id.trim() : '',
+        file: trimmedFile,
+        designCenterX: toFiniteNumber(entry.designCenterX, 480),
+        designBaselineY: toFiniteNumber(entry.designBaselineY, 430),
+      };
+    })
+    .filter(Boolean);
+}
+
+async function loadDesignerPayloadRegistry() {
+  if (DESIGNER_PAYLOAD_REGISTRY.loadPromise) return DESIGNER_PAYLOAD_REGISTRY.loadPromise;
+  DESIGNER_PAYLOAD_REGISTRY.status = 'loading';
+  DESIGNER_PAYLOAD_REGISTRY.error = null;
+  DESIGNER_PAYLOAD_REGISTRY.loadPromise = (async () => {
+    try {
+      const indexRes = await fetch(DESIGNER_PAYLOAD_INDEX_PATH);
+      if (!indexRes.ok) throw new Error(`Index fetch failed with status ${indexRes.status}`);
+      const indexJson = await indexRes.json();
+      const entries = normalizePayloadIndexEntries(indexJson);
+      DESIGNER_PAYLOAD_REGISTRY.indexEntries = entries;
+      const payloads = new Map();
+      for (const entry of entries) {
+        try {
+          const payloadURL = new URL(entry.file, location.href).toString();
+          const payloadRes = await fetch(payloadURL);
+          if (!payloadRes.ok) throw new Error(`Payload fetch failed with status ${payloadRes.status}`);
+          const payloadJson = await payloadRes.json();
+          const normalized = normalizeDesignerPayload(payloadJson, entry);
+          if (!normalized) {
+            console.warn(`[DesignerPayloadRegistry] Skipping invalid payload entry: ${entry.file}`);
+            continue;
+          }
+          payloads.set(normalized.id, normalized);
+          if (entry.id && !payloads.has(entry.id)) payloads.set(entry.id, normalized);
+        } catch (err) {
+          console.warn(`[DesignerPayloadRegistry] Failed loading payload "${entry.file}". Falling back for this entry.`, err);
+        }
+      }
+      DESIGNER_PAYLOAD_REGISTRY.payloads = payloads;
+      DESIGNER_PAYLOAD_REGISTRY.status = payloads.size > 0 ? 'ready' : 'empty';
+    } catch (err) {
+      DESIGNER_PAYLOAD_REGISTRY.payloads = new Map();
+      DESIGNER_PAYLOAD_REGISTRY.status = 'failed';
+      DESIGNER_PAYLOAD_REGISTRY.error = err;
+      console.warn('[DesignerPayloadRegistry] Registry load failed. Legacy rendering remains active.', err);
+    }
+    return DESIGNER_PAYLOAD_REGISTRY;
+  })();
+  return DESIGNER_PAYLOAD_REGISTRY.loadPromise;
+}
+
+function resolveDesignerPayloadById(designerPayloadId) {
+  if (typeof designerPayloadId !== 'string' || !designerPayloadId) return null;
+  return DESIGNER_PAYLOAD_REGISTRY.payloads.get(designerPayloadId) || null;
+}
+
+function resolveDesignerPayloadPose(opts) {
+  if (opts && opts.isKO) return DESIGNER_PAYLOAD_POSES.ko;
+  if (opts && (opts.isFleeing || opts.state === 'fleeing' || opts.state === 'panicking')) return DESIGNER_PAYLOAD_POSES.panic;
+  return DESIGNER_PAYLOAD_POSES.normal;
+}
+
 const SHARED_CHARACTER_RENDERER = window.NPCRenderShared && window.NPCRenderShared.createCharacterRenderer
   ? window.NPCRenderShared.createCharacterRenderer({ ctx, CHAR_BY_NAME, clamp, roundRect, hatImg })
   : null;
@@ -2109,7 +2283,17 @@ function drawCharacter(x, y, w, h, opts) {
   if (!SHARED_CHARACTER_RENDERER) {
     throw new Error("Shared NPC renderer unavailable");
   }
-  SHARED_CHARACTER_RENDERER.drawCharacter(x, y, w, h, opts);
+  const safeOpts = (opts && typeof opts === 'object') ? opts : {};
+  const designerPayload = resolveDesignerPayloadById(safeOpts.designerPayloadId);
+  if (designerPayload) {
+    SHARED_CHARACTER_RENDERER.drawCharacter(x, y, w, h, {
+      ...safeOpts,
+      designerPayload,
+      designerPose: resolveDesignerPayloadPose(safeOpts),
+    });
+    return;
+  }
+  SHARED_CHARACTER_RENDERER.drawCharacter(x, y, w, h, safeOpts);
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -2135,6 +2319,22 @@ window.addEventListener('keydown', e => {
 
 const GALLERY_TYPES = [
   { label: 'Player', w: 26, h: 48, opts: { color: '#3B82F6', skinColor: '#FBBF6B', hairColor: '#3D2B1F', hairStyle: 'short' } },
+  {
+    label: 'Designer Sample',
+    w: BASE_W,
+    h: BASE_H,
+    opts: {
+      npcType: 'normal',
+      designerPayloadId: 'npc_strict_valid',
+      color: '#3182CE',
+      skinColor: '#F0C8A0',
+      hairColor: '#8B4513',
+      hairStyle: 'short',
+      eyeColor: '#1A1A2E',
+      legColor: '#4A5568',
+      shoeColor: '#2D3748',
+    },
+  },
   ...CHARACTER_DEFS.map(def => {
     const gp = def.galleryPreview || {};
     return {
@@ -2344,7 +2544,7 @@ const player = {
 // ── NPCs ──
 const npcs = [];
 function npcVisualOpts(npc) {
-  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, shoeColor: npc.shoeColor, opacity: npc.fleeOpacity, feminineBody: npc.feminineBody, bustScale: npc.bustScale, hasDress: npc.hasDress, shortDress: npc.shortDress };
+  return { facing: npc.facing, color: npc.color, skinColor: npc.skinColor, hairColor: npc.hairColor, npcType: npc.npcType, hairStyle: npc.hairStyle, eyeColor: npc.eyeColor, legColor: npc.legColor, shoeColor: npc.shoeColor, opacity: npc.fleeOpacity, feminineBody: npc.feminineBody, bustScale: npc.bustScale, hasDress: npc.hasDress, shortDress: npc.shortDress, designerPayloadId: npc.designerPayloadId };
 }
 const NPC_COLORS = ['#E53E3E','#DD6B20','#D69E2E','#38A169','#3182CE','#805AD5','#D53F8C','#319795'];
 const HAIR_COLORS = ['#3D2B1F','#1A1A2E','#8B4513','#DAA520','#C0392B','#2C3E50'];
@@ -4053,6 +4253,7 @@ function loop(gameCtx, timestamp) {
 
 // Init — set up default zone layout for title screen background
 initZoneLayout();
+loadDesignerPayloadRegistry();
 
 requestAnimationFrame(ts => { GAME_CTX.state.lastTime = ts; loop(GAME_CTX, ts); });
 

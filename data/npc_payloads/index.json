@@ -18,5 +18,20 @@
       "expected": "fail-hard",
       "notes": "Must fail conversion with hard blockers."
     }
+  ],
+  "runtimePayloads": [
+    {
+      "id": "npc_strict_valid",
+      "file": "strict-valid.json",
+      "designCenterX": 480,
+      "designBaselineY": 400,
+      "sample": true
+    },
+    {
+      "id": "npc_visual_override",
+      "file": "visual-override.json",
+      "designCenterX": 480,
+      "designBaselineY": 400
+    }
   ]
 }

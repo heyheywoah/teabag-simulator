@@ -1,73 +1,69 @@
-# NPC Designer Refactor Checklist (Constraint UX + Runtime Parity)
+# NPC Payload Runtime Reintegration Checklist
 
 ## Phase 1 Gate (Read-Only First)
 
 - [x] Read `SCHEMATICS.md` before planning/editing.
-- [x] Created `NPC_DESIGNER_CONSTRAINTS_READONLY.md` with anchors and contract.
+- [x] Created `NPC_JSON_REINTEGRATION_READONLY.md` with anchors/call-map/invariants/risks.
 - [x] Updated `REFACTOR_SLICES.md` with ordered mechanical slices.
-- [x] Updated `REFACTOR_CHECKLIST.md` with acceptance gates.
+- [x] Updated `REFACTOR_CHECKLIST.md` with task gates.
 - [x] No implementation edits performed before these artifacts.
 
-## Scope and Invariant Gate
+## Scope Gate
 
-- [x] Diff scope limited to expected files.
-- [x] No gameplay constants/tuning values changed.
+- [x] `git diff --name-only` limited to expected file scope for this task.
+- [x] `git diff --name-only | rg '^scripts/convert-npc-designer-json.js$'` is empty.
+- [x] Out-of-scope files untouched (`npc-designer*.{html,css,js}` and constraints script).
+
+## Invariant Gate
+
+- [x] No gameplay constants/tuning value changes.
 - [x] No spawn/combat/zone rebalance.
-- [x] Existing designer core capabilities preserved.
+- [x] No spawn selection/pool edits (`npcPool`, `spawnNPC(`, `updateNPCSpawning(`, `ZONES =` diffs for spawn logic).
+- [x] Update/render/frame-end reset ordering unchanged.
+- [x] Non-designer NPC rendering parity unchanged.
 
-## Preserved Existing Designer Capabilities (Must Stay PASS)
+## Runtime Registry Gate
 
-- [x] Tools still available: select/move/rect/ellipse/line/curve/polygon/color/gradient/eyedropper/hand/zoom controls.
-- [x] Layer workflow still available: reorder/lock/hide/multi-select/group transforms.
-- [x] Pose workflow still available: normal/panic/ko with pose isolation.
-- [x] Existing JSON round-trip behavior still operational.
-- [x] Height reference workflow still operational.
+- [x] Runtime loads `data/npc_payloads/index.json` without exception.
+- [x] Normalized map keyed by payload id is populated on success.
+- [x] Registry failure path is non-fatal and falls back to legacy rendering.
+- [x] Unknown/missing `designerPayloadId` falls back safely.
 
-## Constraint UX Gate
+## Pose + Render Path Gate
 
-- [x] Shared constraints source used by inline validation + readiness + export-readiness.
-- [x] Hard Safety rules non-bypassable and export-blocking.
-- [x] Visual rules separated from hard rules.
-- [x] Strict Visual Rules toggle defaults ON.
-- [x] Auto-fix Visual Issues toggle defaults ON when strict is ON.
-- [x] Strict OFF keeps visual issues as warnings only.
-- [x] Design Readiness panel always visible.
-- [x] Constraint Reference panel always visible.
-- [x] Inline errors provide jump-to-target behavior.
+- [x] Pose mapping implemented (`ko` -> `ko`, panic/flee -> `panic`, else `normal`).
+- [x] Shared renderer supports `rect|ellipse|line|curve|polygon`.
+- [x] Layer order, visibility, style, and opacity honored.
+- [x] Legacy non-designer renderer path preserved as fallback/default.
 
-## Runtime-Parity Preview Gate
+## Sample Rollout Gate
 
-- [x] Runtime preview uses shared game render logic (not a parallel renderer).
-- [x] Preview controls include pose/facing/scale/animation tick.
-- [x] World-context preview includes ground line and reference silhouettes.
-- [x] Non-designer NPC runtime render parity unchanged.
+- [x] Sample designer NPC route is gallery-only or debug-gated.
+- [x] No spawn pool edits for sample rollout.
 
-## Import/Export/Converter Gate
+## Docs Gate
 
-- [x] Compact/runtime export blocked only by hard failures.
-- [x] Visual warnings do not block export when strict OFF.
-- [x] Export metadata includes validation summary + override status.
-- [x] Import validation explicit and non-destructive where possible.
-- [x] Converter script added and executable.
-- [x] Fixture payloads added: strict-valid / visual-override / hard-fail.
-
-## Documentation Gate
-
-- [x] `README.md` updated for user-facing enhancement.
-- [x] `SCHEMATICS.md` updated when game file changed.
+- [x] `README.md` updated (feature-level change).
+- [x] `SCHEMATICS.md` updated because game file(s) changed.
 
 ## Validation Gate
 
-- [x] Syntax checks passed for changed JS files.
-- [x] Converter runs reported (strict-valid + visual-override + hard-fail).
-- [x] Non-designer render parity check passed.
-- [x] Runtime validation status reported (executed or exact skip reason).
-- [x] Sound-path validation reported not required unless changed.
+- [x] Syntax check passed for changed JS.
+- [x] Converter strict-valid fixture returns `rc=0`.
+- [x] Converter visual-override deterministic run (`--strict-visual off --auto-fix off`) returns `rc=0`.
+- [x] Converter hard-fail fixture returns `rc=2`.
+- [x] Positional output form works.
+- [x] `--out` output form works.
+- [x] Precedence check passes (`--out` path created, positional output path absent).
+- [x] Mechanical guard check for forbidden spawn edits returns empty output.
+- [x] Baseline parity reference extracted from `656b34a` and compared for non-designer rendering behavior.
+- [x] Runtime validation status reported (executed or explicit skip reason).
+- [x] Sound-path validation reported as not required unless touched.
 
-## Final PASS/FAIL Gate
+## Final PASS/FAIL
 
-- [x] Pre-commit scope check PASS.
-- [x] Planned edits from `NPC_DESIGNER_CONSTRAINTS_READONLY.md` present PASS.
-- [x] Invariants PASS.
-- [x] Validation reporting PASS.
-- [x] Mechanics change log included PASS.
+- [x] All Phase 2 items implemented.
+- [x] Failure-path fallback verified.
+- [x] Invariants hold.
+- [x] Validation evidence collected.
+- [x] Mechanics change log prepared for handoff.

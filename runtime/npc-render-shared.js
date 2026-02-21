@@ -37,7 +37,283 @@
     const roundRect = runtime.roundRect || fallbackRoundRect;
     const hatImg = runtime.hatImg || { complete: false, naturalWidth: 0, naturalHeight: 0 };
 
+    function toNumber(value, fallback) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function getPoseLayers(payload, poseId) {
+      if (!payload || typeof payload !== 'object') return [];
+      const poses = payload.poses || {};
+      const pose = poses[poseId];
+      if (Array.isArray(pose)) return pose;
+      if (pose && Array.isArray(pose.layers)) return pose.layers;
+      return [];
+    }
+
+    function layerShouldFill(layerType) {
+      return layerType !== 'line' && layerType !== 'curve';
+    }
+
+    function buildDesignerLayerPath(layer) {
+      if (!layer || typeof layer !== 'object' || typeof layer.type !== 'string') return false;
+      const g = layer.geometry || {};
+
+      if (layer.type === 'rect') {
+        const x = toNumber(g.x, null);
+        const y = toNumber(g.y, null);
+        const w = toNumber(g.w, null);
+        const h = toNumber(g.h, null);
+        if (x === null || y === null || w === null || h === null) return false;
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        return true;
+      }
+
+      if (layer.type === 'ellipse') {
+        const x = toNumber(g.x, null);
+        const y = toNumber(g.y, null);
+        const w = toNumber(g.w, null);
+        const h = toNumber(g.h, null);
+        if (x === null || y === null || w === null || h === null) return false;
+        ctx.beginPath();
+        ctx.ellipse(x + w * 0.5, y + h * 0.5, Math.abs(w) * 0.5, Math.abs(h) * 0.5, 0, 0, Math.PI * 2);
+        return true;
+      }
+
+      if (layer.type === 'line') {
+        const x1 = toNumber(g.x1, null);
+        const y1 = toNumber(g.y1, null);
+        const x2 = toNumber(g.x2, null);
+        const y2 = toNumber(g.y2, null);
+        if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        return true;
+      }
+
+      if (layer.type === 'curve') {
+        const x1 = toNumber(g.x1, null);
+        const y1 = toNumber(g.y1, null);
+        const cx = toNumber(g.cx, null);
+        const cy = toNumber(g.cy, null);
+        const x2 = toNumber(g.x2, null);
+        const y2 = toNumber(g.y2, null);
+        if (x1 === null || y1 === null || cx === null || cy === null || x2 === null || y2 === null) return false;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.quadraticCurveTo(cx, cy, x2, y2);
+        return true;
+      }
+
+      if (layer.type === 'polygon') {
+        const points = Array.isArray(g.points) ? g.points : [];
+        if (points.length < 2) return false;
+        const startX = toNumber(points[0].x, null);
+        const startY = toNumber(points[0].y, null);
+        if (startX === null || startY === null) return false;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        for (let i = 1; i < points.length; i += 1) {
+          const px = toNumber(points[i].x, null);
+          const py = toNumber(points[i].y, null);
+          if (px === null || py === null) return false;
+          ctx.lineTo(px, py);
+        }
+        if (g.closed !== false) ctx.closePath();
+        return true;
+      }
+
+      return false;
+    }
+
+    function sampleCurvePoints(g, steps) {
+      const pts = [];
+      const x1 = toNumber(g.x1, null);
+      const y1 = toNumber(g.y1, null);
+      const cx = toNumber(g.cx, null);
+      const cy = toNumber(g.cy, null);
+      const x2 = toNumber(g.x2, null);
+      const y2 = toNumber(g.y2, null);
+      if (x1 === null || y1 === null || cx === null || cy === null || x2 === null || y2 === null) return pts;
+      for (let i = 0; i <= steps; i += 1) {
+        const t = i / steps;
+        const inv = 1 - t;
+        pts.push({
+          x: inv * inv * x1 + 2 * inv * t * cx + t * t * x2,
+          y: inv * inv * y1 + 2 * inv * t * cy + t * t * y2,
+        });
+      }
+      return pts;
+    }
+
+    function getBoundsFromPoints(points) {
+      if (!Array.isArray(points) || !points.length) return null;
+      let xMin = Infinity;
+      let yMin = Infinity;
+      let xMax = -Infinity;
+      let yMax = -Infinity;
+      for (const point of points) {
+        const px = toNumber(point && point.x, null);
+        const py = toNumber(point && point.y, null);
+        if (px === null || py === null) return null;
+        xMin = Math.min(xMin, px);
+        yMin = Math.min(yMin, py);
+        xMax = Math.max(xMax, px);
+        yMax = Math.max(yMax, py);
+      }
+      return { x: xMin, y: yMin, w: Math.max(0, xMax - xMin), h: Math.max(0, yMax - yMin) };
+    }
+
+    function getDesignerLayerBounds(layer) {
+      if (!layer || typeof layer !== 'object') return null;
+      const g = layer.geometry || {};
+
+      if (layer.type === 'rect' || layer.type === 'ellipse') {
+        const x = toNumber(g.x, null);
+        const y = toNumber(g.y, null);
+        const w = toNumber(g.w, null);
+        const h = toNumber(g.h, null);
+        if (x === null || y === null || w === null || h === null) return null;
+        const bx = Math.min(x, x + w);
+        const by = Math.min(y, y + h);
+        return { x: bx, y: by, w: Math.abs(w), h: Math.abs(h) };
+      }
+
+      if (layer.type === 'line') {
+        const x1 = toNumber(g.x1, null);
+        const y1 = toNumber(g.y1, null);
+        const x2 = toNumber(g.x2, null);
+        const y2 = toNumber(g.y2, null);
+        if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+        return { x: Math.min(x1, x2), y: Math.min(y1, y2), w: Math.abs(x2 - x1), h: Math.abs(y2 - y1) };
+      }
+
+      if (layer.type === 'curve') {
+        const points = sampleCurvePoints(g, 40);
+        return getBoundsFromPoints(points);
+      }
+
+      if (layer.type === 'polygon') {
+        return getBoundsFromPoints(Array.isArray(g.points) ? g.points : []);
+      }
+
+      return null;
+    }
+
+    function safeSetFillStyle(styleValue, fallback) {
+      try {
+        ctx.fillStyle = styleValue;
+      } catch (_err) {
+        ctx.fillStyle = fallback;
+      }
+    }
+
+    function safeSetStrokeStyle(styleValue, fallback) {
+      try {
+        ctx.strokeStyle = styleValue;
+      } catch (_err) {
+        ctx.strokeStyle = fallback;
+      }
+    }
+
+    function buildDesignerLayerGradient(layer, bounds) {
+      const style = layer.style || {};
+      const gradientDef = style.gradient || {};
+      const angle = toNumber(gradientDef.angle, 90) * Math.PI / 180;
+      const cx = bounds.x + bounds.w * 0.5;
+      const cy = bounds.y + bounds.h * 0.5;
+      const radius = Math.max(bounds.w, bounds.h) * 0.75 + 1;
+      const x1 = cx - Math.cos(angle) * radius;
+      const y1 = cy - Math.sin(angle) * radius;
+      const x2 = cx + Math.cos(angle) * radius;
+      const y2 = cy + Math.sin(angle) * radius;
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      const stops = Array.isArray(gradientDef.stops) && gradientDef.stops.length >= 2
+        ? gradientDef.stops
+        : [{ offset: 0, color: style.fill || '#FFFFFF' }, { offset: 1, color: '#000000' }];
+      for (const stop of stops) {
+        const offset = clamp(toNumber(stop && stop.offset, 0), 0, 1);
+        const color = (stop && typeof stop.color === 'string') ? stop.color : '#FFFFFF';
+        gradient.addColorStop(offset, color);
+      }
+      return gradient;
+    }
+
+    function drawDesignerPayloadCharacter(x, y, w, h, opts) {
+      if (!opts || typeof opts !== 'object' || !opts.designerPayload || typeof opts.designerPayload !== 'object') {
+        return false;
+      }
+      const payload = opts.designerPayload;
+      const poseId = typeof opts.designerPose === 'string' ? opts.designerPose : 'normal';
+      const layers = getPoseLayers(payload, poseId);
+      if (!layers.length) return false;
+
+      const payloadBounds = payload.bounds || {};
+      const editorScale = Math.max(0.001, toNumber(payloadBounds.editorScale, 3.2));
+      const designW = Math.max(0.001, toNumber(payloadBounds.w, 24) * editorScale);
+      const designH = Math.max(0.001, toNumber(payloadBounds.h, 46) * editorScale);
+      const origin = payload.origin || {};
+      const centerX = toNumber(origin.centerX, 480);
+      const baselineY = toNumber(origin.baselineY, 430);
+
+      const f = opts.facing || 1;
+      const sqX = opts.squash || 1;
+      const sqY = sqX !== 1 ? 1 / sqX : 1;
+      const opacity = clamp(opts.opacity !== undefined ? opts.opacity : 1, 0, 1);
+      const scaleX = w / designW;
+      const scaleY = h / designH;
+
+      let drewAny = false;
+      ctx.save();
+      try {
+        ctx.translate(x, y);
+        ctx.scale(sqX * f, sqY);
+        ctx.scale(scaleX, scaleY);
+        ctx.translate(-centerX, -baselineY);
+
+        for (const layer of layers) {
+          if (!layer || layer.visible === false) continue;
+          const style = layer.style || {};
+          const strokeW = Math.max(0, toNumber(style.strokeWidth, 0));
+          const layerOpacity = clamp(toNumber(style.opacity, 1), 0, 1);
+          const bounds = getDesignerLayerBounds(layer);
+
+          try {
+            if (!buildDesignerLayerPath(layer)) continue;
+            ctx.globalAlpha = opacity * layerOpacity;
+            if (layerShouldFill(layer.type)) {
+              if (style.fillMode === 'gradient' && bounds) {
+                safeSetFillStyle(buildDesignerLayerGradient(layer, bounds), '#3B82F6');
+              } else {
+                safeSetFillStyle(style.fill || '#3B82F6', '#3B82F6');
+              }
+              ctx.fill();
+              drewAny = true;
+            }
+            if (strokeW > 0) {
+              safeSetStrokeStyle(style.stroke || '#0F172A', '#0F172A');
+              ctx.lineWidth = strokeW;
+              ctx.lineJoin = 'round';
+              ctx.lineCap = 'round';
+              ctx.stroke();
+              drewAny = true;
+            }
+          } catch (_err) {
+            // Skip malformed layer and continue rendering remaining layers.
+          }
+        }
+      } finally {
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+      return drewAny;
+    }
+
 function drawCharacter(x, y, w, h, opts) {
+  opts = opts || {};
+  if (drawDesignerPayloadCharacter(x, y, w, h, opts)) return;
   const f = opts.facing || 1;
   const bodyColor = opts.color || '#3B82F6';
   const skin = opts.skinColor || '#FBBF6B';

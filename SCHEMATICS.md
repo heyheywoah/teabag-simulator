@@ -6,89 +6,96 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
 
 | Area | Lines |
 | --- | --- |
-| SFX Engine | 23-303 |
-| Resolution / canvas setup | 307-344 |
-| Core constants + tuning surface | 351-489 |
-| Zones + biome data | 490-585 |
-| Zone runtime state + persistence | 586-652 |
-| Zone blending | 653-664 |
-| Character definitions (all NPC archetypes) | 665-958 |
-| Day/night system | 959-1010 |
-| Keyboard input | 1011-1051 |
-| Mobile touch input | 1052-1176 |
-| Mobile sidebars render | 1177-1240 |
-| Particles / popups / shake / camera | 1241-1343 |
-| Platform + bus stop generation | 1344-1520 |
-| City/building/prop generation + draw | 1521-1991 |
-| Cars | 1992-2105 |
-| Character renderer | 2103-2587 |
-| Character gallery mode | 2588-2795 |
-| Player model | 2796-2809 |
-| NPC model + spawning | 2810-2885 |
-| Score + KO tracking | 2886-2905 |
-| Global game state + GameContext scaffold | 2906-2992 |
-| Update pipeline (menu/pause/gameplay/world) | 2993-3625 |
-| Render pipeline (front screens + world layers + HUD) | 3626-4053 |
-| Parallax silhouettes | 4054-4153 |
-| Clouds / birds | 4154-4200 |
-| Title / mode / zone picker / pause menus | 4201-4502 |
-| Main loop + frame reset + boot | 4503-4527 |
+| SFX Engine | 24-304 |
+| Resolution / canvas setup | 308-345 |
+| Core constants + tuning surface | 352-490 |
+| Zones + biome data | 491-586 |
+| Zone runtime state + persistence | 587-653 |
+| Zone blending | 654-665 |
+| Character definitions (all NPC archetypes) | 666-959 |
+| Day/night system | 960-1011 |
+| Keyboard input | 1012-1052 |
+| Mobile touch input | 1053-1177 |
+| Mobile sidebars render | 1178-1241 |
+| Particles / popups / shake / camera | 1242-1344 |
+| Platform + bus stop generation | 1345-1522 |
+| City/building/prop generation + draw | 1523-1988 |
+| Cars | 1989-2102 |
+| Character renderer + payload registry bridge | 2103-2306 |
+| Character gallery mode | 2307-2529 |
+| Player model | 2530-2543 |
+| NPC model + spawning | 2544-2619 |
+| Score + KO tracking | 2620-2639 |
+| Global game state + GameContext scaffold | 2640-2726 |
+| Update pipeline (menu/pause/gameplay/world) | 2727-3359 |
+| Render pipeline (front screens + world layers + HUD) | 3360-3788 |
+| Parallax silhouettes | 3789-3885 |
+| Clouds / birds | 3886-3934 |
+| Title / mode / zone picker / pause menus | 3935-4236 |
+| Main loop + frame reset + boot | 4237-4265 |
 
 ## Recent Integration Notes (2026-02-21)
 
-- Shared NPC renderer module: `runtime/npc-render-shared.js` now owns the runtime `drawCharacter` implementation body.
+- Shared NPC renderer module: `runtime/npc-render-shared.js` owns the runtime `drawCharacter` body with an additive designer-payload branch and legacy fallback.
 - Runtime include anchor: `teabag-simulator.html:22` (`<script src="runtime/npc-render-shared.js"></script>`).
-- Runtime wrapper anchor: `teabag-simulator.html:2104-2113` (`SHARED_CHARACTER_RENDERER` + delegating `drawCharacter(...)`).
-- Runtime call sites are unchanged and still target `drawCharacter(...)`; parity checks should compare shared module body against baseline runtime body before/after refactors.
+- Runtime payload registry anchors:
+  - `teabag-simulator.html:2104` (`DESIGNER_PAYLOAD_INDEX_PATH`)
+  - `teabag-simulator.html:2225` (`loadDesignerPayloadRegistry()`)
+  - `teabag-simulator.html:2267` (`resolveDesignerPayloadById(...)`)
+  - `teabag-simulator.html:2272` (`resolveDesignerPayloadPose(...)`)
+  - `teabag-simulator.html:2282` (`drawCharacter(...)` wrapper bridge)
+  - `teabag-simulator.html:4256` (boot-time `loadDesignerPayloadRegistry()` call)
+- Gallery-only sample routing anchor: `teabag-simulator.html:2320` (`GALLERY_TYPES` includes `designerPayloadId: "npc_strict_valid"`).
+- Runtime call sites still target `drawCharacter(...)`; unresolved/missing payload ids fall back to legacy rendering.
 
 ## Runtime State Machine
 
-`gameState` source of truth: `teabag-simulator.html:2906`
+`gameState` source of truth: `teabag-simulator.html:2641`
 
 | State | Entered from | Exit conditions | Screen renderer |
 | --- | --- | --- | --- |
-| `title` | startup | any key / touch jump -> `modeselect` (`3078`) | `drawTitleScreen` (`4201`) |
-| `modeselect` | title, quit from pause | campaign select -> `startGame` -> `playing`; endless select -> `zonepicker` (`3095`) | `drawModeSelect` (`4288`) |
-| `zonepicker` | mode select | select unlocked zone -> `startGame`; back -> `modeselect` (`3118`) | `drawZonePicker` (`4324`) |
-| `playing` | `startGame` (`2993`, `3039`) or pause resume | ESC/P/pause touch -> `paused` (`3610`) | gameplay renderer via `render(gameCtx, dt)` (`4020`) |
-| `paused` | `playing` | resume -> `playing`; quit -> `modeselect` (`3154-3162`) | `drawPauseMenu` (`4395`) overlay |
+| `title` | startup | any key / touch jump -> `modeselect` (`2813`) | `drawTitleScreen` (`3936`) |
+| `modeselect` | title, quit from pause | campaign select -> `startGame` -> `playing`; endless select -> `zonepicker` (`2830`) | `drawModeSelect` (`4023`) |
+| `zonepicker` | mode select | select unlocked zone -> `startGame`; back -> `modeselect` (`2853`) | `drawZonePicker` (`4059`) |
+| `playing` | `startGame` (`2728`) or pause resume | ESC/P/pause touch -> `paused` (`3345`) | gameplay renderer via `render(gameCtx, dt)` (`3755`) |
+| `paused` | `playing` | resume -> `playing`; quit -> `modeselect` (`2892`, `2897`) | `drawPauseMenu` (`4130`) overlay |
 
-Note: `galleryMode` (`2589`) is orthogonal to `gameState`; `Tab` toggles preview rendering through `renderFrontScreen` (`3626`).
+Note: `galleryMode` (`2308`) is orthogonal to `gameState`; `Tab` toggles preview rendering through `renderFrontScreen` (`3361`).
 
 ## Update/Render Dispatch Helpers
 
-- `createGameContext()` at `teabag-simulator.html:2913`
-- `const GAME_CTX` init at `teabag-simulator.html:2990`
-- `startGame(gameCtx)` at `teabag-simulator.html:2993`
-- `triggerPrestige(gameCtx)` at `teabag-simulator.html:3042`
-- `updateTitleMenuState(gameCtx, dt)` at `teabag-simulator.html:3076`
-- `updateModeSelectState(gameCtx)` at `teabag-simulator.html:3081`
-- `updateZonePickerState(gameCtx)` at `teabag-simulator.html:3100`
-- `updateMenuState(gameCtx, dt)` at `teabag-simulator.html:3122`
-- `updatePauseNavigation(gameCtx)` at `teabag-simulator.html:3141`
-- `updatePauseSelectionAction(gameCtx)` at `teabag-simulator.html:3152`
-- `updatePauseAdjustments(gameCtx)` at `teabag-simulator.html:3166`
-- `updatePauseState(gameCtx)` at `teabag-simulator.html:3180`
-- `updatePlayerMovementAndJump(dt, p, onNPC)` at `teabag-simulator.html:3189`
-- `updateMountedCombatState(p)` at `teabag-simulator.html:3317`
-- `updatePlayerTimersAndFX(dt, p, onNPC)` at `teabag-simulator.html:3415`
-- `updatePlayerState(dt)` at `teabag-simulator.html:3443`
-- `updateNPCFSM(dt, p)` at `teabag-simulator.html:3457`
-- `updateNPCSpawning(p)` at `teabag-simulator.html:3518`
-- `updateBusStopAmbient(dt, p)` at `teabag-simulator.html:3540`
-- `updateNPCState(dt, p)` at `teabag-simulator.html:3556`
-- `updateWorldState(gameCtx, dt, p)` at `teabag-simulator.html:3562`
-- `updatePlayingState(gameCtx, dt)` at `teabag-simulator.html:3607`
-- `update(gameCtx, dt)` dispatcher at `teabag-simulator.html:3619`
-- `renderFrontScreen(gameCtx)` at `teabag-simulator.html:3626`
-- `renderWorldLayer(sky)` at `teabag-simulator.html:3658`
-- `renderEntityLayer()` at `teabag-simulator.html:3746`
-- `renderPostFX(sky)` at `teabag-simulator.html:3827`
-- `renderHUDLayer(gameCtx)` at `teabag-simulator.html:3873`
-- `renderOverlayLayer(gameCtx, sky)` at `teabag-simulator.html:4015`
-- `render(gameCtx, dt)` dispatcher at `teabag-simulator.html:4020`
-- `endFrameInputReset(gameCtx)` at `teabag-simulator.html:4503`
-- `loop(gameCtx, timestamp)` at `teabag-simulator.html:4510`
+- `createGameContext()` at `teabag-simulator.html:2648`
+- `const GAME_CTX` init at `teabag-simulator.html:2725`
+- `startGame(gameCtx)` at `teabag-simulator.html:2728`
+- `triggerPrestige(gameCtx)` at `teabag-simulator.html:2777`
+- `updateTitleMenuState(gameCtx, dt)` at `teabag-simulator.html:2811`
+- `updateModeSelectState(gameCtx)` at `teabag-simulator.html:2816`
+- `updateZonePickerState(gameCtx)` at `teabag-simulator.html:2835`
+- `updateMenuState(gameCtx, dt)` at `teabag-simulator.html:2857`
+- `updatePauseNavigation(gameCtx)` at `teabag-simulator.html:2876`
+- `updatePauseSelectionAction(gameCtx)` at `teabag-simulator.html:2887`
+- `updatePauseAdjustments(gameCtx)` at `teabag-simulator.html:2901`
+- `updatePauseState(gameCtx)` at `teabag-simulator.html:2915`
+- `updatePlayerMovementAndJump(dt, p, onNPC)` at `teabag-simulator.html:2924`
+- `updateMountedCombatState(p)` at `teabag-simulator.html:3052`
+- `updatePlayerTimersAndFX(dt, p, onNPC)` at `teabag-simulator.html:3150`
+- `updatePlayerState(dt)` at `teabag-simulator.html:3178`
+- `updateNPCFSM(dt, p)` at `teabag-simulator.html:3192`
+- `updateNPCSpawning(p)` at `teabag-simulator.html:3253`
+- `updateBusStopAmbient(dt, p)` at `teabag-simulator.html:3275`
+- `updateNPCState(dt, p)` at `teabag-simulator.html:3291`
+- `updateWorldState(gameCtx, dt, p)` at `teabag-simulator.html:3297`
+- `updatePlayingState(gameCtx, dt)` at `teabag-simulator.html:3342`
+- `update(gameCtx, dt)` dispatcher at `teabag-simulator.html:3354`
+- `renderFrontScreen(gameCtx)` at `teabag-simulator.html:3361`
+- `renderWorldLayer(sky)` at `teabag-simulator.html:3393`
+- `renderEntityLayer()` at `teabag-simulator.html:3481`
+- `renderPostFX(sky)` at `teabag-simulator.html:3562`
+- `renderHUDLayer(gameCtx)` at `teabag-simulator.html:3608`
+- `renderOverlayLayer(gameCtx, sky)` at `teabag-simulator.html:3750`
+- `render(gameCtx, dt)` dispatcher at `teabag-simulator.html:3755`
+- `endFrameInputReset(gameCtx)` at `teabag-simulator.html:4238`
+- `loop(gameCtx, timestamp)` at `teabag-simulator.html:4245`
 
 ## Tuning Surface (Gameplay + HUD)
 
@@ -96,11 +103,11 @@ Central tuning object: `TUNING` at `teabag-simulator.html:370`
 
 | Group | Canonical fields | Main consumers |
 | --- | --- | --- |
-| `movement` | air control/jump multipliers, drop-through, landing, walk/breath/blink, sprint trail | `updatePlayerMovementAndJump` (`3061`), `updatePlayerTimersAndFX` (`3287`) |
-| `combat` | combo damage curve, chain window, dismount velocity, KO shake, aerial bonus | `updateMountedCombatState` (`3189`), `renderHUDLayer` (`3745`) |
-| `spawn` | NPC pacing, panic/flee cadence, spawn margins, sprint-ahead pressure | `updateNPCFSM` (`3329`), `updateNPCSpawning` (`3390`), `updateBusStopAmbient` (`3412`) |
-| `world` | camera lead/follow, campaign soft wall, bootstrap world warmup/spawn burst, generation margin | `startGame` (`2865`), `triggerPrestige` (`2914`), `updateWorldState` (`3434`) |
-| `uiTiming` | postFX intensity, chain HUD timing, combo label, KO/zone transition animation curves | `renderPostFX` (`3699`), `renderHUDLayer` (`3745`), zone transition setup (`3455`) |
+| `movement` | air control/jump multipliers, drop-through, landing, walk/breath/blink, sprint trail | `updatePlayerMovementAndJump` (`2924`), `updatePlayerTimersAndFX` (`3150`) |
+| `combat` | combo damage curve, chain window, dismount velocity, KO shake, aerial bonus | `updateMountedCombatState` (`3052`), `renderHUDLayer` (`3608`) |
+| `spawn` | NPC pacing, panic/flee cadence, spawn margins, sprint-ahead pressure | `updateNPCFSM` (`3192`), `updateNPCSpawning` (`3253`), `updateBusStopAmbient` (`3275`) |
+| `world` | camera lead/follow, campaign soft wall, bootstrap world warmup/spawn burst, generation margin | `startGame` (`2728`), `triggerPrestige` (`2777`), `updateWorldState` (`3297`) |
+| `uiTiming` | postFX intensity, chain HUD timing, combo label, KO/zone transition animation curves | `renderPostFX` (`3562`), `renderHUDLayer` (`3608`), zone transition setup (`3297`) |
 
 ## Truth Surface Table (What To Edit For X)
 
@@ -193,8 +200,8 @@ Use these from repo root:
 - Chain combo decays only when not mounted (`3405`) and refreshes on remount (`3383`).
 - Teabag uses crouch release timing (`3208-3211`), not crouch press.
 - Zone unlocks happen both on crossing into a zone (`3571`) and on prestige (`3033`).
-- `drawCharacter` remains the single runtime character draw entrypoint for player/NPC/gallery flows, but now delegates through `SHARED_CHARACTER_RENDERER` (`teabag-simulator.html:2104-2113`) into `runtime/npc-render-shared.js`.
-- Frame-end input reset ordering is critical and centralized in `endFrameInputReset(gameCtx)` (`teabag-simulator.html:4038`); keep it after `render(gameCtx, dt)` in `loop` (`teabag-simulator.html:4045`).
+- `drawCharacter` remains the single runtime character draw entrypoint for player/NPC/gallery flows; wrapper bridge lives at `teabag-simulator.html:2282` and delegates to `SHARED_CHARACTER_RENDERER` (`teabag-simulator.html:2278`) with optional designer-payload lookup/fallback.
+- Frame-end input reset ordering is critical and centralized in `endFrameInputReset(gameCtx)` (`teabag-simulator.html:4238`); keep it after `render(gameCtx, dt)` in `loop` (`teabag-simulator.html:4245`).
 - Bootstrap world warmup and spawn burst values are centralized in `TUNING.world` (`444-465`); keep bootstrap (`452+`) and streaming (`448`, `3582`) margins intentionally aligned for pacing.
 - FG and BG both use `advanceCityCursor(...)` for width-aware symmetric stride; keep left-anchor placement as `b.x = cursor - b.w` so right/left parity is preserved.
 - `drawGalleryCompanionDog(...)` is gallery-only; it should not be called from `renderEntityLayer` or NPC update paths.

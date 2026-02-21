@@ -149,6 +149,8 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 - **Constraint UX** — Always-visible Design Readiness panel and Constraint Reference panel with hard blockers vs warnings and jump-to-target issue navigation
 - **Visual-rule override workflow** — Hard Safety rules always block compact export; visual issues become warnings when Strict Visual Rules is OFF (optional auto-fix when strict is ON)
 - **JSON round-trip** — Export/import full editable JSON, copy/download JSON, plus compact integration payload export for downstream character conversion
+- **Runtime payload reintegration path** — Game runtime loads `data/npc_payloads/index.json`, resolves optional `designerPayloadId`, maps poses (`normal`/`panic`/`ko`), and falls back to legacy NPC rendering on any index/load/parse/lookup failure
+- **Gallery-only runtime sample** — Tab gallery includes a `Designer Sample` entry routed through the runtime payload path without touching spawn pools or gameplay NPC selection
 
 #### NPC Designer Usage
 

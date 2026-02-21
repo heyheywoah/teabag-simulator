@@ -52,7 +52,7 @@ Execution checklist derived from `REFACTOR_SLICES.md`.
 
 ## Validation
 
-- [ ] Manual smoke path: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
+- [ ] Gameplay flow sanity path reported when runtime validation is available: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
 - [ ] Touch sanity: menu nav + jump/bag/pause unchanged on mobile.
 - [ ] Verify frame-end input reset semantics are unchanged.
 

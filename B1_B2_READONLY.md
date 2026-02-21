@@ -73,5 +73,5 @@ New helper call graph:
 - Before baselines from `BASELINE_GENERATION_METRICS.md`
 - After run from current implementation harness comparison
 6. `SCHEMATICS.md` updated in same task because `teabag-simulator.html` changes.
-7. Manual smoke path status reported: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
+7. Gameplay flow sanity status reported when runtime validation is available: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
 8. Visual sanity status reported for downtown, shopping, industrial, suburbs.

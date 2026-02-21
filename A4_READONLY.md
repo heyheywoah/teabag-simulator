@@ -87,12 +87,12 @@ Overlay subtree:
 ## Acceptance Gates
 
 - Syntax check passes: extracted inline JS + `node --check`.
-- Visual smoke report covers:
+- Visual sanity report covers:
   - title/front screen
   - mode select / zone picker
   - gameplay HUD
   - paused overlay
   - sidebars on touch-visible path
   - gallery mode rendering path
-- Headless sound smoke only if sound assets/defs/runtime SFX paths changed.
+- Sound-path validation reported only if sound assets/defs/runtime SFX paths changed.
 - `SCHEMATICS.md` updated in same task if `teabag-simulator.html` changed.

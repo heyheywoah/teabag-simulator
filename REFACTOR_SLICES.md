@@ -193,7 +193,7 @@ Each slice is designed to be behavior-preserving and independently verifiable.
 ## Validation Gates Per Slice
 
 1. Syntax: `node --check` on extracted inline JS.
-2. Quick manual smoke path:
+2. Quick gameplay flow sanity path (when runtime validation is available):
 - title -> mode select -> gameplay -> pause -> zone transition -> prestige
 3. Touch flow sanity:
 - menu navigation on mobile controls

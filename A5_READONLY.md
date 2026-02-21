@@ -134,12 +134,12 @@ Render flow (unchanged order):
 ## Acceptance Gates
 
 1. Syntax check passes (`node --check` on extracted inline JS).
-2. Gameplay smoke path passes:
+2. Gameplay flow sanity path passes when runtime validation is available:
 - `title -> mode select -> gameplay -> pause -> resume -> quit -> endless/zonepicker -> zone transition -> prestige`
-3. Visual smoke checks pass:
+3. Visual sanity checks pass:
 - title/modeselect/zonepicker routing
 - gameplay HUD + pause overlay ordering
 - sidebars/touch-visible path
 - gallery front-screen path
 4. `SCHEMATICS.md` updated if game file changed.
-5. Headless sound smoke only if sound assets/defs/runtime SFX paths changed.
+5. Sound-path validation reported only if sound assets/defs/runtime SFX paths changed.

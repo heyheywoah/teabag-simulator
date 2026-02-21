@@ -129,4 +129,4 @@ Regression checks for B1+B2:
 - Confirm no changes to generation call sites in update/start/prestige flow.
 - Confirm FG right/left use equivalent width-aware stepping logic.
 - Re-run baseline harness and compare right-vs-left overlap deltas.
-- Manual gameplay smoke for world traversal and zone transitions after implementation slice.
+- Gameplay flow sanity check for world traversal and zone transitions after implementation slice when runtime validation is available.

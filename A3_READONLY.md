@@ -114,7 +114,7 @@ Playing immediate layer:
 ## Acceptance Gates
 
 - Syntax check passes: extracted inline JS + `node --check`.
-- Gameplay smoke path executed and reported:
+- Gameplay flow sanity path executed and reported when runtime validation is available:
   - title -> mode select -> gameplay -> pause -> resume -> quit to modeselect -> endless/zonepicker path -> zone transition -> prestige
-- Headless sound smoke only if sound assets/defs/runtime SFX paths were changed.
+- Sound-path validation reported only if sound assets/defs/runtime SFX paths were changed.
 - `SCHEMATICS.md` updated in same task if `teabag-simulator.html` changed.

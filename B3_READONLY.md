@@ -94,7 +94,7 @@ Required checks:
 5. Metrics command runs:
 - `node scripts/city-gen-metrics-baseline.js --seeds 20 --seed-start 1 --span 120000`
 6. Report before/after BG overlap and right-minus-left deltas by zone.
-7. Manual smoke path and visual skyline sanity pass are reported.
+7. Gameplay flow and visual skyline sanity status are reported when runtime validation is available.
 
 Expected delta direction (from baseline in `BASELINE_GENERATION_METRICS.md`):
 

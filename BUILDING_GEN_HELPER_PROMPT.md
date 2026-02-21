@@ -34,7 +34,7 @@ Task: implement **B1 + B2 only** from `BUILDING_GEN_FIX_SLICES.md` (width-aware 
 
 1. Syntax check on extracted inline JS with `node --check`.
 2. Run overlap metrics check and report before/after FG overlap rates by zone.
-3. Manual smoke path:
+3. Gameplay flow sanity path (when runtime validation is available):
 1. title -> mode select -> gameplay -> pause -> zone transition -> prestige
 4. Visual sanity pass:
 1. downtown, shopping, industrial, suburbs

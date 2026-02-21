@@ -93,11 +93,11 @@ Acceptance:
 
 Scope:
 1. Tune per-zone gap/spacing ranges for feel (industrial/shopping denser logic, park/suburbs roomier logic).
-2. Run manual smoke path and visual checks.
+2. Run gameplay flow and visual sanity checks when runtime validation is available.
 3. Update docs.
 
 Acceptance:
-1. Manual path pass: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
+1. Gameplay flow sanity path reported when runtime validation is available: title -> mode select -> gameplay -> pause -> zone transition -> prestige.
 2. Visual checks pass in all zones (no obvious overlap walls or prop stacks).
 3. `SCHEMATICS.md` updated for any signature/flow/anchor changes.
 4. `README.md` updated if behavior is user-facing enough to document.

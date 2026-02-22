@@ -434,6 +434,30 @@
       return null;
     }
 
+    function applyDesignerLayerMotionTransform(targetCtx, bounds, motion, pivotOverride) {
+      if (!targetCtx || !bounds || !motion) return;
+      const pivotFallbackX = bounds.x + bounds.w * 0.5;
+      const pivotFallbackY = bounds.y + bounds.h * 0.5;
+      const pivotX = toNumber(pivotOverride && pivotOverride.x, pivotFallbackX);
+      const pivotY = toNumber(pivotOverride && pivotOverride.y, pivotFallbackY);
+      const dx = toNumber(motion.dx, 0);
+      const dy = toNumber(motion.dy, 0);
+      const angle = toNumber(motion.angle, 0);
+      const scaleLayerX = toNumber(motion.scaleX, 1);
+      const scaleLayerY = toNumber(motion.scaleY, 1);
+      const flipY = !!motion.flipY;
+
+      if (dx || dy) targetCtx.translate(dx, dy);
+      if (angle || scaleLayerX !== 1 || scaleLayerY !== 1 || flipY) {
+        const scalePivotY = toNumber(motion.scalePivotY, pivotY);
+        targetCtx.translate(pivotX, scalePivotY);
+        if (flipY) targetCtx.scale(1, -1);
+        if (angle) targetCtx.rotate(angle);
+        if (scaleLayerX !== 1 || scaleLayerY !== 1) targetCtx.scale(scaleLayerX, scaleLayerY);
+        targetCtx.translate(-pivotX, -scalePivotY);
+      }
+    }
+
     function drawDesignerPayloadCharacter(x, y, w, h, opts) {
       if (!opts || typeof opts !== 'object' || !opts.designerPayload || typeof opts.designerPayload !== 'object') {
         return false;
@@ -481,22 +505,7 @@
             ctx.save();
             if (motion && bounds) {
               const pivot = getDesignerLayerPivot(part, bounds, partBounds);
-              const dx = toNumber(motion.dx, 0);
-              const dy = toNumber(motion.dy, 0);
-              const angle = toNumber(motion.angle, 0);
-              const scaleLayerX = toNumber(motion.scaleX, 1);
-              const scaleLayerY = toNumber(motion.scaleY, 1);
-              const flipY = !!motion.flipY;
-
-              if (dx || dy) ctx.translate(dx, dy);
-              if (angle || scaleLayerX !== 1 || scaleLayerY !== 1 || flipY) {
-                const scalePivotY = toNumber(motion.scalePivotY, pivot.y);
-                ctx.translate(pivot.x, scalePivotY);
-                if (flipY) ctx.scale(1, -1);
-                if (angle) ctx.rotate(angle);
-                if (scaleLayerX !== 1 || scaleLayerY !== 1) ctx.scale(scaleLayerX, scaleLayerY);
-                ctx.translate(-pivot.x, -scalePivotY);
-              }
+              applyDesignerLayerMotionTransform(ctx, bounds, motion, pivot);
             }
 
             if (!buildDesignerLayerPath(layer)) continue;
@@ -973,7 +982,16 @@ function drawCharacter(x, y, w, h, opts) {
   ctx.globalAlpha = 1;
 }
 
-    return { drawCharacter };
+    return {
+      drawCharacter,
+      getLegacyAnimationState,
+      getDesignerRigMotion,
+      inferDesignerLayerPart,
+      buildDesignerPartBounds,
+      getDesignerLayerPivot,
+      getDesignerLayerMotion,
+      applyDesignerLayerMotionTransform
+    };
   }
 
   return {

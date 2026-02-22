@@ -3766,6 +3766,22 @@
     return isLivePreviewFacePart(inferRuntimePartRole(layer));
   }
 
+  function getLivePreviewSharedMotionBridge() {
+    const renderer = state.runtimeRenderer;
+    if (!renderer || typeof renderer !== "object") return null;
+    const requiredHelpers = [
+      "buildDesignerPartBounds",
+      "inferDesignerLayerPart",
+      "getDesignerRigMotion",
+      "getDesignerLayerMotion",
+      "getDesignerLayerPivot",
+      "applyDesignerLayerMotionTransform"
+    ];
+    return requiredHelpers.every((helperName) => typeof renderer[helperName] === "function")
+      ? renderer
+      : null;
+  }
+
   function buildLivePanicPreviewLayers(normalLayers, panicLayers) {
     const panicFaceByName = new Map();
     const panicFaceFallback = [];
@@ -3826,7 +3842,16 @@
     return buildLivePanicPreviewLayers(normalLayers, panicLayers);
   }
 
-  function buildLivePreviewPartBounds(layers) {
+  function buildLivePreviewPartBounds(layers, motionBridge = null) {
+    const sharedBridge = motionBridge || getLivePreviewSharedMotionBridge();
+    if (sharedBridge) {
+      try {
+        return sharedBridge.buildDesignerPartBounds(layers);
+      } catch (_err) {
+        // Fall back to local inference if shared helpers fail unexpectedly.
+      }
+    }
+
     const partBounds = Object.create(null);
     const partArea = Object.create(null);
     layers.forEach((layer) => {
@@ -3864,6 +3889,47 @@
     return DESIGN_BASELINE_Y - GAME_BASE_H * GAME_TO_EDITOR_SCALE * 0.76 + offsetY;
   }
 
+  function getLivePanicRigMotion(motionBridge) {
+    if (!motionBridge) return null;
+    const tick = num(state.runtimePreview.tick, 0);
+    return motionBridge.getDesignerRigMotion({
+      walkPhase: tick,
+      breathing: Math.sin(tick * 2) * 1,
+      isFleeing: true,
+      openMouth: true,
+      isKO: false
+    });
+  }
+
+  function getLivePanicLayerMotion(layer, motionBridge, rig, partBounds, shoulderBarY) {
+    if (!layer || layer.visible === false || !motionBridge || !rig) return null;
+    const bounds = getLayerBounds(layer);
+    if (!bounds) return null;
+
+    const part = motionBridge.inferDesignerLayerPart(layer);
+    const baseMotion = motionBridge.getDesignerLayerMotion(part, rig, bounds);
+    if (!baseMotion) return null;
+
+    const motion = {
+      ...baseMotion
+    };
+    const pivot = motionBridge.getDesignerLayerPivot(part, bounds, partBounds);
+    if (pivot) {
+      motion.pivotX = pivot.x;
+      motion.pivotY = pivot.y;
+    }
+
+    if (part === "left_arm" || part === "right_arm") {
+      const spread = clamp(num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT), -1, 1);
+      const spreadRad = spread * LIVE_PREVIEW_PANIC_ARM_SPREAD_MAX_RAD;
+      motion.angle = num(baseMotion.angle, 0) + (part === "left_arm" ? -spreadRad : spreadRad);
+      motion.flipY = true;
+      motion.pivotY = shoulderBarY;
+    }
+
+    return motion;
+  }
+
   function getLivePanicArmMotion(layer, shoulderBarY) {
     const part = inferRuntimePartRole(layer);
     if (part !== "left_arm" && part !== "right_arm") return null;
@@ -3896,23 +3962,36 @@
     if (motion) {
       const bounds = getLayerBounds(layer);
       if (bounds) {
-        const dx = num(motion.dx, 0);
-        const dy = num(motion.dy, 0);
-        const angle = num(motion.angle, 0);
-        const flipY = !!motion.flipY;
-        const scaleX = num(motion.scaleX, 1);
-        const scaleY = num(motion.scaleY, 1);
-        const pivotX = num(motion.pivotX, bounds.x + bounds.w * 0.5);
-        const pivotY = num(motion.pivotY, bounds.y + bounds.h * 0.5);
-        const scalePivotY = num(motion.scalePivotY, pivotY);
+        const sharedBridge = getLivePreviewSharedMotionBridge();
+        const hasPivotOverride = motion.pivotX !== undefined || motion.pivotY !== undefined;
+        const pivotOverride = hasPivotOverride
+          ? {
+            x: num(motion.pivotX, bounds.x + bounds.w * 0.5),
+            y: num(motion.pivotY, bounds.y + bounds.h * 0.5)
+          }
+          : null;
 
-        if (dx || dy) ctx.translate(dx, dy);
-        if (flipY || angle || scaleX !== 1 || scaleY !== 1) {
-          ctx.translate(pivotX, scalePivotY);
-          if (flipY) ctx.scale(1, -1);
-          if (angle) ctx.rotate(angle);
-          if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY);
-          ctx.translate(-pivotX, -scalePivotY);
+        if (sharedBridge && typeof sharedBridge.applyDesignerLayerMotionTransform === "function") {
+          sharedBridge.applyDesignerLayerMotionTransform(ctx, bounds, motion, pivotOverride);
+        } else {
+          const dx = num(motion.dx, 0);
+          const dy = num(motion.dy, 0);
+          const angle = num(motion.angle, 0);
+          const flipY = !!motion.flipY;
+          const scaleX = num(motion.scaleX, 1);
+          const scaleY = num(motion.scaleY, 1);
+          const pivotX = num(motion.pivotX, bounds.x + bounds.w * 0.5);
+          const pivotY = num(motion.pivotY, bounds.y + bounds.h * 0.5);
+          const scalePivotY = num(motion.scalePivotY, pivotY);
+
+          if (dx || dy) ctx.translate(dx, dy);
+          if (flipY || angle || scaleX !== 1 || scaleY !== 1) {
+            ctx.translate(pivotX, scalePivotY);
+            if (flipY) ctx.scale(1, -1);
+            if (angle) ctx.rotate(angle);
+            if (scaleX !== 1 || scaleY !== 1) ctx.scale(scaleX, scaleY);
+            ctx.translate(-pivotX, -scalePivotY);
+          }
         }
       }
     }
@@ -3948,10 +4027,14 @@
   }
 
   function renderLivePanicPosePreview(ctx, layers) {
-    const partBounds = buildLivePreviewPartBounds(layers);
+    const sharedBridge = getLivePreviewSharedMotionBridge();
+    const partBounds = buildLivePreviewPartBounds(layers, sharedBridge);
     const shoulderBarY = resolveLivePanicShoulderBarY(partBounds);
+    const sharedRig = getLivePanicRigMotion(sharedBridge);
     layers.forEach((layer) => {
-      const motion = getLivePanicArmMotion(layer, shoulderBarY);
+      const motion = sharedRig
+        ? getLivePanicLayerMotion(layer, sharedBridge, sharedRig, partBounds, shoulderBarY)
+        : getLivePanicArmMotion(layer, shoulderBarY);
       if (motion) {
         drawLayerWithPreviewMotion(ctx, layer, motion);
       } else {

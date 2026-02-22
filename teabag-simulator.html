@@ -20,6 +20,8 @@
 <canvas id="c"></canvas>
 <script src="sfx/sounds.js"></script>
 <script src="runtime/npc-render-shared.js"></script>
+<script src="vendor/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
 <script>
 // ── SFX Engine ──
 let sfxAC = null;
@@ -445,6 +447,33 @@ const TUNING = Object.freeze({
   world: Object.freeze({
     cameraLeadFactor: 0.35,
     cameraFollowLerp: 4,
+    cameraZoom: 1,
+    cameraForwardLookAhead: 0,
+    cameraSprintLeadFactor: 0.26,
+    cameraSprintFollowLerp: 6.6,
+    cameraSprintZoom: 1.03,
+    cameraSprintForwardLookAhead: 44,
+    cameraSprintTweenIn: 0.32,
+    cameraSprintAirTweenIn: 0.56,
+    cameraSprintTweenOut: 0.48,
+    cameraSprintEaseIn: 'power2.out',
+    cameraSprintEaseOut: 'power1.out',
+    cameraHandheldEnabled: true,
+    cameraHandheldBaseAmpX: 0.42,
+    cameraHandheldBaseAmpY: 0.36,
+    cameraHandheldMoveAmpX: 0.72,
+    cameraHandheldMoveAmpY: 0.58,
+    cameraHandheldFreqX: 0.63,
+    cameraHandheldFreqY: 0.81,
+    cameraHandheldLerp: 5.5,
+    cameraHandheldSpeedInfluence: 0.9,
+    cameraHandheldSprintBoost: 0.1,
+    cameraHandheldPixelSnap: 0.25,
+    busStopDecorScale: 0.90,
+    busStopDecorLiftY: 10,
+    busStopDecorColorGrade: 0.4,
+    busStopDecorSkinGrade: 0.16,
+    busStopDecorColorAnchor: '#78818E',
     campaignLeftSoftWallPad: 500,
     generationMargin: 400,
     startXOffsetCampaign: 200,
@@ -485,6 +514,19 @@ const TUNING = Object.freeze({
     zoneTransitionFadeOutSpan: 0.3,
     zoneTransitionAlpha: 0.9,
     zoneTransitionYFactor: 0.25,
+  }),
+  vfx: Object.freeze({
+    matterEnabled: true,
+    matterGravity: 1.25,
+    matterBodyLife: 0.85,
+    matterMaxBodies: 80,
+    matterFloorOffset: 10,
+    matterFloorThickness: 24,
+    matterFloorFriction: 0.82,
+    matterFloorRestitution: 0.24,
+    matterLinearDamping: 0.035,
+    matterSpawnChance: 0.55,
+    matterWalkStepChance: 0.12,
   }),
 });
 
@@ -972,6 +1014,12 @@ function lerpColor(a, b, t) {
   const ca = hexToRgb(a), cb = hexToRgb(b);
   return rgbToHex(ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t);
 }
+const HEX_COLOR_RE = /^#[\da-fA-F]{6}$/;
+function blendHexColor(hexColor, targetHex, amount) {
+  if (typeof hexColor !== 'string' || typeof targetHex !== 'string') return hexColor;
+  if (!HEX_COLOR_RE.test(hexColor) || !HEX_COLOR_RE.test(targetHex)) return hexColor;
+  return lerpColor(hexColor, targetHex, clamp(amount, 0, 1));
+}
 
 // Key stops: [phase 0-1, skyTop, skyMid, skyBottom, ambientAlpha, starAlpha]
 const SKY_STOPS = [
@@ -1241,10 +1289,155 @@ function drawSideBars() {
 
 // ── Particles ──
 const particles = [];
+const matterFX = {
+  enabled: false,
+  warnedMissing: false,
+  engine: null,
+  floor: null,
+  bodies: [],
+};
+
+function initMatterFX() {
+  const fx = TUNING.vfx;
+  if (!fx.matterEnabled) return;
+  if (!window.Matter) {
+    if (!matterFX.warnedMissing) {
+      console.warn('[MatterFX] Matter.js unavailable; falling back to classic particles only.');
+      matterFX.warnedMissing = true;
+    }
+    return;
+  }
+  const { Engine, Bodies, Composite } = Matter;
+  const engine = Engine.create();
+  engine.gravity.x = 0;
+  engine.gravity.y = fx.matterGravity;
+  const floor = Bodies.rectangle(cam.x + W / 2, GROUND_Y + fx.matterFloorOffset, W * 3, fx.matterFloorThickness, {
+    isStatic: true,
+    friction: fx.matterFloorFriction,
+    restitution: fx.matterFloorRestitution,
+    label: 'fx-floor',
+  });
+  Composite.add(engine.world, floor);
+  matterFX.enabled = true;
+  matterFX.engine = engine;
+  matterFX.floor = floor;
+}
+
+function clearMatterFX() {
+  if (!matterFX.enabled) return;
+  const { Composite } = Matter;
+  for (const entry of matterFX.bodies) Composite.remove(matterFX.engine.world, entry.body);
+  matterFX.bodies.length = 0;
+}
+
+function spawnMatterDebris(x, y, count, color, opts) {
+  if (!matterFX.enabled || count <= 0) return;
+  const fx = TUNING.vfx;
+  const { Bodies, Body, Composite } = Matter;
+  const cfg = opts || {};
+  const spread = cfg.spread ?? 10;
+  const speedMin = cfg.speedMin ?? 30;
+  const speedMax = cfg.speedMax ?? 140;
+  const sizeMin = cfg.sizeMin ?? 2;
+  const sizeMax = cfg.sizeMax ?? 5;
+  const spawnChance = cfg.spawnChance ?? fx.matterSpawnChance;
+  const fill = color || '#ccc';
+
+  for (let i = 0; i < count; i++) {
+    if (Math.random() > spawnChance) continue;
+    const px = x + rand(-spread, spread);
+    const py = y - rand(0, 8);
+    const size = rand(sizeMin, sizeMax);
+    const isCircle = Math.random() > 0.5;
+    const body = isCircle
+      ? Bodies.circle(px, py, size * 0.5, {
+          restitution: fx.matterFloorRestitution,
+          frictionAir: fx.matterLinearDamping,
+          friction: 0.02,
+        })
+      : Bodies.rectangle(px, py, size, size, {
+          restitution: fx.matterFloorRestitution,
+          frictionAir: fx.matterLinearDamping,
+          friction: 0.02,
+        });
+    Body.setVelocity(body, { x: rand(-speedMax, speedMax), y: rand(-speedMax, -speedMin) });
+    Body.setAngularVelocity(body, rand(-4, 4));
+    Composite.add(matterFX.engine.world, body);
+    matterFX.bodies.push({
+      body,
+      isCircle,
+      color: fill,
+      size,
+      life: fx.matterBodyLife,
+      maxLife: fx.matterBodyLife,
+    });
+  }
+
+  const overflow = matterFX.bodies.length - fx.matterMaxBodies;
+  if (overflow > 0) {
+    for (let i = 0; i < overflow; i++) {
+      const removed = matterFX.bodies.shift();
+      if (removed) Composite.remove(matterFX.engine.world, removed.body);
+    }
+  }
+}
+
+function updateMatterFX(dt) {
+  if (!matterFX.enabled) return;
+  const fx = TUNING.vfx;
+  const { Engine, Body, Composite } = Matter;
+  Body.setPosition(matterFX.floor, { x: cam.x + W / 2, y: GROUND_Y + fx.matterFloorOffset });
+  Engine.update(matterFX.engine, dt * 1000);
+  for (let i = matterFX.bodies.length - 1; i >= 0; i--) {
+    const entry = matterFX.bodies[i];
+    entry.life -= dt;
+    const bx = entry.body.position.x;
+    const by = entry.body.position.y;
+    if (
+      entry.life <= 0 ||
+      bx < cam.x - W * 2 ||
+      bx > cam.x + W * 2 ||
+      by > H + 220
+    ) {
+      Composite.remove(matterFX.engine.world, entry.body);
+      matterFX.bodies.splice(i, 1);
+    }
+  }
+}
+
+function drawMatterFX() {
+  if (!matterFX.enabled) return;
+  for (const entry of matterFX.bodies) {
+    const alpha = clamp(entry.life / entry.maxLife, 0, 1);
+    const p = entry.body.position;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(p.x - cam.x, p.y);
+    ctx.rotate(entry.body.angle);
+    ctx.fillStyle = entry.color;
+    if (entry.isCircle) {
+      ctx.beginPath();
+      ctx.arc(0, 0, entry.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(-entry.size * 0.5, -entry.size * 0.5, entry.size, entry.size);
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function spawnDust(x, y, count, color) {
   for (let i = 0; i < count; i++) {
     particles.push({ x, y, vx: rand(-80, 80), vy: rand(-120, -20), life: rand(0.2, 0.5), maxLife: 0.5, size: rand(2, 5), color: color || '#ccc' });
   }
+  spawnMatterDebris(x, y, count, color || '#ccc', {
+    spread: 8,
+    speedMin: 35,
+    speedMax: 110,
+    sizeMin: 1.8,
+    sizeMax: 4.8,
+  });
 }
 function spawnStars(x, y, count) {
   for (let i = 0; i < count; i++) {
@@ -1256,6 +1449,13 @@ function spawnImpact(x, y) {
   for (let i = 0; i < 4; i++) {
     particles.push({ x, y, vx: rand(-40, 40), vy: rand(-60, -10), life: rand(0.15, 0.3), maxLife: 0.3, size: rand(2, 4), color: '#fff' });
   }
+  spawnMatterDebris(x, y, 3, '#fff', {
+    spread: 5,
+    speedMin: 45,
+    speedMax: 130,
+    sizeMin: 1.6,
+    sizeMax: 3.6,
+  });
 }
 function updateParticles(dt) {
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -1340,7 +1540,50 @@ function drawPopups() {
 }
 
 // ── Camera ──
-const cam = { x: 0, targetX: 0 };
+const cam = {
+  x: 0,
+  targetX: 0,
+  leadFactor: TUNING.world.cameraLeadFactor,
+  followLerp: TUNING.world.cameraFollowLerp,
+  zoom: TUNING.world.cameraZoom,
+  forwardLookAhead: TUNING.world.cameraForwardLookAhead,
+  handheldPhase: 0,
+  handheldX: 0,
+  handheldY: 0,
+  sprintTight: false,
+  sprintTween: null,
+};
+
+function setSprintCameraTightening(isTight, isAirSprintJump) {
+  const wt = TUNING.world;
+  if (cam.sprintTight === isTight) return;
+  cam.sprintTight = isTight;
+
+  const leadTarget = isTight ? wt.cameraSprintLeadFactor : wt.cameraLeadFactor;
+  const followTarget = isTight ? wt.cameraSprintFollowLerp : wt.cameraFollowLerp;
+  const zoomTarget = isTight ? wt.cameraSprintZoom : wt.cameraZoom;
+  const lookAheadTarget = isTight ? wt.cameraSprintForwardLookAhead : wt.cameraForwardLookAhead;
+
+  if (!window.gsap) {
+    cam.leadFactor = leadTarget;
+    cam.followLerp = followTarget;
+    cam.zoom = zoomTarget;
+    cam.forwardLookAhead = lookAheadTarget;
+    return;
+  }
+  if (cam.sprintTween) cam.sprintTween.kill();
+  const tweenInDuration = isAirSprintJump ? wt.cameraSprintAirTweenIn : wt.cameraSprintTweenIn;
+  cam.sprintTween = window.gsap.to(cam, {
+    leadFactor: leadTarget,
+    followLerp: followTarget,
+    zoom: zoomTarget,
+    forwardLookAhead: lookAheadTarget,
+    duration: isTight ? tweenInDuration : wt.cameraSprintTweenOut,
+    ease: isTight ? wt.cameraSprintEaseIn : wt.cameraSprintEaseOut,
+    overwrite: true,
+    onComplete: () => { cam.sprintTween = null; },
+  });
+}
 
 // ── Platforms (Smash Bros style) ──
 const platforms = [];
@@ -1462,17 +1705,7 @@ function drawPlatform(plat) {
 
 function drawBusStopStructure(plat) {
   const px = plat.x - cam.x;
-  // Glass panels behind the shelter (visible through transparent sprite areas)
-  ctx.fillStyle = 'rgba(100,180,220,0.22)';
-  ctx.fillRect(px + 15, plat.y + 10, plat.w - 30, BUS_STOP_ROOF_H - 16);
-  // Glass edge highlight
-  ctx.strokeStyle = 'rgba(180,220,255,0.3)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(px + 15, plat.y + 10, plat.w - 30, BUS_STOP_ROOF_H - 16);
-  // Subtle glare streak
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
-  ctx.fillRect(px + 20, plat.y + 12, 8, BUS_STOP_ROOF_H - 24);
-  // Shelter sprite on top of glass
+  // Shelter base behind waiting NPCs. Front glass is drawn in a later pass.
   if (busStopImg.complete && busStopImg.naturalWidth > 0) {
     ctx.drawImage(busStopImg, px, plat.y, BUS_STOP_W, BUS_STOP_IMG_H);
   } else {
@@ -1483,10 +1716,6 @@ function drawBusStopStructure(plat) {
     roundRect(ctx, px, plat.y, plat.w, plat.h, 3);
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
     ctx.fillRect(px + 3, plat.y, plat.w - 6, 2);
-    ctx.fillStyle = 'rgba(135,206,235,0.12)';
-    ctx.fillRect(px + 12, plat.y + 8, plat.w - 24, BUS_STOP_ROOF_H - 14);
-    ctx.strokeStyle = '#6B7B8D'; ctx.lineWidth = 1;
-    ctx.strokeRect(px + 12, plat.y + 8, plat.w - 24, BUS_STOP_ROOF_H - 14);
     ctx.fillStyle = '#3182CE';
     ctx.fillRect(px + plat.w / 2 - 11, plat.y - 12, 22, 12);
     ctx.fillStyle = '#fff'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
@@ -1494,14 +1723,39 @@ function drawBusStopStructure(plat) {
   }
 }
 
+function drawBusStopFrontGlass(plat) {
+  const px = plat.x - cam.x;
+  const glassX = px + 15;
+  const glassY = plat.y + 10;
+  const glassW = plat.w - 30;
+  const glassH = BUS_STOP_ROOF_H - 16;
+  ctx.fillStyle = 'rgba(100,180,220,0.24)';
+  ctx.fillRect(glassX, glassY, glassW, glassH);
+  ctx.strokeStyle = 'rgba(180,220,255,0.42)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(glassX, glassY, glassW, glassH);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(glassX + 5, glassY + 2, 8, glassH - 4);
+  ctx.fillStyle = 'rgba(220,245,255,0.08)';
+  ctx.fillRect(glassX + glassW - 10, glassY + 2, 5, glassH - 4);
+}
+
 function drawBusStopNPCs(plat, playerScreenX, playerScreenY) {
+  const wt = TUNING.world;
+  const colorAnchor = wt.busStopDecorColorAnchor;
+  const npcGroundY = GROUND_Y - wt.busStopDecorLiftY;
   const px = plat.x - cam.x;
   for (const bNpc of plat.busStop.npcs) {
     const npcScreenX = px + bNpc.xOffset;
     const drawOpts = {
-      facing: bNpc.facing, color: bNpc.color, skinColor: bNpc.skinColor,
-      hairColor: bNpc.hairColor, hairStyle: bNpc.hairStyle,
-      eyeColor: bNpc.eyeColor, legColor: bNpc.legColor, shoeColor: bNpc.shoeColor,
+      facing: bNpc.facing,
+      color: blendHexColor(bNpc.color, colorAnchor, wt.busStopDecorColorGrade),
+      skinColor: blendHexColor(bNpc.skinColor, colorAnchor, wt.busStopDecorSkinGrade),
+      hairColor: blendHexColor(bNpc.hairColor, colorAnchor, wt.busStopDecorColorGrade),
+      hairStyle: bNpc.hairStyle,
+      eyeColor: blendHexColor(bNpc.eyeColor, colorAnchor, wt.busStopDecorColorGrade),
+      legColor: blendHexColor(bNpc.legColor, colorAnchor, wt.busStopDecorColorGrade),
+      shoeColor: blendHexColor(bNpc.shoeColor, colorAnchor, wt.busStopDecorColorGrade),
       npcType: bNpc.npcType, designerPayloadId: bNpc.designerPayloadId,
       feminineBody: bNpc.feminineBody, bustScale: bNpc.bustScale,
       breathing: Math.sin(bNpc.breathPhase) * 1,
@@ -1516,7 +1770,13 @@ function drawBusStopNPCs(plat, playerScreenX, playerScreenY) {
         drawOpts.openMouth = true;
       }
     }
-    drawCharacter(npcScreenX, GROUND_Y, bNpc.w, bNpc.h, drawOpts);
+    drawCharacter(
+      npcScreenX,
+      npcGroundY,
+      bNpc.w * wt.busStopDecorScale,
+      bNpc.h * wt.busStopDecorScale,
+      drawOpts
+    );
   }
 }
 
@@ -2744,13 +3004,24 @@ function startGame(gameCtx) {
   npcs.length = 0; buildings.length = 0; bgBuildings.length = 0;
   props.length = 0; platforms.length = 0; cars.length = 0;
   particles.length = 0; popups.length = 0;
+  clearMatterFX();
   gameCtx.state.score = 0; gameCtx.state.totalKOs = 0; gameCtx.state.centerKO = null;
   for (const d of CHARACTER_DEFS) koTracker[d.name] = 0;
   const startX = player.x;
   cityGenRight = startX - wt.bootstrapGenSeedPad; cityGenLeft = startX - wt.bootstrapGenSeedPad;
   bgGenRight = startX - wt.bootstrapGenSeedPad; bgGenLeft = startX - wt.bootstrapGenSeedPad;
   platGenRight = startX - wt.bootstrapGenSeedPad; platGenLeft = startX - wt.bootstrapGenSeedPad;
-  cam.x = startX - W * wt.cameraLeadFactor; cam.targetX = cam.x;
+  if (cam.sprintTween) cam.sprintTween.kill();
+  cam.sprintTween = null;
+  cam.sprintTight = false;
+  cam.leadFactor = wt.cameraLeadFactor;
+  cam.followLerp = wt.cameraFollowLerp;
+  cam.zoom = wt.cameraZoom;
+  cam.forwardLookAhead = wt.cameraForwardLookAhead;
+  cam.handheldPhase = 0;
+  cam.handheldX = 0;
+  cam.handheldY = 0;
+  cam.x = startX - W * cam.leadFactor; cam.targetX = cam.x;
   gameCtx.state.currentZone = getZoneAtX(startX).zone;
   gameCtx.state.currentZoneIndex = getZoneAtX(startX).index;
   generateCity(cam.x - wt.bootstrapGenerationMargin, cam.x + W + wt.bootstrapGenerationMargin);
@@ -3173,6 +3444,16 @@ function updatePlayerTimersAndFX(dt, p, onNPC) {
     particles.push({ x: p.x - p.facing * mt.sprintTrailOffset + rand(-5, 5), y: p.y - p.h / 2 + rand(-10, 10),
       vx: -p.facing * rand(40, 100), vy: rand(-10, 10), life: mt.sprintTrailLife, maxLife: mt.sprintTrailLife, size: rand(1, 2), color: '#fff' });
   }
+  if (p.onRealGround && !onNPC && Math.abs(p.vx) > mt.walkAnimMinSpeed * 1.5 && Math.random() < dt * 10) {
+    spawnMatterDebris(p.x - p.facing * 6, p.y, 1, '#D8D8D8', {
+      spread: 2,
+      speedMin: 20,
+      speedMax: 60,
+      sizeMin: 1.2,
+      sizeMax: 2.6,
+      spawnChance: TUNING.vfx.matterWalkStepChance,
+    });
+  }
 }
 
 function updatePlayerState(dt) {
@@ -3298,8 +3579,41 @@ function updateWorldState(gameCtx, dt, p) {
   const ut = TUNING.uiTiming;
   const wt = TUNING.world;
   // ── Camera ──
-  cam.targetX = p.x - W * wt.cameraLeadFactor;
-  cam.x = lerp(cam.x, cam.targetX, dt * wt.cameraFollowLerp);
+  const wantsSprintLens = sprintDown() && !p.mountedNPC && !p.isCrouching;
+  const airSprintLens = !p.onGround && p.wasSprinting && wantsSprintLens;
+  const sprintLensActive = (p.isSprinting || airSprintLens) && !p.mountedNPC;
+  setSprintCameraTightening(sprintLensActive, airSprintLens);
+  cam.targetX = p.x - W * cam.leadFactor + cam.forwardLookAhead;
+  cam.x = lerp(cam.x, cam.targetX, dt * cam.followLerp);
+  if (wt.cameraHandheldEnabled) {
+    cam.handheldPhase += dt;
+    const speedNorm = clamp(Math.abs(p.vx) / (PLAYER_SPEED * SPRINT_MULT), 0, 1);
+    const motionIntensity = clamp(
+      speedNorm * wt.cameraHandheldSpeedInfluence + (sprintLensActive ? wt.cameraHandheldSprintBoost : 0),
+      0,
+      1
+    );
+    const ampX = wt.cameraHandheldBaseAmpX + wt.cameraHandheldMoveAmpX * motionIntensity;
+    const ampY = wt.cameraHandheldBaseAmpY + wt.cameraHandheldMoveAmpY * motionIntensity;
+    const xWave =
+      Math.sin(cam.handheldPhase * Math.PI * 2 * wt.cameraHandheldFreqX) +
+      Math.sin(cam.handheldPhase * Math.PI * 2 * wt.cameraHandheldFreqX * 0.47 + 1.3) * 0.38;
+    const yWave =
+      Math.sin(cam.handheldPhase * Math.PI * 2 * wt.cameraHandheldFreqY + 0.6) +
+      Math.sin(cam.handheldPhase * Math.PI * 2 * wt.cameraHandheldFreqY * 0.53 + 2.1) * 0.34;
+    let targetHandheldX = xWave * ampX;
+    let targetHandheldY = yWave * ampY;
+    const snap = wt.cameraHandheldPixelSnap || 0;
+    if (snap > 0) {
+      targetHandheldX = Math.round(targetHandheldX / snap) * snap;
+      targetHandheldY = Math.round(targetHandheldY / snap) * snap;
+    }
+    cam.handheldX = lerp(cam.handheldX, targetHandheldX, dt * wt.cameraHandheldLerp);
+    cam.handheldY = lerp(cam.handheldY, targetHandheldY, dt * wt.cameraHandheldLerp);
+  } else {
+    cam.handheldX = lerp(cam.handheldX, 0, dt * 6);
+    cam.handheldY = lerp(cam.handheldY, 0, dt * 6);
+  }
 
   // Campaign left-boundary soft wall
   if (gameCtx.state.gameMode === 'campaign' && zoneLayout.length > 0) {
@@ -3336,6 +3650,7 @@ function updateWorldState(gameCtx, dt, p) {
   updateBirds(dt);
   updateCars(dt);
   updateParticles(dt);
+  updateMatterFX(dt);
   updatePopups(dt);
 }
 
@@ -3482,11 +3797,16 @@ function renderEntityLayer() {
   const playerSX = player.x - cam.x;
   const playerSY = player.y;
 
-  // Bus stop NPCs (drawn after sidewalk so legs aren't covered)
+  // Bus stop NPCs between shelter base and front glass.
   for (const plat of platforms) {
     if (!plat.isBusStop) continue;
     const sx = plat.x - cam.x;
     if (sx + plat.w > -50 && sx < W + 50) drawBusStopNPCs(plat, playerSX, playerSY);
+  }
+  for (const plat of platforms) {
+    if (!plat.isBusStop) continue;
+    const sx = plat.x - cam.x;
+    if (sx + plat.w > -50 && sx < W + 50) drawBusStopFrontGlass(plat);
   }
 
   // Props
@@ -3556,6 +3876,7 @@ function renderEntityLayer() {
   });
 
   drawParticles();
+  drawMatterFX();
   drawPopups();
 }
 
@@ -3758,18 +4079,28 @@ function render(gameCtx, dt) {
 
   if (renderFrontScreen(gameCtx)) { ctx.restore(); return; }
 
-  // Game area with shake + sidebar offset
+  // Game area with screen shake + sidebar offset
   ctx.save(); ctx.translate(shake.x, shake.y);
   ctx.save(); ctx.translate(GAME_OX, 0);
 
   // Sky (day/night cycle)
   const dayPhase = gameCtx.state.dayTime / DAY_CYCLE;
   const sky = getDayValues(dayPhase);
+  ctx.save();
+  ctx.translate(cam.handheldX, cam.handheldY);
+  if (cam.zoom !== 1) {
+    const cx = W * 0.5;
+    const cy = H * 0.5;
+    ctx.translate(cx, cy);
+    ctx.scale(cam.zoom, cam.zoom);
+    ctx.translate(-cx, -cy);
+  }
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, sky.top); grad.addColorStop(0.5, sky.mid); grad.addColorStop(1, sky.bot);
   ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
   renderWorldLayer(sky);
   renderEntityLayer();
+  ctx.restore();
   renderOverlayLayer(gameCtx, sky);
 
   ctx.restore(); // undo SIDE_W translate
@@ -4254,6 +4585,7 @@ function loop(gameCtx, timestamp) {
 // Init — set up default zone layout for title screen background
 initZoneLayout();
 loadDesignerPayloadRegistry();
+initMatterFX();
 
 requestAnimationFrame(ts => { GAME_CTX.state.lastTime = ts; loop(GAME_CTX, ts); });
 

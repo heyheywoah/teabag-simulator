@@ -80,7 +80,9 @@ Shopaholic, Influencer, Jogger, Dog Walker (gallery preview includes companion d
 - **Chain Combo** — KO an NPC, launch off, mount another within 3 seconds. Chain multiplier applies to score. Timer refreshes on each mount.
 - **Aerial Bonus** — Mount a new NPC while your chain is active for bonus points.
 - **Double Jump** — Jump again mid-air. Puff ring particle effect.
-- **Sprint** — Double-tap a direction. 2.31x speed. Preserves momentum in air.
+- **Sprint** — Double-tap a direction. 2.31x speed with momentum carry in air plus a GSAP-smoothed sprint lens (subtle zoom-in + extra forward look-ahead so upcoming hazards stay visible).
+- **Handheld Camera Drift** — Always-on, low-amplitude camera micro-motion with speed-reactive intensity for a subtle handheld feel (kept below distraction level).
+- **Physics Debris (Spike)** — Experimental Matter.js-backed debris chunks layer onto landings, impacts, and light grounded movement scuffs. Cosmetic only; gameplay collisions remain unchanged.
 - **Coyote Time** — 80ms grace period to jump after leaving a ledge.
 - **Jump Buffer** — 100ms input buffer for pre-landing jumps.
 - **Drop Through** — Crouch on a platform to fall through it (Smash Bros style).
@@ -93,7 +95,7 @@ Everything is procedurally generated in both directions as you move:
 - **Buildings** — Zone-specific architecture (skyscrapers, storefronts, pavilions, warehouses, houses) with foreground (0.7x parallax) and background (0.3x parallax) layers
 - **Silhouettes** — Deep background layer (0.05x parallax) with zone-appropriate shapes
 - **Platforms** — Smash Bros-style one-way platforms, randomly distributed
-- **Bus Stops** — Downtown only. Custom sprite shelter with 1-5 NPCs who panic when you're nearby. Rare Goth Mommy spawn.
+- **Bus Stops** — Downtown only. Custom sprite shelter with 1-5 decorative NPCs who panic when you're nearby. They render 10% smaller, sit slightly higher to align to the sidewalk boundary line, and now stand behind a foreground glass pass so they read as background flavor (not targetable). Rare Goth Mommy spawn.
 - **Props** — Zone-specific (lamps, hydrants, benches, trees, fountains, neon signs, barrels, smokestacks, mailboxes, fences)
 - **Traffic** — Sedans, SUVs, sports cars, vans, pickups, and buses drive behind the sidewalk layer
 - **Zone Blending** — 600-unit crossfade between zones (sky tint, ground pattern, silhouettes, building styles)
@@ -141,8 +143,10 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 
 - **Editable base forms** — Start from `male_base` or `female_base`, then fully edit every base layer
 - **Three independent poses** — `normal`, `panic`, `ko` workspaces with copy-pose actions
-- **Tool surface** — Select, move, resize handles, rectangle, ellipse, line, curve, polygon, color, gradient, eyedropper, hand + zoom controls
+- **Tool surface** — Select, move, rotate, resize handles, rectangle, ellipse, line, curve, polygon, color, gradient, eyedropper, hand + zoom controls
 - **Layer workflow** — Multi-select (Shift/Cmd/Ctrl), rename, reorder, hide/show, lock/unlock, duplicate, delete, group move/resize
+- **History controls** — Undo/redo buttons in the top bar plus keyboard shortcuts (`Cmd/Ctrl+Z`, `Shift+Cmd/Ctrl+Z`, `Ctrl+Y`)
+- **Accordion sidebars** — Every section container in both left and right sidebars is collapsible to reduce visual noise while editing
 - **Face controls** — Dedicated managed face panel for eyes, brows, and mouth that updates layer geometry used by runtime parity preview/export
 - **Hair preset bootstrap** — Apply a layered Sundress hair preset (current pose or all poses) with back mass, temple coverage, and front bangs/wisps ready for fine tuning
 - **Height references** — Toggle lines and labels derived from current game character dimensions (plus optional silhouette overlays)
@@ -163,18 +167,18 @@ Standalone character-authoring tool for building layered NPC pose sheets before 
 4. Configure Runtime Preview Profile values (base NPC type, runtime npcType, scale/health/colors/hair/body toggles).
 5. Use the `Sundress Hair (Pose)` or `Sundress Hair (All)` preset actions when you want the layered hair starting point.
 6. Use Face controls to adjust managed face layers for the active pose (or apply to all poses).
-7. Use layer controls for selection/group transforms and ordering.
+7. Use layer controls for selection/group transforms and ordering; use `Rotate` tool for drag rotation (hold Shift to snap).
 8. Toggle height references to compare proportions against existing roster sizes.
 9. Watch Design Readiness for hard blockers/warnings and use jump links to navigate directly to fields/poses/layers.
 10. Use Live Preview `Panic Arm Spread` and `Shoulder Bar Offset Y` to tune panic arm behavior; use `Snap 0` to instantly return spread to an exact flip baseline.
 11. Use Runtime-Parity Preview to validate runtime shape/animation parity before export, use `Start Loop` / `Stop Loop` to play animation continuously, and watch the status line for `payload parity active` vs `fallback to legacy preview (...)`.
-12. Use the top-bar Session controls: `Save As` creates a named snapshot, `Save` overwrites the selected snapshot, and `Load` restores it (with unsaved-change confirmation).
+12. Use top-bar history/session controls: `Undo` / `Redo` for edit history, `Save As` to create a named snapshot, `Save` to overwrite the selected snapshot, and `Load` to restore it (with unsaved-change confirmation).
 13. Export editable JSON for continued iteration or import JSON to restore state.
 14. Export compact payload when hard blockers are clear.
 
 ## Tech
 
-Single HTML file game. Canvas 2D rendering at 960x540 (2x pixel scale). No frameworks, no build step, no dependencies. The entire game — physics, rendering, UI, input, generation, particles, day/night, SFX engine — is inline JavaScript.
+Single HTML file game. Canvas 2D rendering at 960x540 (2x pixel scale). No frameworks and no build step. Runtime libraries are script-included: GSAP is vendored locally at `vendor/gsap.min.js` (sprint camera lens tween path), and Matter.js (CDN) powers the experimental VFX debris layer with graceful fallback to classic particles if unavailable. The entire game — gameplay physics, rendering, UI, input, generation, particles, day/night, SFX engine — is inline JavaScript.
 
 PWA-enabled with service worker and manifest for offline play and home screen install.
 

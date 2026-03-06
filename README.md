@@ -125,6 +125,18 @@ Volume and mute controls in the pause menu. Persisted to localStorage.
 
 ## Dev Tools
 
+### Game Lookup CLI (`scripts/lookup-schematics.js`, `scripts/lookup-source.js`, `scripts/lookup-sections.js`)
+
+Quick command-line lookup helpers for finding mechanics entry points before editing.
+
+- `node scripts/lookup-schematics.js sprint` - find sprint-related sections, tasks, helpers, and search commands from `SCHEMATICS.md`
+- `node scripts/lookup-schematics.js "pause menu" --type task` - narrow to high-value edit task rows only
+- `node scripts/lookup-source.js updateWorldState --symbols-only` - locate symbol declarations in `teabag-simulator.html`
+- `node scripts/lookup-source.js registry --all-core` - search symbols/text across major runtime, designer, and tooling files
+- `node scripts/lookup-source.js matter --text-only --limit 20` - find raw text hits in `teabag-simulator.html`
+- `node scripts/lookup-sections.js camera --file teabag-simulator.html` - list section anchors by topic/file across the full repo map
+- Add `--json` to any lookup command for machine-readable output.
+
 ### Sound Designer (`sound-designer.html`)
 
 Standalone tool for crafting game sounds using the Web Audio API. Modular synth-style node graph with:

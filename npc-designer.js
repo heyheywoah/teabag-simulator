@@ -2,7 +2,7 @@
   "use strict";
 
   const POSE_IDS = ["normal", "panic", "ko"];
-  const TOOL_IDS = ["select", "move", "rect", "ellipse", "line", "curve", "polygon", "color", "gradient", "eyedropper", "hand"];
+  const TOOL_IDS = ["select", "move", "rotate", "rect", "ellipse", "line", "curve", "polygon", "color", "gradient", "eyedropper", "hand"];
 
   const DESIGN_CANVAS_WIDTH = 960;
   const DESIGN_CANVAS_HEIGHT = 540;
@@ -16,6 +16,8 @@
   const SNAPSHOTS_STORAGE_KEY = "npc_designer_snapshots_v1";
   const SNAPSHOT_SELECTION_STORAGE_KEY = "npc_designer_snapshot_selection_v1";
   const WORKSPACE_AUTOSAVE_DEBOUNCE_MS = 180;
+  const HISTORY_STACK_LIMIT = 120;
+  const HISTORY_COMMIT_DEBOUNCE_MS = 140;
   const CONSTRAINTS = window.NPCDesignerConstraints || null;
   const SHARED_RENDER = window.NPCRenderShared || null;
   const SUNDRESS_HAIR_PROFILE = Object.freeze({
@@ -156,18 +158,27 @@
     hasUnsavedChanges: false,
     autosaveTimer: 0,
     lastAutosavePayload: "",
-    skipAutoFixOnce: false
+    skipAutoFixOnce: false,
+    history: {
+      undoStack: [],
+      redoStack: [],
+      commitTimer: 0,
+      isApplying: false
+    }
   };
 
   function initDesigner() {
     cacheUI();
+    initSidebarAccordions();
     initConstraintScaffold();
     bindUI();
     initHitCanvas();
     loadInitialDocument();
+    initHistoryState();
     updateToolButtons();
     updatePoseTabs();
     updateZoomUI();
+    updateHistoryControlsState();
     requestRender();
     setStatus("Designer ready.");
   }
@@ -178,6 +189,8 @@
     ui.sessionSaveBtn = document.getElementById("sessionSaveBtn");
     ui.sessionSaveAsBtn = document.getElementById("sessionSaveAsBtn");
     ui.sessionLoadBtn = document.getElementById("sessionLoadBtn");
+    ui.historyUndoBtn = document.getElementById("historyUndoBtn");
+    ui.historyRedoBtn = document.getElementById("historyRedoBtn");
     ui.resetPoseBtn = document.getElementById("resetPoseBtn");
     ui.resetAllBtn = document.getElementById("resetAllBtn");
     ui.poseTabs = Array.from(document.querySelectorAll(".pose-tab"));
@@ -308,6 +321,52 @@
 
     ui.editorCanvas.width = DESIGN_CANVAS_WIDTH;
     ui.editorCanvas.height = DESIGN_CANVAS_HEIGHT;
+  }
+
+  function initSidebarAccordions() {
+    const blocks = Array.from(document.querySelectorAll(".panel-left .panel-block, .panel-right .panel-block"));
+    blocks.forEach((block, index) => {
+      if (!block || block.dataset.accordionReady === "1") return;
+      const heading = block.querySelector("h2");
+      if (!heading) return;
+
+      const body = document.createElement("div");
+      body.className = "panel-block-body";
+      body.id = `accordionBody_${index}`;
+      while (heading.nextSibling) {
+        body.appendChild(heading.nextSibling);
+      }
+      block.appendChild(body);
+
+      const headingLabel = (heading.textContent || "").trim() || `Section ${index + 1}`;
+      heading.textContent = "";
+
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.className = "accordion-toggle";
+      toggleBtn.setAttribute("aria-expanded", "true");
+      toggleBtn.setAttribute("aria-controls", body.id);
+
+      const label = document.createElement("span");
+      label.className = "accordion-label";
+      label.textContent = headingLabel;
+
+      const icon = document.createElement("span");
+      icon.className = "accordion-icon";
+      icon.textContent = "▾";
+      icon.setAttribute("aria-hidden", "true");
+
+      toggleBtn.append(label, icon);
+      toggleBtn.addEventListener("click", () => {
+        const isCollapsed = block.classList.toggle("is-collapsed");
+        body.hidden = isCollapsed;
+        toggleBtn.setAttribute("aria-expanded", isCollapsed ? "false" : "true");
+      });
+
+      heading.append(toggleBtn);
+      block.classList.add("is-accordion");
+      block.dataset.accordionReady = "1";
+    });
   }
 
   function initConstraintScaffold() {
@@ -615,6 +674,8 @@
     ui.sessionSaveBtn.addEventListener("click", handleSessionSaveClick);
     ui.sessionSaveAsBtn.addEventListener("click", handleSessionSaveAsClick);
     ui.sessionLoadBtn.addEventListener("click", handleSessionLoadClick);
+    if (ui.historyUndoBtn) ui.historyUndoBtn.addEventListener("click", undoHistory);
+    if (ui.historyRedoBtn) ui.historyRedoBtn.addEventListener("click", redoHistory);
 
     ui.templateSelect.addEventListener("change", () => {
       ensureDocument();
@@ -1025,6 +1086,7 @@
     if (ui.sessionLoadBtn) {
       ui.sessionLoadBtn.disabled = !hasSelected;
     }
+    updateHistoryControlsState();
   }
 
   function loadSnapshotSlotsFromStorage() {
@@ -1097,6 +1159,7 @@
   }
 
   function flushWorkspaceAutosave() {
+    flushPendingHistorySnapshot();
     if (state.autosaveTimer) {
       clearTimeout(state.autosaveTimer);
       state.autosaveTimer = 0;
@@ -1104,10 +1167,147 @@
     persistWorkspaceToStorage();
   }
 
-  function markWorkspaceChanged() {
+  function clearHistoryCommitTimer() {
+    if (state.history.commitTimer) {
+      clearTimeout(state.history.commitTimer);
+      state.history.commitTimer = 0;
+    }
+  }
+
+  function createHistorySnapshot() {
+    ensureDocument();
+    return {
+      document: deepClone(state.document),
+      activePose: state.activePose,
+      selectedIds: Array.from(state.selectedIds),
+      layerListAnchorId: state.layerListAnchorId,
+      layerIdCounter: state.layerIdCounter
+    };
+  }
+
+  function historySnapshotKey(snapshot) {
+    return JSON.stringify(snapshot);
+  }
+
+  function captureHistorySnapshot(opts = {}) {
+    if (state.history.isApplying) return false;
+    const snapshot = createHistorySnapshot();
+    const key = historySnapshotKey(snapshot);
+    const last = state.history.undoStack[state.history.undoStack.length - 1];
+    if (!opts.force && last && last.key === key) {
+      updateHistoryControlsState();
+      return false;
+    }
+
+    state.history.undoStack.push({ key, snapshot });
+    if (state.history.undoStack.length > HISTORY_STACK_LIMIT) {
+      state.history.undoStack.shift();
+    }
+    if (opts.clearRedo !== false) {
+      state.history.redoStack = [];
+    }
+    updateHistoryControlsState();
+    return true;
+  }
+
+  function scheduleHistorySnapshot(opts = {}) {
+    if (state.history.isApplying) return;
+    if (opts.immediate) {
+      clearHistoryCommitTimer();
+      captureHistorySnapshot(opts);
+      return;
+    }
+
+    clearHistoryCommitTimer();
+    state.history.commitTimer = window.setTimeout(() => {
+      state.history.commitTimer = 0;
+      captureHistorySnapshot({ clearRedo: opts.clearRedo !== false });
+    }, HISTORY_COMMIT_DEBOUNCE_MS);
+  }
+
+  function flushPendingHistorySnapshot() {
+    if (!state.history.commitTimer) return;
+    clearTimeout(state.history.commitTimer);
+    state.history.commitTimer = 0;
+    captureHistorySnapshot();
+  }
+
+  function updateHistoryControlsState() {
+    if (ui.historyUndoBtn) ui.historyUndoBtn.disabled = state.history.undoStack.length <= 1;
+    if (ui.historyRedoBtn) ui.historyRedoBtn.disabled = state.history.redoStack.length === 0;
+  }
+
+  function initHistoryState() {
+    clearHistoryCommitTimer();
+    state.history.undoStack = [];
+    state.history.redoStack = [];
+    captureHistorySnapshot({ force: true, clearRedo: true });
+    updateHistoryControlsState();
+  }
+
+  function applyHistorySnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") return false;
+    state.history.isApplying = true;
+    try {
+      state.document = deepClone(snapshot.document || createDesignerDocument("male_base"));
+      state.activePose = POSE_IDS.includes(snapshot.activePose) ? snapshot.activePose : "normal";
+      state.selectedIds.clear();
+      const selectedIds = Array.isArray(snapshot.selectedIds) ? snapshot.selectedIds : [];
+      selectedIds.forEach((id) => {
+        if (findLayerById(id, state.activePose)) state.selectedIds.add(id);
+      });
+      state.layerListAnchorId = (
+        typeof snapshot.layerListAnchorId === "string" &&
+        state.selectedIds.has(snapshot.layerListAnchorId)
+      ) ? snapshot.layerListAnchorId : (selectedIds[selectedIds.length - 1] || null);
+      const nextCounter = Math.max(1, num(snapshot.layerIdCounter, inferNextLayerCounter(state.document)));
+      state.layerIdCounter = Math.max(nextCounter, inferNextLayerCounter(state.document));
+      state.skipAutoFixOnce = true;
+      syncControlsFromDocument();
+      updatePoseTabs();
+      updateToolButtons();
+    } finally {
+      state.history.isApplying = false;
+    }
+    markWorkspaceChanged({ skipHistory: true });
+    requestRender();
+    return true;
+  }
+
+  function undoHistory() {
+    flushPendingHistorySnapshot();
+    if (state.history.undoStack.length <= 1) {
+      setStatus("Nothing to undo.");
+      updateHistoryControlsState();
+      return;
+    }
+    const current = state.history.undoStack.pop();
+    state.history.redoStack.push(current);
+    const previous = state.history.undoStack[state.history.undoStack.length - 1];
+    applyHistorySnapshot(previous.snapshot);
+    updateHistoryControlsState();
+    setStatus("Undo applied.");
+  }
+
+  function redoHistory() {
+    flushPendingHistorySnapshot();
+    if (!state.history.redoStack.length) {
+      setStatus("Nothing to redo.");
+      updateHistoryControlsState();
+      return;
+    }
+    const next = state.history.redoStack.pop();
+    state.history.undoStack.push(next);
+    applyHistorySnapshot(next.snapshot);
+    updateHistoryControlsState();
+    setStatus("Redo applied.");
+  }
+
+  function markWorkspaceChanged(opts = {}) {
     state.hasUnsavedChanges = true;
     updateSessionControlsState();
     scheduleWorkspaceAutosave();
+    if (!opts.skipHistory) scheduleHistorySnapshot();
   }
 
   function touchWorkspace() {
@@ -1225,6 +1425,7 @@
     renderSnapshotSelectOptions();
     updateSessionControlsState();
     scheduleWorkspaceAutosave();
+    scheduleHistorySnapshot({ immediate: true, clearRedo: true });
     setStatus(`Loaded session "${entry.label}".`);
   }
 
@@ -1281,10 +1482,10 @@
     };
   }
 
-  function stampUpdatedAt() {
+  function stampUpdatedAt(opts = {}) {
     if (!state.document) return;
     state.document.meta.updatedAt = new Date().toISOString();
-    markWorkspaceChanged();
+    markWorkspaceChanged({ skipHistory: !!opts.skipHistory });
   }
 
   function syncControlsFromDocument() {
@@ -2337,6 +2538,7 @@
     const map = {
       select: "default",
       move: "move",
+      rotate: "alias",
       rect: "crosshair",
       ellipse: "crosshair",
       line: "crosshair",
@@ -2427,7 +2629,7 @@
     state.document.editor.panX = state.view.panX;
     state.document.editor.panY = state.view.panY;
     state.document.editor.facing = state.view.facing;
-    if (!opts.skipStamp) stampUpdatedAt();
+    if (!opts.skipStamp) stampUpdatedAt({ skipHistory: true });
   }
 
   function onCanvasPointerDown(e) {
@@ -2452,6 +2654,33 @@
 
     if (state.activeTool === "polygon") {
       handlePolygonPointerDown(worldPt, e);
+      requestRender();
+      return;
+    }
+
+    if (state.activeTool === "rotate") {
+      const hitLayer = hitTestLayers(worldPt, {
+        includeLocked: false
+      });
+      if (hitLayer && !state.selectedIds.has(hitLayer.id) && !additive) {
+        setSelection([hitLayer.id]);
+      } else if (!hitLayer && !additive && !state.selectedIds.size) {
+        clearSelection();
+      }
+
+      const selectedLayers = getSelectedLayers().filter((layer) => !layer.locked);
+      if (!selectedLayers.length) {
+        requestRender();
+        return;
+      }
+
+      const bounds = getLayersBounds(selectedLayers);
+      if (!bounds) {
+        requestRender();
+        return;
+      }
+
+      beginRotateInteraction(selectedLayers, bounds, worldPt);
       requestRender();
       return;
     }
@@ -2528,7 +2757,8 @@
         state.interaction = {
           kind: "move",
           startWorld: worldPt,
-          snapshot: selectedLayers.map((l) => ({ id: l.id, geometry: cloneGeometry(l.geometry) }))
+          snapshot: selectedLayers.map((l) => ({ id: l.id, geometry: cloneGeometry(l.geometry) })),
+          changed: false
         };
       }
     } else if (!additive) {
@@ -2564,21 +2794,27 @@
       const dx = worldPt.x - state.interaction.startWorld.x;
       const dy = worldPt.y - state.interaction.startWorld.y;
       applyMoveFromSnapshot(state.interaction.snapshot, dx, dy);
-      stampUpdatedAt();
+      state.interaction.changed = state.interaction.changed || Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
       requestRender();
       return;
     }
 
     if (state.interaction.kind === "resize") {
       updateResizeInteraction(worldPt, e.shiftKey);
-      stampUpdatedAt();
+      state.interaction.changed = true;
       requestRender();
       return;
     }
 
     if (state.interaction.kind === "reshape") {
       updateReshapeInteraction(worldPt);
-      stampUpdatedAt();
+      state.interaction.changed = true;
+      requestRender();
+      return;
+    }
+
+    if (state.interaction.kind === "rotate") {
+      updateRotateInteraction(worldPt, e.shiftKey);
       requestRender();
       return;
     }
@@ -2596,9 +2832,23 @@
     }
 
     if (!state.interaction) return;
+    const finishedInteraction = state.interaction;
 
-    if (state.interaction.kind === "draw") {
+    if (finishedInteraction.kind === "draw") {
       finalizeDrawInteraction();
+    }
+    if (
+      (finishedInteraction.kind === "move" ||
+        finishedInteraction.kind === "resize" ||
+        finishedInteraction.kind === "reshape" ||
+        finishedInteraction.kind === "rotate") &&
+      finishedInteraction.changed
+    ) {
+      stampUpdatedAt();
+      if (finishedInteraction.kind === "rotate") {
+        const deg = Math.round(radToDeg(num(finishedInteraction.angleDelta, 0)));
+        setStatus(`Rotated ${finishedInteraction.snapshot.length} layer(s) by ${deg}°.`);
+      }
     }
 
     state.interaction = null;
@@ -2778,6 +3028,35 @@
     setStatus("Polygon layer added.");
   }
 
+  function beginRotateInteraction(selectedLayers, bounds, worldPt) {
+    const pivot = {
+      x: bounds.x + bounds.w * 0.5,
+      y: bounds.y + bounds.h * 0.5
+    };
+    state.interaction = {
+      kind: "rotate",
+      pivot,
+      startAngle: Math.atan2(worldPt.y - pivot.y, worldPt.x - pivot.x),
+      angleDelta: 0,
+      changed: false,
+      snapshot: selectedLayers.map((layer) => ({ id: layer.id, geometry: cloneGeometry(layer.geometry) }))
+    };
+  }
+
+  function updateRotateInteraction(worldPt, snapAngle) {
+    const it = state.interaction;
+    if (!it || it.kind !== "rotate") return;
+    const currentAngle = Math.atan2(worldPt.y - it.pivot.y, worldPt.x - it.pivot.x);
+    let delta = normalizeAngleRadians(currentAngle - it.startAngle);
+    if (snapAngle) {
+      const step = degToRad(15);
+      delta = Math.round(delta / step) * step;
+    }
+    it.angleDelta = delta;
+    it.changed = it.changed || Math.abs(delta) > 0.0005;
+    applyRotateFromSnapshot(it.snapshot, it.pivot, delta);
+  }
+
   function beginResizeInteraction(resizeHit, worldPt, keepAspect) {
     const selectedLayers = getSelectedLayers();
     if (!selectedLayers.length) return;
@@ -2788,7 +3067,8 @@
       startWorld: worldPt,
       startBounds: resizeHit.bounds,
       keepAspect,
-      snapshot: selectedLayers.map((layer) => ({ id: layer.id, geometry: cloneGeometry(layer.geometry) }))
+      snapshot: selectedLayers.map((layer) => ({ id: layer.id, geometry: cloneGeometry(layer.geometry) })),
+      changed: false
     };
   }
 
@@ -2832,7 +3112,8 @@
       layerId: hit.layerId,
       pointHandle: hit.handle,
       startWorld: worldPt,
-      snapshot: cloneGeometry(layer.geometry)
+      snapshot: cloneGeometry(layer.geometry),
+      changed: false
     };
   }
 
@@ -2857,8 +3138,34 @@
     });
   }
 
+  function applyRotateFromSnapshot(snapshot, pivot, angleRad) {
+    const layers = getLayers();
+    const byId = new Map(layers.map((layer) => [layer.id, layer]));
+    snapshot.forEach((entry) => {
+      const layer = byId.get(entry.id);
+      if (!layer || layer.locked) return;
+      rotateLayerGeometryFromSnapshot(layer, entry.geometry, pivot, angleRad);
+    });
+  }
+
   function onWindowKeyDown(e) {
     if (isEditableTarget(e.target)) return;
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        redoHistory();
+      } else {
+        undoHistory();
+      }
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "y") {
+      e.preventDefault();
+      redoHistory();
+      return;
+    }
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
       e.preventDefault();
@@ -2876,6 +3183,16 @@
       if (state.polygonDraft) {
         state.polygonDraft = null;
         setStatus("Polygon draft canceled.");
+      }
+      if (
+        state.interaction &&
+        (state.interaction.kind === "move" ||
+          state.interaction.kind === "resize" ||
+          state.interaction.kind === "reshape" ||
+          state.interaction.kind === "rotate") &&
+        state.interaction.changed
+      ) {
+        stampUpdatedAt();
       }
       state.interaction = null;
       requestRender();
@@ -3660,6 +3977,12 @@
       drawHandleRect(ctx, corner.x, corner.y, HANDLE_SCREEN_SIZE / state.view.zoom, "#f97316", "#0f172a");
     });
 
+    if (state.activeTool === "rotate") {
+      const pivotX = bounds.x + bounds.w * 0.5;
+      const pivotY = bounds.y + bounds.h * 0.5;
+      drawHandleDot(ctx, pivotX, pivotY, 5.2 / state.view.zoom, "#22d3ee", "#0f172a");
+    }
+
     if (selected.length === 1) {
       const handles = getPointHandlesForLayer(selected[0]);
       handles.forEach((handle) => {
@@ -3747,6 +4070,11 @@
     const selected = getSelectedLayers();
     if (!selected.length) {
       ui.selectionInfo.textContent = "No layer selected.";
+      return;
+    }
+
+    if (state.activeTool === "rotate") {
+      ui.selectionInfo.textContent = `Rotate mode: drag to rotate ${selected.length} layer(s). Hold Shift to snap 15°.`;
       return;
     }
 
@@ -4630,6 +4958,53 @@
     }
   }
 
+  function rotateLayerGeometryFromSnapshot(layer, sourceGeometry, pivot, angleRad) {
+    if (!layer || !sourceGeometry || !pivot || !Number.isFinite(angleRad)) return;
+    const g = layer.geometry;
+
+    if (layer.type === "rect" || layer.type === "ellipse") {
+      const w = num(sourceGeometry.w, 0);
+      const h = num(sourceGeometry.h, 0);
+      const center = {
+        x: num(sourceGeometry.x, 0) + w * 0.5,
+        y: num(sourceGeometry.y, 0) + h * 0.5
+      };
+      const nextCenter = rotatePoint(center, pivot, angleRad);
+      g.x = nextCenter.x - w * 0.5;
+      g.y = nextCenter.y - h * 0.5;
+      g.w = w;
+      g.h = h;
+      return;
+    }
+
+    if (layer.type === "line") {
+      const p1 = rotatePoint({ x: sourceGeometry.x1, y: sourceGeometry.y1 }, pivot, angleRad);
+      const p2 = rotatePoint({ x: sourceGeometry.x2, y: sourceGeometry.y2 }, pivot, angleRad);
+      g.x1 = p1.x;
+      g.y1 = p1.y;
+      g.x2 = p2.x;
+      g.y2 = p2.y;
+      return;
+    }
+
+    if (layer.type === "curve") {
+      const p1 = rotatePoint({ x: sourceGeometry.x1, y: sourceGeometry.y1 }, pivot, angleRad);
+      const pc = rotatePoint({ x: sourceGeometry.cx, y: sourceGeometry.cy }, pivot, angleRad);
+      const p2 = rotatePoint({ x: sourceGeometry.x2, y: sourceGeometry.y2 }, pivot, angleRad);
+      g.x1 = p1.x;
+      g.y1 = p1.y;
+      g.cx = pc.x;
+      g.cy = pc.y;
+      g.x2 = p2.x;
+      g.y2 = p2.y;
+      return;
+    }
+
+    if (layer.type === "polygon" && Array.isArray(sourceGeometry.points)) {
+      g.points = sourceGeometry.points.map((p) => rotatePoint(p, pivot, angleRad));
+    }
+  }
+
   function exportEditableJson() {
     ensureDocument();
     state.document.meta.id = ui.charIdInput.value.trim() || state.document.meta.id;
@@ -4966,6 +5341,24 @@
     };
   }
 
+  function rotatePoint(point, pivot, angleRad) {
+    const dx = point.x - pivot.x;
+    const dy = point.y - pivot.y;
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+    return {
+      x: pivot.x + dx * cosA - dy * sinA,
+      y: pivot.y + dx * sinA + dy * cosA
+    };
+  }
+
+  function normalizeAngleRadians(angleRad) {
+    let out = angleRad;
+    while (out > Math.PI) out -= Math.PI * 2;
+    while (out < -Math.PI) out += Math.PI * 2;
+    return out;
+  }
+
   function normalizeRectFromPoints(p1, p2) {
     return {
       x: Math.min(p1.x, p2.x),
@@ -5062,6 +5455,10 @@
 
   function degToRad(deg) {
     return (deg * Math.PI) / 180;
+  }
+
+  function radToDeg(rad) {
+    return (rad * 180) / Math.PI;
   }
 
   function fillRoundRect(ctx, x, y, w, h, r) {

@@ -1,6 +1,7 @@
 # Feature Roadmap (Draft)
 
 Note: this is captured as-is from planning discussion. Next step is to flesh this into mechanical implementation slices with acceptance gates (similar to refactor slices).
+Campaign/boss-mode planning companion: `docs/planning/CAMPAIGN_BOSS_ROADMAP.md`.
 
 ## Shared Foundation (Do This Once First)
 

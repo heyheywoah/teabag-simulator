@@ -67,3 +67,52 @@
 - [x] Invariants hold.
 - [x] Validation evidence collected.
 - [x] Mechanics change log prepared for handoff.
+
+---
+
+# 2026-02-22 NPC Designer Interaction UX Checklist
+
+## Phase 1 Gate (Read-Only First)
+
+- [x] Read `SCHEMATICS.md` before planning/editing.
+- [x] Updated `docs/planning/REFACTOR_SLICES.md` with in/out scope and ordered slices.
+- [x] Updated `docs/planning/REFACTOR_CHECKLIST.md` with this task gate list before implementation edits.
+
+## Scope Gate
+
+- [x] `git diff --name-only` limited to expected files (`npc-designer.html`, `npc-designer.css`, `npc-designer.js`, `README.md`, planning docs).
+- [x] No edits to `scripts/convert-npc-designer-json.js`.
+- [x] No edits to `data/npc_payloads/*`.
+- [x] No edits to gameplay files (`teabag-simulator.html`, `sound-designer.html`, `index.html`, `sw.js`, `manifest.json`).
+
+## Rotate Tool Gate
+
+- [x] Rotate tool appears in tool surface and activates via toolbar selection.
+- [x] Selected-layer rotation works with pointer drag.
+- [x] Shift-modified snapping works during rotate drag.
+- [x] Existing move/resize/reshape tools still work (no codepath removal; interactions preserved).
+
+## Undo/Redo Gate
+
+- [x] Undo/redo buttons are present and enabled/disabled correctly.
+- [x] `Cmd/Ctrl+Z` undo works (shortcut wiring added).
+- [x] `Shift+Cmd/Ctrl+Z` and/or `Ctrl+Y` redo works (both wired).
+- [x] Undo/redo restores layer geometry and selection without crashing (snapshot restore path implemented).
+
+## Accordion Gate
+
+- [x] All left sidebar `.panel-block` containers are collapsible.
+- [x] All right sidebar `.panel-block` containers are collapsible.
+- [x] Controls within collapsed sections remain functional when re-opened (DOM nodes are moved, not recreated).
+
+## Docs + Validation Gate
+
+- [x] `README.md` updated for new designer features.
+- [x] `node --check npc-designer.js` passes.
+- [x] Runtime validation status reported (browser interaction skipped in terminal-only run).
+- [x] Sound-path validation reported (not required unless sound scope changed).
+
+## Final PASS/FAIL
+
+- [x] All requested features implemented without unrelated regressions.
+- [x] Mechanics change log prepared for handoff.

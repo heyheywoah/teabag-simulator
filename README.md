@@ -82,7 +82,7 @@ Shopaholic, Influencer, Jogger, Dog Walker (gallery preview includes companion d
 - **Double Jump** — Jump again mid-air. Puff ring particle effect.
 - **Sprint** — Double-tap a direction. 2.31x speed with momentum carry in air plus a GSAP-smoothed sprint lens (subtle zoom-in + extra forward look-ahead so upcoming hazards stay visible).
 - **Handheld Camera Drift** — Always-on, low-amplitude camera micro-motion with speed-reactive intensity for a subtle handheld feel (kept below distraction level).
-- **Physics Debris (Spike)** — Experimental Matter.js-backed debris chunks layer onto landings, impacts, and light grounded movement scuffs. Cosmetic only; gameplay collisions remain unchanged.
+- **Physics Debris (Spike)** — Experimental Matter.js-backed debris chunks layer onto landings, impacts, and light grounded movement scuffs, with generated ground/platform/bus-stop surfaces mirrored into the VFX physics world for richer bounce/settle behavior. Cosmetic only; gameplay collisions remain unchanged.
 - **Coyote Time** — 80ms grace period to jump after leaving a ledge.
 - **Jump Buffer** — 100ms input buffer for pre-landing jumps.
 - **Drop Through** — Crouch on a platform to fall through it (Smash Bros style).

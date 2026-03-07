@@ -107,3 +107,78 @@ Actions:
 - [x] J4 Shared renderer designer-payload draw path
 - [x] J5 Gallery/debug sample wiring
 - [x] J6 Docs + validation + finalization
+
+---
+
+# 2026-02-22 NPC Designer Interaction UX Slices
+
+Purpose: add rotate editing, undo/redo history, and collapsible sidebar accordions in `npc-designer` without touching gameplay/runtime balance paths.
+
+## Hard Invariants
+
+- No gameplay constants/tuning changes.
+- No spawn/combat/zone behavior changes.
+- No payload schema/converter contract changes.
+- Runtime parity preview draw path remains functional.
+- Existing non-designer runtime rendering remains unchanged.
+
+## Scope
+
+In scope:
+- `npc-designer.html`
+- `npc-designer.css`
+- `npc-designer.js`
+- `README.md` (feature documentation update)
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
+
+Out of scope:
+- `teabag-simulator.html`
+- `sound-designer.html`
+- `index.html`
+- `sw.js`
+- `manifest.json`
+- `scripts/convert-npc-designer-json.js`
+- `data/npc_payloads/*`
+
+## Entry Points / Exit Points
+
+Entry points:
+- Tool registry and pointer interaction flow (`setActiveTool`, `onCanvasPointerDown`, `onCanvasPointerMove`, `onCanvasPointerUp`)
+- Keyboard shortcut flow (`onWindowKeyDown`)
+- Mutation pathways (`stampUpdatedAt`, layer operations, import/reset flows)
+- Sidebar section markup (`.panel-left .panel-block`, `.panel-right .panel-block`)
+
+Exit points:
+- Designer render remains stable (`renderAll`, `renderEditorCanvas`, previews)
+- Export payload behavior unchanged (`buildDesignerRuntimePayload`, `mapLayerToRuntimePayloadLayer`)
+- Session save/load still works
+
+## Dependency Edges + Coupling Risks
+
+- Pointer interaction uses geometry snapshot functions (`translateGeometryFromSnapshot`, `scaleLayerGeometryFromSnapshot`); rotate must share this snapshot model.
+- Undo/redo must not conflict with autosave/session snapshot mechanisms.
+- Accordion toggles must preserve existing controls and event bindings in both sidebars.
+- Keyboard shortcut additions must not break existing delete/duplicate/polygon controls.
+
+## Mechanical Slice Order
+
+### Slice U1: History infrastructure (undo/redo state + controls)
+- Add bounded undo/redo stacks and snapshot apply helpers in `npc-designer.js`.
+- Add topbar undo/redo buttons and shortcut bindings.
+- Ensure restore paths avoid recursive history writes.
+
+### Slice U2: Rotate tool integration
+- Add rotate tool button + tool id.
+- Implement rotate pointer interaction using selected-layer geometry snapshots.
+- Add rotation geometry helpers and snap behavior (Shift for angle snapping).
+
+### Slice U3: Accordion behavior for both sidebars
+- Add accordion toggles for all `.panel-block` sections in left and right sidebars.
+- Keep default sections expanded and preserve accessible button semantics.
+- Add CSS states for collapsed content.
+
+### Slice U4: Docs + validation
+- Update README designer feature list with rotate + undo/redo + accordion controls.
+- Run syntax checks and scope guard.
+- Report runtime validation/sound validation status.

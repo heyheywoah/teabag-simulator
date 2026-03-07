@@ -8,31 +8,31 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
 | --- | --- |
 | SFX Engine | 26-306 |
 | Resolution / canvas setup | 307-353 |
-| Core constants + tuning surface | 354-532 |
-| Zones + biome data | 533-628 |
-| Zone runtime state + persistence | 629-695 |
-| Zone blending | 696-707 |
-| Character definitions (all NPC archetypes) | 708-1001 |
-| Day/night system | 1002-1059 |
-| Keyboard input | 1060-1100 |
-| Mobile touch input | 1101-1225 |
-| Mobile sidebars render | 1226-1289 |
-| Particles / popups / shake / camera | 1290-1587 |
-| Platform + bus stop generation | 1588-1782 |
-| City/building/prop generation + draw | 1783-2248 |
-| Cars | 2249-2359 |
-| Character renderer + payload registry bridge | 2360-2566 |
-| Character gallery mode | 2567-2789 |
-| Player model | 2790-2803 |
-| NPC model + spawning | 2804-2879 |
-| Score + KO tracking | 2880-2899 |
-| Global game state + GameContext scaffold | 2900-2986 |
-| Update pipeline (menu/pause/gameplay/world) | 2987-3674 |
-| Render pipeline (front screens + world layers + HUD) | 3675-4119 |
-| Parallax silhouettes | 4120-4216 |
-| Clouds / birds | 4217-4265 |
-| Title / mode / zone picker / pause menus | 4266-4567 |
-| Main loop + frame reset + boot | 4568-4597 |
+| Core constants + tuning surface | 354-534 |
+| Zones + biome data | 535-630 |
+| Zone runtime state + persistence | 631-697 |
+| Zone blending | 698-709 |
+| Character definitions (all NPC archetypes) | 710-1003 |
+| Day/night system | 1004-1061 |
+| Keyboard input | 1062-1102 |
+| Mobile touch input | 1103-1227 |
+| Mobile sidebars render | 1228-1291 |
+| Particles / popups / shake / camera | 1292-1596 |
+| Platform + bus stop generation | 1597-1791 |
+| City/building/prop generation + draw | 1792-2257 |
+| Cars | 2258-2368 |
+| Character renderer + payload registry bridge | 2369-2575 |
+| Character gallery mode | 2576-2798 |
+| Player model | 2799-2812 |
+| NPC model + spawning | 2813-2888 |
+| Score + KO tracking | 2889-2908 |
+| Global game state + GameContext scaffold | 2909-2995 |
+| Update pipeline (menu/pause/gameplay/world) | 2996-3683 |
+| Render pipeline (front screens + world layers + HUD) | 3684-4128 |
+| Parallax silhouettes | 4129-4225 |
+| Clouds / birds | 4226-4274 |
+| Title / mode / zone picker / pause menus | 4275-4576 |
+| Main loop + frame reset + boot | 4577-4606 |
 
 ## Recent Integration Notes (2026-02-22)
 
@@ -48,21 +48,28 @@ Line-anchored reference for `teabag-simulator.html` so edits can target the righ
 - Runtime include anchor: `teabag-simulator.html:24` (`<script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>`).
 - VFX tuning anchor: `teabag-simulator.html:512` (`TUNING.vfx`).
 - Matter runtime anchors:
-  - `teabag-simulator.html:1288` (`initMatterFX()`)
-  - `teabag-simulator.html:1314` (`clearMatterFX()`)
-  - `teabag-simulator.html:1321` (`spawnMatterDebris(...)`)
-  - `teabag-simulator.html:1373` (`updateMatterFX(dt)`)
-  - `teabag-simulator.html:1396` (`drawMatterFX()`)
-  - `teabag-simulator.html:2978` (run reset call to `clearMatterFX()`)
-  - `teabag-simulator.html:3619` (update hook `updateMatterFX(dt)`)
-  - `teabag-simulator.html:3840` (render hook `drawMatterFX()`)
-  - `teabag-simulator.html:4548` (boot-time `initMatterFX()` call)
+  - `teabag-simulator.html:1306` (`getMatterFloorCenterY(fx)`)
+  - `teabag-simulator.html:1310` (`syncMatterSurfaceColliders(leftBound, rightBound)`)
+  - `teabag-simulator.html:1347` (`initMatterFX()`)
+  - `teabag-simulator.html:1373` (`clearMatterFX()`)
+  - `teabag-simulator.html:1382` (`spawnMatterDebris(...)`)
+  - `teabag-simulator.html:1440` (`updateMatterFX(dt)`)
+  - `teabag-simulator.html:1463` (`drawMatterFX()`)
+  - `teabag-simulator.html:3063` (run reset call to `clearMatterFX()`)
+  - `teabag-simulator.html:3709` (update hook `updateMatterFX(dt)`)
+  - `teabag-simulator.html:3935` (render hook `drawMatterFX()`)
+  - `teabag-simulator.html:4644` (boot-time `initMatterFX()` call)
 - VFX fallback behavior: if Matter.js fails to load, runtime continues with legacy particles only.
 - Offline cache path: `sw.js` now precaches `vendor/gsap.min.js` and bumped `CACHE_NAME` to `teabag-sim-v5`.
 - Bus-stop decorative readability pass:
   - Decorative bus-stop NPCs now render 10% smaller and lifted to the sidewalk boundary via `TUNING.world.busStopDecorScale` + `busStopDecorLiftY` (`teabag-simulator.html:472-473`).
-  - Passive color grading is applied through `blendHexColor(...)` (`teabag-simulator.html:1017`) inside `drawBusStopNPCs(...)` (`teabag-simulator.html:1743`), with palette knobs in `TUNING.world` (`teabag-simulator.html:474-476`).
-  - Layering pass: shelter base renders in `drawBusStopStructure(...)` (`teabag-simulator.html:1706`), NPCs draw next, and foreground glass overlays in `drawBusStopFrontGlass(...)` (`teabag-simulator.html:1726`) from `renderEntityLayer` (`teabag-simulator.html:3800-3810`).
+  - Passive color grading is applied through `blendHexColor(...)` (`teabag-simulator.html:1019`) inside `drawBusStopNPCs(...)` (`teabag-simulator.html:1750`), with palette knobs in `TUNING.world` (`teabag-simulator.html:474-476`).
+  - Layering pass: shelter base renders in `drawBusStopStructure(...)` (`teabag-simulator.html:1713`), NPCs draw next, and foreground glass overlays in `drawBusStopFrontGlass(...)` (`teabag-simulator.html:1733`) from `renderEntityLayer` (`teabag-simulator.html:3803`).
+- Matter debris readability retune:
+  - Debris initial launch velocity is now globally throttled to 5% via `matterVelocityScale` in `TUNING.vfx` (`teabag-simulator.html:528`).
+  - Velocity scaling is applied only at spawn in `spawnMatterDebris(...)` (`teabag-simulator.html:1382-1419`); dust/impact lifetime and size ranges remain at their base values (`teabag-simulator.html:1487-1492`, `1505-1510`).
+  - Physics floor collision uses `getMatterFloorCenterY(...)` so floor top tracks `GROUND_Y + matterFloorOffset` (`teabag-simulator.html:1306-1307`, `1361`, `1444`).
+  - Generated platform and bus-stop tops now register as static Matter colliders through `syncMatterSurfaceColliders(...)` called at the end of `generatePlatforms(...)` (`teabag-simulator.html:1310`, `1712-1747`).
 
 ## Recent Integration Notes (2026-02-21)
 
@@ -142,7 +149,7 @@ Central tuning object: `TUNING` at `teabag-simulator.html:372`
 | `spawn` | NPC pacing, panic/flee cadence, spawn margins, sprint-ahead pressure | `updateNPCFSM` (`3426`), `updateNPCSpawning` (`3487`), `updateBusStopAmbient` (`3509`) |
 | `world` | camera lead/follow + sprint lens controls (zoom + forward look-ahead + airborne sprint-jump tween-in) + handheld drift controls + bus-stop decorative NPC readability controls, campaign soft wall, bootstrap world warmup/spawn burst, generation margin | `setSprintCameraTightening` (`1556`), `startGame` (`2972`), `triggerPrestige` (`3018`), `updateWorldState` (`3562`) |
 | `uiTiming` | postFX intensity, chain HUD timing, combo label, KO/zone transition animation curves | `renderPostFX` (`3799`), `renderHUDLayer` (`3845`), zone transition setup (`3531`) |
-| `vfx` | Matter.js cosmetic debris controls (gravity/lifetime/limits/floor/spawn rates) | `initMatterFX` (`1277`), `spawnMatterDebris` (`1310`), `updateMatterFX` (`1362`), `drawMatterFX` (`1385`) |
+| `vfx` | Matter.js cosmetic debris controls (gravity/lifetime/limits/floor/surface colliders/spawn rates) | `syncMatterSurfaceColliders` (`1310`), `initMatterFX` (`1347`), `spawnMatterDebris` (`1382`), `updateMatterFX` (`1440`), `drawMatterFX` (`1463`) |
 
 ## Truth Surface Table (What To Edit For X)
 
@@ -218,7 +225,7 @@ Use these from repo root:
 
 - `rg -n "function createGameContext|const GAME_CTX|function endFrameInputReset|function loop\(" teabag-simulator.html`
 - `rg -n "const TUNING|movement: Object.freeze|combat: Object.freeze|spawn: Object.freeze|world: Object.freeze|uiTiming: Object.freeze|vfx: Object.freeze" teabag-simulator.html`
-- `rg -n "initMatterFX|clearMatterFX|spawnMatterDebris|updateMatterFX|drawMatterFX|matterEnabled" teabag-simulator.html`
+- `rg -n "getMatterFloorCenterY|syncMatterSurfaceColliders|initMatterFX|clearMatterFX|spawnMatterDebris|updateMatterFX|drawMatterFX|matterEnabled|matterSurface" teabag-simulator.html`
 - `rg -n "function startGame|function triggerPrestige|bootstrapGenerationMargin|generationMargin" teabag-simulator.html`
 - `rg -n "CITY_GAP_PROFILE|function sampleCityGap|function advanceCityCursor|function generateCity" teabag-simulator.html`
 - `rg -n "dog_walker|function drawGalleryCompanionDog|GALLERY_DOG_PREVIEW|function drawGallery" teabag-simulator.html`
@@ -242,6 +249,7 @@ Use these from repo root:
 - Bootstrap world warmup and spawn burst values are centralized in `TUNING.world` (`447-478`); keep bootstrap/reset (`2944`, `3001`) and streaming (`3531`) generation margins intentionally aligned for pacing.
 - Sprint camera tightening intentionally follows sprint carry logic: it stays engaged through sprint-jumps while direction/sprint input remains active, and drops back when direction is released (`wantsSprintLens` / `airSprintLens` at `teabag-simulator.html:3553-3556`).
 - Handheld drift is intentionally low amplitude and layered on top of screen shake at render-time translate (`teabag-simulator.html:4044`); keep amplitudes sub-pixel-scale in gameplay units to avoid nausea/fatigue.
+- Matter surface colliders intentionally mirror generated `platforms` entries (including bus stops) in a camera-windowed static-body set; keep sync attached to generation flow (`generatePlatforms`) to avoid stale collider drift.
 - FG and BG both use `advanceCityCursor(...)` (`1572`) for width-aware symmetric stride; keep left-anchor placement (`1678`, `1697`) as `b.x = cursor - b.w` so right/left parity is preserved.
 - `drawGalleryCompanionDog(...)` is gallery-only; it should not be called from `renderEntityLayer` or NPC update paths.
 - `party_girl` keeps `hasDress`/`shortDress` and the special bare-leg look through renderer options; keep flag plumbing aligned (`spawnNPC` -> `npcVisualOpts` -> renderer opts).

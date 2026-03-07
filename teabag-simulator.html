@@ -520,11 +520,16 @@ const TUNING = Object.freeze({
     matterGravity: 1.25,
     matterBodyLife: 0.85,
     matterMaxBodies: 80,
-    matterFloorOffset: 10,
+    matterFloorOffset: 0, // floor top aligns with GROUND_Y + offset
     matterFloorThickness: 24,
     matterFloorFriction: 0.82,
     matterFloorRestitution: 0.24,
+    matterSurfaceThickness: 10,
+    matterSurfaceFriction: 0.85,
+    matterSurfaceRestitution: 0.2,
+    matterSurfaceRangePad: 900,
     matterLinearDamping: 0.035,
+    matterVelocityScale: 0.05,
     matterSpawnChance: 0.55,
     matterWalkStepChance: 0.12,
   }),
@@ -1295,7 +1300,49 @@ const matterFX = {
   engine: null,
   floor: null,
   bodies: [],
+  surfaceBodies: new Map(),
 };
+
+function getMatterFloorCenterY(fx) {
+  return GROUND_Y + fx.matterFloorOffset + fx.matterFloorThickness * 0.5;
+}
+
+function syncMatterSurfaceColliders(leftBound, rightBound) {
+  if (!matterFX.enabled) return;
+  const fx = TUNING.vfx;
+  const { Bodies, Body, Composite } = Matter;
+  const minX = leftBound - fx.matterSurfaceRangePad;
+  const maxX = rightBound + fx.matterSurfaceRangePad;
+  const activePlatforms = new Set();
+  const world = matterFX.engine.world;
+  const surfaceThickness = fx.matterSurfaceThickness;
+
+  for (const plat of platforms) {
+    if (plat.x + plat.w < minX || plat.x > maxX) continue;
+    activePlatforms.add(plat);
+    const x = plat.x + plat.w * 0.5;
+    const y = plat.y + surfaceThickness * 0.5;
+    let body = matterFX.surfaceBodies.get(plat);
+    if (!body) {
+      body = Bodies.rectangle(x, y, Math.max(12, plat.w), surfaceThickness, {
+        isStatic: true,
+        friction: fx.matterSurfaceFriction,
+        restitution: fx.matterSurfaceRestitution,
+        label: plat.isBusStop ? 'fx-bus-stop-surface' : 'fx-platform-surface',
+      });
+      Composite.add(world, body);
+      matterFX.surfaceBodies.set(plat, body);
+    } else {
+      Body.setPosition(body, { x, y });
+    }
+  }
+
+  for (const [plat, body] of matterFX.surfaceBodies) {
+    if (activePlatforms.has(plat)) continue;
+    Composite.remove(world, body);
+    matterFX.surfaceBodies.delete(plat);
+  }
+}
 
 function initMatterFX() {
   const fx = TUNING.vfx;
@@ -1311,7 +1358,7 @@ function initMatterFX() {
   const engine = Engine.create();
   engine.gravity.x = 0;
   engine.gravity.y = fx.matterGravity;
-  const floor = Bodies.rectangle(cam.x + W / 2, GROUND_Y + fx.matterFloorOffset, W * 3, fx.matterFloorThickness, {
+  const floor = Bodies.rectangle(cam.x + W / 2, getMatterFloorCenterY(fx), W * 3, fx.matterFloorThickness, {
     isStatic: true,
     friction: fx.matterFloorFriction,
     restitution: fx.matterFloorRestitution,
@@ -1327,7 +1374,9 @@ function clearMatterFX() {
   if (!matterFX.enabled) return;
   const { Composite } = Matter;
   for (const entry of matterFX.bodies) Composite.remove(matterFX.engine.world, entry.body);
+  for (const body of matterFX.surfaceBodies.values()) Composite.remove(matterFX.engine.world, body);
   matterFX.bodies.length = 0;
+  matterFX.surfaceBodies.clear();
 }
 
 function spawnMatterDebris(x, y, count, color, opts) {
@@ -1336,8 +1385,11 @@ function spawnMatterDebris(x, y, count, color, opts) {
   const { Bodies, Body, Composite } = Matter;
   const cfg = opts || {};
   const spread = cfg.spread ?? 10;
-  const speedMin = cfg.speedMin ?? 30;
-  const speedMax = cfg.speedMax ?? 140;
+  const speedMin = cfg.speedMin ?? 18;
+  const speedMax = cfg.speedMax ?? 70;
+  const velScale = fx.matterVelocityScale ?? 1;
+  const scaledSpeedMin = Math.max(0.2, speedMin * velScale);
+  const scaledSpeedMax = Math.max(scaledSpeedMin + 0.1, speedMax * velScale);
   const sizeMin = cfg.sizeMin ?? 2;
   const sizeMax = cfg.sizeMax ?? 5;
   const spawnChance = cfg.spawnChance ?? fx.matterSpawnChance;
@@ -1360,8 +1412,11 @@ function spawnMatterDebris(x, y, count, color, opts) {
           frictionAir: fx.matterLinearDamping,
           friction: 0.02,
         });
-    Body.setVelocity(body, { x: rand(-speedMax, speedMax), y: rand(-speedMax, -speedMin) });
-    Body.setAngularVelocity(body, rand(-4, 4));
+    Body.setVelocity(body, {
+      x: rand(-scaledSpeedMax, scaledSpeedMax),
+      y: rand(-scaledSpeedMax, -scaledSpeedMin),
+    });
+    Body.setAngularVelocity(body, rand(-1.8, 1.8));
     Composite.add(matterFX.engine.world, body);
     matterFX.bodies.push({
       body,
@@ -1386,7 +1441,7 @@ function updateMatterFX(dt) {
   if (!matterFX.enabled) return;
   const fx = TUNING.vfx;
   const { Engine, Body, Composite } = Matter;
-  Body.setPosition(matterFX.floor, { x: cam.x + W / 2, y: GROUND_Y + fx.matterFloorOffset });
+  Body.setPosition(matterFX.floor, { x: cam.x + W / 2, y: getMatterFloorCenterY(fx) });
   Engine.update(matterFX.engine, dt * 1000);
   for (let i = matterFX.bodies.length - 1; i >= 0; i--) {
     const entry = matterFX.bodies[i];
@@ -1433,8 +1488,8 @@ function spawnDust(x, y, count, color) {
   }
   spawnMatterDebris(x, y, count, color || '#ccc', {
     spread: 8,
-    speedMin: 35,
-    speedMax: 110,
+    speedMin: 16,
+    speedMax: 50,
     sizeMin: 1.8,
     sizeMax: 4.8,
   });
@@ -1451,8 +1506,8 @@ function spawnImpact(x, y) {
   }
   spawnMatterDebris(x, y, 3, '#fff', {
     spread: 5,
-    speedMin: 45,
-    speedMax: 130,
+    speedMin: 20,
+    speedMax: 58,
     sizeMin: 1.6,
     sizeMax: 3.6,
   });
@@ -1689,6 +1744,7 @@ function generatePlatforms(leftBound, rightBound) {
     }
     platGenLeft -= randInt(150, 350);
   }
+  syncMatterSurfaceColliders(leftBound, rightBound);
 }
 
 function drawPlatform(plat) {

@@ -28,6 +28,8 @@
         <button id="sessionSaveBtn" type="button">Save</button>
         <button id="sessionSaveAsBtn" type="button">Save As</button>
         <button id="sessionLoadBtn" type="button">Load</button>
+        <button id="historyUndoBtn" type="button">Undo</button>
+        <button id="historyRedoBtn" type="button">Redo</button>
         <button id="resetPoseBtn" type="button">Reset Current Pose</button>
         <button id="resetAllBtn" type="button">Reset All Poses</button>
       </div>
@@ -160,6 +162,7 @@
           <div class="tool-grid" id="toolGrid">
             <button class="tool-btn is-active" data-tool="select" type="button">Select</button>
             <button class="tool-btn" data-tool="move" type="button">Move</button>
+            <button class="tool-btn" data-tool="rotate" type="button">Rotate</button>
             <button class="tool-btn" data-tool="rect" type="button">Rectangle</button>
             <button class="tool-btn" data-tool="ellipse" type="button">Ellipse</button>
             <button class="tool-btn" data-tool="line" type="button">Line</button>
@@ -171,7 +174,7 @@
             <button class="tool-btn" data-tool="hand" type="button">Hand</button>
           </div>
           <p class="hint">
-            Multi-select: Shift/Cmd/Ctrl click. Keep aspect: hold Shift while drawing/resizing rectangles or ellipses.
+            Multi-select: Shift/Cmd/Ctrl click. Keep aspect: hold Shift while drawing/resizing rectangles or ellipses. Rotate snap: hold Shift. Undo/redo: Cmd/Ctrl+Z, Shift+Cmd/Ctrl+Z, Ctrl+Y.
           </p>
         </section>
 

@@ -270,7 +270,10 @@ button {
   font-size: 0.78rem;
   line-height: 1;
   cursor: pointer;
-  transition: background 120ms ease, transform 120ms ease, border-color 120ms ease;
+  transition:
+    background 120ms ease,
+    transform 120ms ease,
+    border-color 120ms ease;
 }
 
 button:hover {

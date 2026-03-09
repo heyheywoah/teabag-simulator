@@ -125,6 +125,16 @@ Volume and mute controls in the pause menu. Persisted to localStorage.
 
 ## Dev Tools
 
+### Code Style
+
+Local formatter/linter setup for the standalone JS/CSS/HTML tooling files:
+
+- `npm install` - install local Prettier + ESLint
+- `npm run lint` - lint browser/runtime/tooling JavaScript
+- `npm run lint:fix` - apply safe ESLint autofixes where possible
+- `npm run format` - format the supported source/docs set with Prettier
+- `npm run format:check` - verify Prettier formatting without writing changes
+
 ### Game Lookup CLI (`scripts/lookup-schematics.js`, `scripts/lookup-source.js`, `scripts/lookup-sections.js`)
 
 Quick command-line lookup helpers for finding mechanics entry points before editing.

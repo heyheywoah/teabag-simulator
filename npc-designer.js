@@ -2,7 +2,20 @@
   "use strict";
 
   const POSE_IDS = ["normal", "panic", "ko"];
-  const TOOL_IDS = ["select", "move", "rotate", "rect", "ellipse", "line", "curve", "polygon", "color", "gradient", "eyedropper", "hand"];
+  const TOOL_IDS = [
+    "select",
+    "move",
+    "rotate",
+    "rect",
+    "ellipse",
+    "line",
+    "curve",
+    "polygon",
+    "color",
+    "gradient",
+    "eyedropper",
+    "hand"
+  ];
 
   const DESIGN_CANVAS_WIDTH = 960;
   const DESIGN_CANVAS_HEIGHT = 540;
@@ -294,10 +307,16 @@
       ko: document.getElementById("previewKo")
     };
     ui.livePreviewPanicArmSpreadInput = document.getElementById("livePreviewPanicArmSpreadInput");
-    ui.livePreviewPanicArmSpreadResetBtn = document.getElementById("livePreviewPanicArmSpreadResetBtn");
+    ui.livePreviewPanicArmSpreadResetBtn = document.getElementById(
+      "livePreviewPanicArmSpreadResetBtn"
+    );
     ui.livePreviewPanicArmSpreadValue = document.getElementById("livePreviewPanicArmSpreadValue");
-    ui.livePreviewPanicShoulderOffsetInput = document.getElementById("livePreviewPanicShoulderOffsetInput");
-    ui.livePreviewPanicShoulderOffsetValue = document.getElementById("livePreviewPanicShoulderOffsetValue");
+    ui.livePreviewPanicShoulderOffsetInput = document.getElementById(
+      "livePreviewPanicShoulderOffsetInput"
+    );
+    ui.livePreviewPanicShoulderOffsetValue = document.getElementById(
+      "livePreviewPanicShoulderOffsetValue"
+    );
     ui.selectionInfo = document.getElementById("selectionInfo");
     ui.strictVisualRulesToggle = document.getElementById("strictVisualRulesToggle");
     ui.autoFixVisualToggle = document.getElementById("autoFixVisualToggle");
@@ -324,7 +343,9 @@
   }
 
   function initSidebarAccordions() {
-    const blocks = Array.from(document.querySelectorAll(".panel-left .panel-block, .panel-right .panel-block"));
+    const blocks = Array.from(
+      document.querySelectorAll(".panel-left .panel-block, .panel-right .panel-block")
+    );
     blocks.forEach((block, index) => {
       if (!block || block.dataset.accordionReady === "1") return;
       const heading = block.querySelector("h2");
@@ -376,9 +397,10 @@
       state.constraintReference = [];
     }
 
-    const runtimeBaseDefs = CONSTRAINTS && typeof CONSTRAINTS.getRuntimeBaseDefs === "function"
-      ? CONSTRAINTS.getRuntimeBaseDefs()
-      : [];
+    const runtimeBaseDefs =
+      CONSTRAINTS && typeof CONSTRAINTS.getRuntimeBaseDefs === "function"
+        ? CONSTRAINTS.getRuntimeBaseDefs()
+        : [];
     state.runtimeCharDefs = Object.create(null);
     runtimeBaseDefs.forEach((def) => {
       if (!def || !def.name) return;
@@ -416,9 +438,10 @@
       ui.runtimeBaseTypeSelect.append(opt);
     }
 
-    const hairStyles = CONSTRAINTS && Array.isArray(CONSTRAINTS.HAIR_STYLE_OPTIONS)
-      ? CONSTRAINTS.HAIR_STYLE_OPTIONS
-      : ["short", "long", "ponytail", "mohawk", "bun", "spiky", "fade", "buzz"];
+    const hairStyles =
+      CONSTRAINTS && Array.isArray(CONSTRAINTS.HAIR_STYLE_OPTIONS)
+        ? CONSTRAINTS.HAIR_STYLE_OPTIONS
+        : ["short", "long", "ponytail", "mohawk", "bun", "spiky", "fade", "buzz"];
     ui.runtimeHairStyleSelect.replaceChildren();
     hairStyles.forEach((styleName) => {
       const opt = document.createElement("option");
@@ -471,9 +494,11 @@
       requestRender();
     });
 
-    [ui.runtimeFeminineBodyToggle, ui.runtimeHasDressToggle, ui.runtimeShortDressToggle].forEach((toggle) => {
-      toggle.addEventListener("change", onRuntimeProfileToggleInput);
-    });
+    [ui.runtimeFeminineBodyToggle, ui.runtimeHasDressToggle, ui.runtimeShortDressToggle].forEach(
+      (toggle) => {
+        toggle.addEventListener("change", onRuntimeProfileToggleInput);
+      }
+    );
   }
 
   function bindReadinessPanelEvents() {
@@ -577,7 +602,10 @@
     if (ui.livePreviewPanicShoulderOffsetInput) {
       ui.livePreviewPanicShoulderOffsetInput.addEventListener("input", () => {
         state.livePreview.panicShoulderOffsetY = clamp(
-          num(ui.livePreviewPanicShoulderOffsetInput.value, LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT),
+          num(
+            ui.livePreviewPanicShoulderOffsetInput.value,
+            LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_DEFAULT
+          ),
           LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MIN,
           LIVE_PREVIEW_PANIC_SHOULDER_OFFSET_MAX
         );
@@ -589,10 +617,26 @@
 
   function bindFaceControlsEvents() {
     const onDraftInput = () => {
-      state.faceDraft.eyeSize = clamp(num(ui.faceEyeSizeInput.value, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
-      state.faceDraft.eyeSpacing = clamp(num(ui.faceEyeSpacingInput.value, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6);
-      state.faceDraft.browTilt = clamp(num(ui.faceBrowTiltInput.value, FACE_DRAFT_DEFAULT.browTilt), -1, 1);
-      state.faceDraft.mouthCurve = clamp(num(ui.faceMouthCurveInput.value, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1);
+      state.faceDraft.eyeSize = clamp(
+        num(ui.faceEyeSizeInput.value, FACE_DRAFT_DEFAULT.eyeSize),
+        0.6,
+        1.8
+      );
+      state.faceDraft.eyeSpacing = clamp(
+        num(ui.faceEyeSpacingInput.value, FACE_DRAFT_DEFAULT.eyeSpacing),
+        0.7,
+        1.6
+      );
+      state.faceDraft.browTilt = clamp(
+        num(ui.faceBrowTiltInput.value, FACE_DRAFT_DEFAULT.browTilt),
+        -1,
+        1
+      );
+      state.faceDraft.mouthCurve = clamp(
+        num(ui.faceMouthCurveInput.value, FACE_DRAFT_DEFAULT.mouthCurve),
+        -1,
+        1
+      );
       updateFaceDraftLabels();
       const applied = applyManagedFaceToPose(state.activePose);
       if (applied) {
@@ -683,7 +727,9 @@
       const prevTemplate = state.document.meta.baseTemplate || "male_base";
       if (nextTemplate === prevTemplate) return;
 
-      const shouldApply = window.confirm(`Switch base template to ${nextTemplate} and reset all poses?`);
+      const shouldApply = window.confirm(
+        `Switch base template to ${nextTemplate} and reset all poses?`
+      );
       if (!shouldApply) {
         ui.templateSelect.value = prevTemplate;
         return;
@@ -747,7 +793,9 @@
     });
 
     ui.zoomRange.addEventListener("input", () => {
-      setZoom(parseFloat(ui.zoomRange.value), { anchorCanvas: { x: DESIGN_CANVAS_WIDTH / 2, y: DESIGN_CANVAS_HEIGHT / 2 } });
+      setZoom(parseFloat(ui.zoomRange.value), {
+        anchorCanvas: { x: DESIGN_CANVAS_WIDTH / 2, y: DESIGN_CANVAS_HEIGHT / 2 }
+      });
     });
 
     ui.zoomInBtn.addEventListener("click", () => adjustZoom(1.15));
@@ -805,11 +853,19 @@
       ui.opacityValue.textContent = state.styleDraft.opacity.toFixed(2);
     });
 
-    ui.fillColorInput.addEventListener("input", () => { state.styleDraft.fill = ui.fillColorInput.value; });
-    ui.strokeColorInput.addEventListener("input", () => { state.styleDraft.stroke = ui.strokeColorInput.value; });
+    ui.fillColorInput.addEventListener("input", () => {
+      state.styleDraft.fill = ui.fillColorInput.value;
+    });
+    ui.strokeColorInput.addEventListener("input", () => {
+      state.styleDraft.stroke = ui.strokeColorInput.value;
+    });
 
-    ui.gradStartInput.addEventListener("input", () => { state.styleDraft.gradientStart = ui.gradStartInput.value; });
-    ui.gradEndInput.addEventListener("input", () => { state.styleDraft.gradientEnd = ui.gradEndInput.value; });
+    ui.gradStartInput.addEventListener("input", () => {
+      state.styleDraft.gradientStart = ui.gradStartInput.value;
+    });
+    ui.gradEndInput.addEventListener("input", () => {
+      state.styleDraft.gradientEnd = ui.gradEndInput.value;
+    });
     ui.gradAngleInput.addEventListener("input", () => {
       state.styleDraft.gradientAngle = parseFloat(ui.gradAngleInput.value);
       ui.gradAngleValue.textContent = `${Math.round(state.styleDraft.gradientAngle)}°`;
@@ -977,7 +1033,7 @@
   }
 
   function normalizeStyleDraft(styleDraft) {
-    const raw = (styleDraft && typeof styleDraft === "object") ? styleDraft : {};
+    const raw = styleDraft && typeof styleDraft === "object" ? styleDraft : {};
     return {
       fill: isColor(raw.fill) ? raw.fill : "#3b82f6",
       stroke: isColor(raw.stroke) ? raw.stroke : "#0f172a",
@@ -990,7 +1046,7 @@
   }
 
   function normalizeFaceDraft(faceDraft) {
-    const raw = (faceDraft && typeof faceDraft === "object") ? faceDraft : {};
+    const raw = faceDraft && typeof faceDraft === "object" ? faceDraft : {};
     return {
       eyeSize: clamp(num(raw.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8),
       eyeSpacing: clamp(num(raw.eyeSpacing, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6),
@@ -1000,7 +1056,7 @@
   }
 
   function normalizeRuntimePreviewState(runtimePreview) {
-    const raw = (runtimePreview && typeof runtimePreview === "object") ? runtimePreview : {};
+    const raw = runtimePreview && typeof runtimePreview === "object" ? runtimePreview : {};
     return {
       pose: POSE_IDS.includes(raw.pose) ? raw.pose : "normal",
       facing: raw.facing === -1 ? -1 : 1,
@@ -1066,17 +1122,24 @@
       if (!entry || typeof entry !== "object") return;
       const option = document.createElement("option");
       option.value = slotId;
-      const savedAt = typeof entry.savedAt === "string" && entry.savedAt ? ` · ${entry.savedAt.slice(0, 19).replace("T", " ")}` : "";
+      const savedAt =
+        typeof entry.savedAt === "string" && entry.savedAt
+          ? ` · ${entry.savedAt.slice(0, 19).replace("T", " ")}`
+          : "";
       option.textContent = `${entry.label || slotId}${savedAt}`;
       select.append(option);
     });
 
-    const hasSelected = !!(state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]);
+    const hasSelected = !!(
+      state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]
+    );
     select.value = hasSelected ? state.selectedSnapshotId : "";
   }
 
   function updateSessionControlsState() {
-    const hasSelected = !!(state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]);
+    const hasSelected = !!(
+      state.selectedSnapshotId && state.snapshotSlots[state.selectedSnapshotId]
+    );
     if (ui.sessionSnapshotSelect) {
       ui.sessionSnapshotSelect.value = hasSelected ? state.selectedSnapshotId : "";
     }
@@ -1256,11 +1319,15 @@
       selectedIds.forEach((id) => {
         if (findLayerById(id, state.activePose)) state.selectedIds.add(id);
       });
-      state.layerListAnchorId = (
+      state.layerListAnchorId =
         typeof snapshot.layerListAnchorId === "string" &&
         state.selectedIds.has(snapshot.layerListAnchorId)
-      ) ? snapshot.layerListAnchorId : (selectedIds[selectedIds.length - 1] || null);
-      const nextCounter = Math.max(1, num(snapshot.layerIdCounter, inferNextLayerCounter(state.document)));
+          ? snapshot.layerListAnchorId
+          : selectedIds[selectedIds.length - 1] || null;
+      const nextCounter = Math.max(
+        1,
+        num(snapshot.layerIdCounter, inferNextLayerCounter(state.document))
+      );
       state.layerIdCounter = Math.max(nextCounter, inferNextLayerCounter(state.document));
       state.skipAutoFixOnce = true;
       syncControlsFromDocument();
@@ -1331,9 +1398,8 @@
       return false;
     }
     if (!payload || typeof payload !== "object") return false;
-    const snapshot = payload.snapshot && typeof payload.snapshot === "object"
-      ? payload.snapshot
-      : null;
+    const snapshot =
+      payload.snapshot && typeof payload.snapshot === "object" ? payload.snapshot : null;
     if (!snapshot) return false;
 
     const restored = applyWorkspaceSnapshot(snapshot, {
@@ -1355,7 +1421,9 @@
 
   function confirmDiscardUnsavedChanges(actionLabel) {
     if (!state.hasUnsavedChanges) return true;
-    return window.confirm(`You have unsaved session changes. Continue to ${actionLabel} and discard those changes?`);
+    return window.confirm(
+      `You have unsaved session changes. Continue to ${actionLabel} and discard those changes?`
+    );
   }
 
   function saveSnapshotToSlot(slotId, label) {
@@ -1385,10 +1453,11 @@
 
   function handleSessionSaveAsClick() {
     ensureDocument();
-    const defaultName = state.snapshotSlots[state.selectedSnapshotId]?.label
-      || state.document.meta.label
-      || state.document.meta.id
-      || "session";
+    const defaultName =
+      state.snapshotSlots[state.selectedSnapshotId]?.label ||
+      state.document.meta.label ||
+      state.document.meta.id ||
+      "session";
     const input = window.prompt("Save session as", defaultName);
     if (input === null) return;
     const label = input.trim();
@@ -1399,7 +1468,9 @@
     let slotId = safeName(label);
     if (!slotId) slotId = `session_${Date.now()}`;
     if (state.snapshotSlots[slotId]) {
-      const ok = window.confirm(`Overwrite existing session "${state.snapshotSlots[slotId].label}"?`);
+      const ok = window.confirm(
+        `Overwrite existing session "${state.snapshotSlots[slotId].label}"?`
+      );
       if (!ok) return;
     }
     saveSnapshotToSlot(slotId, label);
@@ -1552,7 +1623,7 @@
       return CONSTRAINTS.normalizeRuntimeProfile(profile, baseTemplate);
     }
     const fallback = createDefaultRuntimeProfile(baseTemplate);
-    const raw = (profile && typeof profile === "object") ? profile : {};
+    const raw = profile && typeof profile === "object" ? profile : {};
     return {
       baseType: typeof raw.baseType === "string" ? raw.baseType : fallback.baseType,
       npcType: typeof raw.npcType === "string" ? raw.npcType.trim() : fallback.npcType,
@@ -1591,7 +1662,10 @@
     if (CONSTRAINTS && typeof CONSTRAINTS.getRuntimeBaseDefs === "function") {
       const selected = CONSTRAINTS.getRuntimeBaseDefs().find((def) => def.name === baseType);
       if (selected) {
-        const normalizedPreset = normalizeRuntimeProfile({ ...selected, baseType: selected.name }, baseTemplate);
+        const normalizedPreset = normalizeRuntimeProfile(
+          { ...selected, baseType: selected.name },
+          baseTemplate
+        );
         state.document.runtimeProfile = {
           ...normalizedPreset,
           npcType: `${selected.name}_custom`
@@ -1750,21 +1824,22 @@
   }
 
   function buildTemplatePoseLayers(templateId, poseId) {
-    const palette = templateId === "female_base"
-      ? {
-          skin: "#f8c9a6",
-          hair: "#5b2d16",
-          clothMain: "#ef4444",
-          clothAlt: "#7c3aed",
-          shoe: "#111827"
-        }
-      : {
-          skin: "#e9b289",
-          hair: "#2f1f14",
-          clothMain: "#2563eb",
-          clothAlt: "#0f766e",
-          shoe: "#111827"
-        };
+    const palette =
+      templateId === "female_base"
+        ? {
+            skin: "#f8c9a6",
+            hair: "#5b2d16",
+            clothMain: "#ef4444",
+            clothAlt: "#7c3aed",
+            shoe: "#111827"
+          }
+        : {
+            skin: "#e9b289",
+            hair: "#2f1f14",
+            clothMain: "#2563eb",
+            clothAlt: "#0f766e",
+            shoe: "#111827"
+          };
 
     if (poseId === "ko") {
       return buildKoPoseLayers(templateId, palette);
@@ -1778,7 +1853,7 @@
     const bodyW = (isFemale ? 22 : 24) * scale;
     const bodyH = 46 * scale;
     const headW = bodyW * 0.62;
-    const headH = bodyH * 0.30;
+    const headH = bodyH * 0.3;
     const torsoW = bodyW * (isFemale ? 0.8 : 0.86);
     const torsoH = bodyH * 0.44;
 
@@ -1794,29 +1869,46 @@
 
     const layers = [];
 
-    layers.push(createEllipseLayer("Head", cx - headW / 2, baseline - bodyH - headH * 0.14, headW, headH, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 2
-    }));
+    layers.push(
+      createEllipseLayer("Head", cx - headW / 2, baseline - bodyH - headH * 0.14, headW, headH, {
+        fill: palette.skin,
+        stroke: "#0f172a",
+        strokeWidth: 2
+      })
+    );
 
     if (isFemale) {
-      layers.push(createPolygonLayer("Hair", [
-        { x: cx - headW * 0.56, y: baseline - bodyH - headH * 0.1 },
-        { x: cx + headW * 0.56, y: baseline - bodyH - headH * 0.1 },
-        { x: cx + headW * 0.48, y: baseline - bodyH + headH * 0.4 },
-        { x: cx - headW * 0.48, y: baseline - bodyH + headH * 0.4 }
-      ], {
-        fill: palette.hair,
-        stroke: "#1f2937",
-        strokeWidth: 2
-      }));
+      layers.push(
+        createPolygonLayer(
+          "Hair",
+          [
+            { x: cx - headW * 0.56, y: baseline - bodyH - headH * 0.1 },
+            { x: cx + headW * 0.56, y: baseline - bodyH - headH * 0.1 },
+            { x: cx + headW * 0.48, y: baseline - bodyH + headH * 0.4 },
+            { x: cx - headW * 0.48, y: baseline - bodyH + headH * 0.4 }
+          ],
+          {
+            fill: palette.hair,
+            stroke: "#1f2937",
+            strokeWidth: 2
+          }
+        )
+      );
     } else {
-      layers.push(createRectLayer("Hair", cx - headW * 0.5, baseline - bodyH - headH * 0.2, headW, headH * 0.25, {
-        fill: palette.hair,
-        stroke: "#111827",
-        strokeWidth: 1.5
-      }));
+      layers.push(
+        createRectLayer(
+          "Hair",
+          cx - headW * 0.5,
+          baseline - bodyH - headH * 0.2,
+          headW,
+          headH * 0.25,
+          {
+            fill: palette.hair,
+            stroke: "#111827",
+            strokeWidth: 1.5
+          }
+        )
+      );
     }
 
     const headBounds = {
@@ -1825,49 +1917,69 @@
       w: headW,
       h: headH
     };
-    const faceBlueprints = buildManagedFaceLayerBlueprints(poseId, headBounds, {
-      eyeColor: "#1A1A2E",
-      hairColor: palette.hair
-    }, FACE_DRAFT_DEFAULT);
+    const faceBlueprints = buildManagedFaceLayerBlueprints(
+      poseId,
+      headBounds,
+      {
+        eyeColor: "#1A1A2E",
+        hairColor: palette.hair
+      },
+      FACE_DRAFT_DEFAULT
+    );
     faceBlueprints.forEach((bp) => {
       layers.push(createManagedFaceLayer(bp));
     });
 
-    layers.push(createRectLayer("Torso", cx - torsoW / 2, baseline - bodyH * 0.68, torsoW, torsoH, {
-      fill: palette.clothMain,
-      stroke: "#0f172a",
-      strokeWidth: 2,
-      fillMode: "gradient",
-      gradient: {
-        type: "linear",
-        angle: 95,
-        stops: [
-          { offset: 0, color: palette.clothMain },
-          { offset: 1, color: palette.clothAlt }
-        ]
-      }
-    }));
-
-    if (isFemale) {
-      layers.push(createEllipseLayer("Chest", cx - torsoW * 0.18, baseline - bodyH * 0.59, torsoW * 0.36, torsoH * 0.24, {
+    layers.push(
+      createRectLayer("Torso", cx - torsoW / 2, baseline - bodyH * 0.68, torsoW, torsoH, {
         fill: palette.clothMain,
         stroke: "#0f172a",
-        strokeWidth: 1.2,
-        opacity: 0.8
-      }));
+        strokeWidth: 2,
+        fillMode: "gradient",
+        gradient: {
+          type: "linear",
+          angle: 95,
+          stops: [
+            { offset: 0, color: palette.clothMain },
+            { offset: 1, color: palette.clothAlt }
+          ]
+        }
+      })
+    );
+
+    if (isFemale) {
+      layers.push(
+        createEllipseLayer(
+          "Chest",
+          cx - torsoW * 0.18,
+          baseline - bodyH * 0.59,
+          torsoW * 0.36,
+          torsoH * 0.24,
+          {
+            fill: palette.clothMain,
+            stroke: "#0f172a",
+            strokeWidth: 1.2,
+            opacity: 0.8
+          }
+        )
+      );
     }
 
-    layers.push(createLineLayer("Left Arm", cx - torsoW * 0.5, shoulderY, cx - armSpread, handY, {
-      fill: "#000000",
-      stroke: palette.skin,
-      strokeWidth: 9
-    }));
+    layers.push(
+      createLineLayer("Left Arm", cx - torsoW * 0.5, shoulderY, cx - armSpread, handY, {
+        fill: "#000000",
+        stroke: palette.skin,
+        strokeWidth: 9
+      })
+    );
 
-    layers.push(createLineLayer("Right Arm", cx + torsoW * 0.5, shoulderY, cx + armSpread, handY, {
-      fill: "#000000",
-      stroke: palette.skin,
-      strokeWidth: 9
-    }));
+    layers.push(
+      createLineLayer("Right Arm", cx + torsoW * 0.5, shoulderY, cx + armSpread, handY, {
+        fill: "#000000",
+        stroke: palette.skin,
+        strokeWidth: 9
+      })
+    );
 
     const hipY = baseline - bodyH * 0.24;
     const legTop = hipY;
@@ -1875,30 +1987,38 @@
     const legW = bodyW * 0.28;
     const legStance = poseId === "panic" ? bodyW * 0.26 : bodyW * 0.22;
 
-    layers.push(createRectLayer("Left Leg", cx - legStance - legW * 0.9, legTop, legW, legH, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 1.4
-    }));
+    layers.push(
+      createRectLayer("Left Leg", cx - legStance - legW * 0.9, legTop, legW, legH, {
+        fill: palette.skin,
+        stroke: "#0f172a",
+        strokeWidth: 1.4
+      })
+    );
 
-    layers.push(createRectLayer("Right Leg", cx + legStance - legW * 0.1, legTop, legW, legH, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 1.4
-    }));
+    layers.push(
+      createRectLayer("Right Leg", cx + legStance - legW * 0.1, legTop, legW, legH, {
+        fill: palette.skin,
+        stroke: "#0f172a",
+        strokeWidth: 1.4
+      })
+    );
 
     const shoeW = legW * 1.22;
     const shoeH = bodyH * 0.07;
-    layers.push(createRectLayer("Left Shoe", cx - legStance - legW, baseline - shoeH, shoeW, shoeH, {
-      fill: palette.shoe,
-      stroke: "#0f172a",
-      strokeWidth: 1
-    }));
-    layers.push(createRectLayer("Right Shoe", cx + legStance - legW * 0.2, baseline - shoeH, shoeW, shoeH, {
-      fill: palette.shoe,
-      stroke: "#0f172a",
-      strokeWidth: 1
-    }));
+    layers.push(
+      createRectLayer("Left Shoe", cx - legStance - legW, baseline - shoeH, shoeW, shoeH, {
+        fill: palette.shoe,
+        stroke: "#0f172a",
+        strokeWidth: 1
+      })
+    );
+    layers.push(
+      createRectLayer("Right Shoe", cx + legStance - legW * 0.2, baseline - shoeH, shoeW, shoeH, {
+        fill: palette.shoe,
+        stroke: "#0f172a",
+        strokeWidth: 1
+      })
+    );
 
     return layers;
   }
@@ -1918,32 +2038,52 @@
 
     const layers = [];
 
-    layers.push(createRectLayer("Torso", torsoL, torsoY, torsoW, torsoH, {
-      fill: palette.clothMain,
-      stroke: "#0f172a",
-      strokeWidth: 2,
-      fillMode: "gradient",
-      gradient: {
-        type: "linear",
-        angle: 20,
-        stops: [
-          { offset: 0, color: palette.clothMain },
-          { offset: 1, color: palette.clothAlt }
-        ]
-      }
-    }));
+    layers.push(
+      createRectLayer("Torso", torsoL, torsoY, torsoW, torsoH, {
+        fill: palette.clothMain,
+        stroke: "#0f172a",
+        strokeWidth: 2,
+        fillMode: "gradient",
+        gradient: {
+          type: "linear",
+          angle: 20,
+          stops: [
+            { offset: 0, color: palette.clothMain },
+            { offset: 1, color: palette.clothAlt }
+          ]
+        }
+      })
+    );
 
-    layers.push(createEllipseLayer("Head", torsoL + torsoW + bodyW * 0.05, baseline - bodyW * 0.58, bodyW * 0.64, bodyW * 0.64, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 2
-    }));
+    layers.push(
+      createEllipseLayer(
+        "Head",
+        torsoL + torsoW + bodyW * 0.05,
+        baseline - bodyW * 0.58,
+        bodyW * 0.64,
+        bodyW * 0.64,
+        {
+          fill: palette.skin,
+          stroke: "#0f172a",
+          strokeWidth: 2
+        }
+      )
+    );
 
-    layers.push(createRectLayer("Hair", torsoL + torsoW + bodyW * 0.08, baseline - bodyW * 0.6, bodyW * 0.45, bodyW * 0.18, {
-      fill: palette.hair,
-      stroke: "#111827",
-      strokeWidth: 1
-    }));
+    layers.push(
+      createRectLayer(
+        "Hair",
+        torsoL + torsoW + bodyW * 0.08,
+        baseline - bodyW * 0.6,
+        bodyW * 0.45,
+        bodyW * 0.18,
+        {
+          fill: palette.hair,
+          stroke: "#111827",
+          strokeWidth: 1
+        }
+      )
+    );
 
     const headBounds = {
       x: torsoL + torsoW + bodyW * 0.05,
@@ -1951,49 +2091,108 @@
       w: bodyW * 0.64,
       h: bodyW * 0.64
     };
-    const faceBlueprints = buildManagedFaceLayerBlueprints("ko", headBounds, {
-      eyeColor: "#1A1A2E",
-      hairColor: palette.hair
-    }, FACE_DRAFT_DEFAULT);
+    const faceBlueprints = buildManagedFaceLayerBlueprints(
+      "ko",
+      headBounds,
+      {
+        eyeColor: "#1A1A2E",
+        hairColor: palette.hair
+      },
+      FACE_DRAFT_DEFAULT
+    );
     faceBlueprints.forEach((bp) => {
       layers.push(createManagedFaceLayer(bp));
     });
 
-    layers.push(createLineLayer("Left Arm", torsoL + torsoW * 0.2, torsoY + torsoH * 0.18, torsoL - bodyW * 0.2, torsoY + torsoH * 0.1, {
-      fill: "#000000",
-      stroke: palette.skin,
-      strokeWidth: 8
-    }));
+    layers.push(
+      createLineLayer(
+        "Left Arm",
+        torsoL + torsoW * 0.2,
+        torsoY + torsoH * 0.18,
+        torsoL - bodyW * 0.2,
+        torsoY + torsoH * 0.1,
+        {
+          fill: "#000000",
+          stroke: palette.skin,
+          strokeWidth: 8
+        }
+      )
+    );
 
-    layers.push(createLineLayer("Right Arm", torsoL + torsoW * 0.78, torsoY + torsoH * 0.82, torsoL + torsoW + bodyW * 0.2, torsoY + torsoH * 0.95, {
-      fill: "#000000",
-      stroke: palette.skin,
-      strokeWidth: 8
-    }));
+    layers.push(
+      createLineLayer(
+        "Right Arm",
+        torsoL + torsoW * 0.78,
+        torsoY + torsoH * 0.82,
+        torsoL + torsoW + bodyW * 0.2,
+        torsoY + torsoH * 0.95,
+        {
+          fill: "#000000",
+          stroke: palette.skin,
+          strokeWidth: 8
+        }
+      )
+    );
 
-    layers.push(createRectLayer("Left Leg", torsoL - bodyW * 0.1, torsoY + torsoH * 0.14, bodyW * 0.38, bodyW * 0.3, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 1.3
-    }));
+    layers.push(
+      createRectLayer(
+        "Left Leg",
+        torsoL - bodyW * 0.1,
+        torsoY + torsoH * 0.14,
+        bodyW * 0.38,
+        bodyW * 0.3,
+        {
+          fill: palette.skin,
+          stroke: "#0f172a",
+          strokeWidth: 1.3
+        }
+      )
+    );
 
-    layers.push(createRectLayer("Right Leg", torsoL - bodyW * 0.1, torsoY + torsoH * 0.56, bodyW * 0.42, bodyW * 0.3, {
-      fill: palette.skin,
-      stroke: "#0f172a",
-      strokeWidth: 1.3
-    }));
+    layers.push(
+      createRectLayer(
+        "Right Leg",
+        torsoL - bodyW * 0.1,
+        torsoY + torsoH * 0.56,
+        bodyW * 0.42,
+        bodyW * 0.3,
+        {
+          fill: palette.skin,
+          stroke: "#0f172a",
+          strokeWidth: 1.3
+        }
+      )
+    );
 
-    layers.push(createRectLayer("Left Shoe", torsoL - bodyW * 0.1, torsoY + torsoH * 0.1, bodyW * 0.35, bodyW * 0.12, {
-      fill: palette.shoe,
-      stroke: "#111827",
-      strokeWidth: 1
-    }));
+    layers.push(
+      createRectLayer(
+        "Left Shoe",
+        torsoL - bodyW * 0.1,
+        torsoY + torsoH * 0.1,
+        bodyW * 0.35,
+        bodyW * 0.12,
+        {
+          fill: palette.shoe,
+          stroke: "#111827",
+          strokeWidth: 1
+        }
+      )
+    );
 
-    layers.push(createRectLayer("Right Shoe", torsoL - bodyW * 0.12, torsoY + torsoH * 0.84, bodyW * 0.35, bodyW * 0.12, {
-      fill: palette.shoe,
-      stroke: "#111827",
-      strokeWidth: 1
-    }));
+    layers.push(
+      createRectLayer(
+        "Right Shoe",
+        torsoL - bodyW * 0.12,
+        torsoY + torsoH * 0.84,
+        bodyW * 0.35,
+        bodyW * 0.12,
+        {
+          fill: palette.shoe,
+          stroke: "#111827",
+          strokeWidth: 1
+        }
+      )
+    );
 
     return layers;
   }
@@ -2036,9 +2235,10 @@
     cleaned.splice(headAfterBack + 1, 0, ...preset.mid);
 
     const eyeIdx = findLastEyeLayerIndex(cleaned);
-    const frontInsertIdx = eyeIdx !== -1
-      ? eyeIdx + 1
-      : cleaned.findIndex((layer) => layer.id === headLayer.id) + 1 + preset.mid.length;
+    const frontInsertIdx =
+      eyeIdx !== -1
+        ? eyeIdx + 1
+        : cleaned.findIndex((layer) => layer.id === headLayer.id) + 1 + preset.mid.length;
     cleaned.splice(frontInsertIdx, 0, ...preset.front);
 
     state.document.poses[poseId].layers = cleaned;
@@ -2073,75 +2273,107 @@
     };
 
     const back = [
-      createPolygonLayer("Sundress Hair Back Curtain", [
-        { x: cx - headBounds.w * p.backWidth, y: hairTop + headBounds.h * 0.16 },
-        { x: cx - headBounds.w * 0.52, y: hairTop - headBounds.h * 0.68 },
-        { x: cx + headBounds.w * 0.52, y: hairTop - headBounds.h * 0.68 },
-        { x: cx + headBounds.w * p.backWidth, y: hairTop + headBounds.h * 0.16 },
-        { x: cx + headBounds.w * 1.22, y: shoulderY + headBounds.h * 0.62 },
-        { x: cx + headBounds.w * 0.9, y: hairBottom },
-        { x: cx + headBounds.w * 0.38, y: hairBottom + headBounds.h * 0.22 },
-        { x: cx - headBounds.w * 0.38, y: hairBottom + headBounds.h * 0.22 },
-        { x: cx - headBounds.w * 0.9, y: hairBottom },
-        { x: cx - headBounds.w * 1.22, y: shoulderY + headBounds.h * 0.62 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Left Outer Lock", [
-        { x: cx - headBounds.w * p.sideOutset, y: hairTop + headBounds.h * 0.24 },
-        { x: cx - headBounds.w * 1.3, y: shoulderY - headBounds.h * 0.2 },
-        { x: cx - headBounds.w * 1.12, y: hairBottom + headBounds.h * 0.1 },
-        { x: cx - headBounds.w * 0.76, y: hairBottom + headBounds.h * 0.26 },
-        { x: cx - headBounds.w * 0.52, y: shoulderY + headBounds.h * 0.64 },
-        { x: cx - headBounds.w * 0.72, y: topY + headBounds.h * 0.2 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Right Outer Lock", [
-        { x: cx + headBounds.w * p.sideOutset, y: hairTop + headBounds.h * 0.24 },
-        { x: cx + headBounds.w * 1.3, y: shoulderY - headBounds.h * 0.2 },
-        { x: cx + headBounds.w * 1.12, y: hairBottom + headBounds.h * 0.1 },
-        { x: cx + headBounds.w * 0.76, y: hairBottom + headBounds.h * 0.26 },
-        { x: cx + headBounds.w * 0.52, y: shoulderY + headBounds.h * 0.64 },
-        { x: cx + headBounds.w * 0.72, y: topY + headBounds.h * 0.2 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Left Inner Fill", [
-        { x: cx - headBounds.w * 0.58, y: topY + headBounds.h * 0.42 },
-        { x: cx - headBounds.w * 0.9, y: shoulderY + headBounds.h * 0.08 },
-        { x: cx - headBounds.w * 0.72, y: hairBottom - headBounds.h * 0.06 },
-        { x: cx - headBounds.w * 0.34, y: hairBottom + headBounds.h * 0.08 },
-        { x: cx - headBounds.w * 0.24, y: shoulderY + headBounds.h * 0.6 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Right Inner Fill", [
-        { x: cx + headBounds.w * 0.58, y: topY + headBounds.h * 0.42 },
-        { x: cx + headBounds.w * 0.9, y: shoulderY + headBounds.h * 0.08 },
-        { x: cx + headBounds.w * 0.72, y: hairBottom - headBounds.h * 0.06 },
-        { x: cx + headBounds.w * 0.34, y: hairBottom + headBounds.h * 0.08 },
-        { x: cx + headBounds.w * 0.24, y: shoulderY + headBounds.h * 0.6 }
-      ], hairStyle)
+      createPolygonLayer(
+        "Sundress Hair Back Curtain",
+        [
+          { x: cx - headBounds.w * p.backWidth, y: hairTop + headBounds.h * 0.16 },
+          { x: cx - headBounds.w * 0.52, y: hairTop - headBounds.h * 0.68 },
+          { x: cx + headBounds.w * 0.52, y: hairTop - headBounds.h * 0.68 },
+          { x: cx + headBounds.w * p.backWidth, y: hairTop + headBounds.h * 0.16 },
+          { x: cx + headBounds.w * 1.22, y: shoulderY + headBounds.h * 0.62 },
+          { x: cx + headBounds.w * 0.9, y: hairBottom },
+          { x: cx + headBounds.w * 0.38, y: hairBottom + headBounds.h * 0.22 },
+          { x: cx - headBounds.w * 0.38, y: hairBottom + headBounds.h * 0.22 },
+          { x: cx - headBounds.w * 0.9, y: hairBottom },
+          { x: cx - headBounds.w * 1.22, y: shoulderY + headBounds.h * 0.62 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Left Outer Lock",
+        [
+          { x: cx - headBounds.w * p.sideOutset, y: hairTop + headBounds.h * 0.24 },
+          { x: cx - headBounds.w * 1.3, y: shoulderY - headBounds.h * 0.2 },
+          { x: cx - headBounds.w * 1.12, y: hairBottom + headBounds.h * 0.1 },
+          { x: cx - headBounds.w * 0.76, y: hairBottom + headBounds.h * 0.26 },
+          { x: cx - headBounds.w * 0.52, y: shoulderY + headBounds.h * 0.64 },
+          { x: cx - headBounds.w * 0.72, y: topY + headBounds.h * 0.2 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Right Outer Lock",
+        [
+          { x: cx + headBounds.w * p.sideOutset, y: hairTop + headBounds.h * 0.24 },
+          { x: cx + headBounds.w * 1.3, y: shoulderY - headBounds.h * 0.2 },
+          { x: cx + headBounds.w * 1.12, y: hairBottom + headBounds.h * 0.1 },
+          { x: cx + headBounds.w * 0.76, y: hairBottom + headBounds.h * 0.26 },
+          { x: cx + headBounds.w * 0.52, y: shoulderY + headBounds.h * 0.64 },
+          { x: cx + headBounds.w * 0.72, y: topY + headBounds.h * 0.2 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Left Inner Fill",
+        [
+          { x: cx - headBounds.w * 0.58, y: topY + headBounds.h * 0.42 },
+          { x: cx - headBounds.w * 0.9, y: shoulderY + headBounds.h * 0.08 },
+          { x: cx - headBounds.w * 0.72, y: hairBottom - headBounds.h * 0.06 },
+          { x: cx - headBounds.w * 0.34, y: hairBottom + headBounds.h * 0.08 },
+          { x: cx - headBounds.w * 0.24, y: shoulderY + headBounds.h * 0.6 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Right Inner Fill",
+        [
+          { x: cx + headBounds.w * 0.58, y: topY + headBounds.h * 0.42 },
+          { x: cx + headBounds.w * 0.9, y: shoulderY + headBounds.h * 0.08 },
+          { x: cx + headBounds.w * 0.72, y: hairBottom - headBounds.h * 0.06 },
+          { x: cx + headBounds.w * 0.34, y: hairBottom + headBounds.h * 0.08 },
+          { x: cx + headBounds.w * 0.24, y: shoulderY + headBounds.h * 0.6 }
+        ],
+        hairStyle
+      )
     ];
 
     const mid = [
-      createPolygonLayer("Sundress Hair Crown", [
-        { x: cx - headBounds.w * 0.94, y: hairTop + headBounds.h * 0.06 },
-        { x: cx - headBounds.w * 0.46, y: hairTop - headBounds.h * 0.56 },
-        { x: cx, y: hairTop - headBounds.h * 0.44 },
-        { x: cx + headBounds.w * 0.46, y: hairTop - headBounds.h * 0.56 },
-        { x: cx + headBounds.w * 0.94, y: hairTop + headBounds.h * 0.06 },
-        { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 0.2 },
-        { x: cx, y: topY + headBounds.h * 0.02 },
-        { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 0.2 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Left Temple", [
-        { x: cx - headBounds.w * p.templeOutset, y: topY + headBounds.h * 0.08 },
-        { x: cx - headBounds.w * 1.08, y: topY + headBounds.h * p.templeDrop },
-        { x: cx - headBounds.w * 0.84, y: topY + headBounds.h * 0.86 },
-        { x: cx - headBounds.w * 0.66, y: topY + headBounds.h * 0.4 },
-        { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 0.14 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Right Temple", [
-        { x: cx + headBounds.w * p.templeOutset, y: topY + headBounds.h * 0.08 },
-        { x: cx + headBounds.w * 1.08, y: topY + headBounds.h * p.templeDrop },
-        { x: cx + headBounds.w * 0.84, y: topY + headBounds.h * 0.86 },
-        { x: cx + headBounds.w * 0.66, y: topY + headBounds.h * 0.4 },
-        { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 0.14 }
-      ], hairStyle),
+      createPolygonLayer(
+        "Sundress Hair Crown",
+        [
+          { x: cx - headBounds.w * 0.94, y: hairTop + headBounds.h * 0.06 },
+          { x: cx - headBounds.w * 0.46, y: hairTop - headBounds.h * 0.56 },
+          { x: cx, y: hairTop - headBounds.h * 0.44 },
+          { x: cx + headBounds.w * 0.46, y: hairTop - headBounds.h * 0.56 },
+          { x: cx + headBounds.w * 0.94, y: hairTop + headBounds.h * 0.06 },
+          { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 0.2 },
+          { x: cx, y: topY + headBounds.h * 0.02 },
+          { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 0.2 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Left Temple",
+        [
+          { x: cx - headBounds.w * p.templeOutset, y: topY + headBounds.h * 0.08 },
+          { x: cx - headBounds.w * 1.08, y: topY + headBounds.h * p.templeDrop },
+          { x: cx - headBounds.w * 0.84, y: topY + headBounds.h * 0.86 },
+          { x: cx - headBounds.w * 0.66, y: topY + headBounds.h * 0.4 },
+          { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 0.14 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Right Temple",
+        [
+          { x: cx + headBounds.w * p.templeOutset, y: topY + headBounds.h * 0.08 },
+          { x: cx + headBounds.w * 1.08, y: topY + headBounds.h * p.templeDrop },
+          { x: cx + headBounds.w * 0.84, y: topY + headBounds.h * 0.86 },
+          { x: cx + headBounds.w * 0.66, y: topY + headBounds.h * 0.4 },
+          { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 0.14 }
+        ],
+        hairStyle
+      ),
       createEllipseLayer(
         "Sundress Hair Highlight",
         cx - headBounds.w * 0.22,
@@ -2153,32 +2385,44 @@
     ];
 
     const front = [
-      createPolygonLayer("Sundress Hair Bangs", [
-        { x: cx - headBounds.w, y: topY + headBounds.h * p.bangLift },
-        { x: cx - headBounds.w * 0.42, y: topY - headBounds.h * 0.1 },
-        { x: cx, y: topY + headBounds.h * 0.02 },
-        { x: cx + headBounds.w * 0.42, y: topY - headBounds.h * 0.1 },
-        { x: cx + headBounds.w, y: topY + headBounds.h * p.bangLift },
-        { x: cx + headBounds.w * 0.72, y: topY + headBounds.h * (1 + p.bangDrop) },
-        { x: cx + headBounds.w * 0.24, y: topY + headBounds.h * (1.08 + p.bangDrop * 0.5) },
-        { x: cx, y: topY + headBounds.h * (1.12 + p.bangDrop * 0.48) },
-        { x: cx - headBounds.w * 0.24, y: topY + headBounds.h * (1.08 + p.bangDrop * 0.5) },
-        { x: cx - headBounds.w * 0.72, y: topY + headBounds.h * (1 + p.bangDrop) }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Left Wisp", [
-        { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 1.02 },
-        { x: cx - headBounds.w * 0.94, y: topY + headBounds.h * 1.34 },
-        { x: cx - headBounds.w * 0.66, y: topY + headBounds.h * 1.88 },
-        { x: cx - headBounds.w * 0.46, y: topY + headBounds.h * 1.48 },
-        { x: cx - headBounds.w * 0.52, y: topY + headBounds.h * 1.1 }
-      ], hairStyle),
-      createPolygonLayer("Sundress Hair Right Wisp", [
-        { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 1.02 },
-        { x: cx + headBounds.w * 0.94, y: topY + headBounds.h * 1.34 },
-        { x: cx + headBounds.w * 0.66, y: topY + headBounds.h * 1.88 },
-        { x: cx + headBounds.w * 0.46, y: topY + headBounds.h * 1.48 },
-        { x: cx + headBounds.w * 0.52, y: topY + headBounds.h * 1.1 }
-      ], hairStyle)
+      createPolygonLayer(
+        "Sundress Hair Bangs",
+        [
+          { x: cx - headBounds.w, y: topY + headBounds.h * p.bangLift },
+          { x: cx - headBounds.w * 0.42, y: topY - headBounds.h * 0.1 },
+          { x: cx, y: topY + headBounds.h * 0.02 },
+          { x: cx + headBounds.w * 0.42, y: topY - headBounds.h * 0.1 },
+          { x: cx + headBounds.w, y: topY + headBounds.h * p.bangLift },
+          { x: cx + headBounds.w * 0.72, y: topY + headBounds.h * (1 + p.bangDrop) },
+          { x: cx + headBounds.w * 0.24, y: topY + headBounds.h * (1.08 + p.bangDrop * 0.5) },
+          { x: cx, y: topY + headBounds.h * (1.12 + p.bangDrop * 0.48) },
+          { x: cx - headBounds.w * 0.24, y: topY + headBounds.h * (1.08 + p.bangDrop * 0.5) },
+          { x: cx - headBounds.w * 0.72, y: topY + headBounds.h * (1 + p.bangDrop) }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Left Wisp",
+        [
+          { x: cx - headBounds.w * 0.74, y: topY + headBounds.h * 1.02 },
+          { x: cx - headBounds.w * 0.94, y: topY + headBounds.h * 1.34 },
+          { x: cx - headBounds.w * 0.66, y: topY + headBounds.h * 1.88 },
+          { x: cx - headBounds.w * 0.46, y: topY + headBounds.h * 1.48 },
+          { x: cx - headBounds.w * 0.52, y: topY + headBounds.h * 1.1 }
+        ],
+        hairStyle
+      ),
+      createPolygonLayer(
+        "Sundress Hair Right Wisp",
+        [
+          { x: cx + headBounds.w * 0.74, y: topY + headBounds.h * 1.02 },
+          { x: cx + headBounds.w * 0.94, y: topY + headBounds.h * 1.34 },
+          { x: cx + headBounds.w * 0.66, y: topY + headBounds.h * 1.88 },
+          { x: cx + headBounds.w * 0.46, y: topY + headBounds.h * 1.48 },
+          { x: cx + headBounds.w * 0.52, y: topY + headBounds.h * 1.1 }
+        ],
+        hairStyle
+      )
     ];
 
     return { back, mid, front };
@@ -2222,7 +2466,9 @@
   function isHairLayerForSundressReplacement(layer) {
     const name = (layer.name || "").toLowerCase();
     if (name.startsWith("sundress hair")) return true;
-    return name === "hair" || name === "bangs" || name === "front bangs" || name === "hair highlight";
+    return (
+      name === "hair" || name === "bangs" || name === "front bangs" || name === "hair highlight"
+    );
   }
 
   function isRuntimePartRole(role) {
@@ -2230,20 +2476,18 @@
   }
 
   function inferRuntimePartRole(layerOrName, idHint = "") {
-    const name = typeof layerOrName === "string"
-      ? layerOrName
-      : (layerOrName?.name || "");
-    const id = typeof layerOrName === "string"
-      ? idHint
-      : (layerOrName?.id || "");
+    const name = typeof layerOrName === "string" ? layerOrName : layerOrName?.name || "";
+    const id = typeof layerOrName === "string" ? idHint : layerOrName?.id || "";
     const key = `${String(name).toLowerCase()} ${String(id).toLowerCase()}`;
 
     if (key.includes("left arm") || key.includes("arm left")) return "left_arm";
     if (key.includes("right arm") || key.includes("arm right")) return "right_arm";
     if (key.includes("left leg") || key.includes("leg left")) return "left_leg";
     if (key.includes("right leg") || key.includes("leg right")) return "right_leg";
-    if (key.includes("left shoe") || key.includes("shoe left") || key.includes("left boot")) return "left_shoe";
-    if (key.includes("right shoe") || key.includes("shoe right") || key.includes("right boot")) return "right_shoe";
+    if (key.includes("left shoe") || key.includes("shoe left") || key.includes("left boot"))
+      return "left_shoe";
+    if (key.includes("right shoe") || key.includes("shoe right") || key.includes("right boot"))
+      return "right_shoe";
     if (key.includes("torso") || key.includes("body") || key.includes("chest")) return "torso";
     if (key.includes("head")) return "head";
     if (key.includes("hair") || key.includes("bang")) return "hair";
@@ -2281,14 +2525,17 @@
     const baseEyeH = headBounds.h * (pose === "panic" ? 0.13 : 0.11);
     const eyeW = baseEyeW * clamp(num(draft.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
     const eyeH = baseEyeH * clamp(num(draft.eyeSize, FACE_DRAFT_DEFAULT.eyeSize), 0.6, 1.8);
-    const eyeOffsetX = headBounds.w * 0.2 * clamp(num(draft.eyeSpacing, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6);
+    const eyeOffsetX =
+      headBounds.w * 0.2 * clamp(num(draft.eyeSpacing, FACE_DRAFT_DEFAULT.eyeSpacing), 0.7, 1.6);
     const browBaseY = eyeY - headBounds.h * 0.16;
     const browHalfW = headBounds.w * 0.16;
-    const browTilt = clamp(num(draft.browTilt, FACE_DRAFT_DEFAULT.browTilt), -1, 1) * headBounds.h * 0.08;
+    const browTilt =
+      clamp(num(draft.browTilt, FACE_DRAFT_DEFAULT.browTilt), -1, 1) * headBounds.h * 0.08;
     const panicBias = pose === "panic" ? headBounds.h * 0.03 : 0;
     const mouthY = topY + headBounds.h * (pose === "ko" ? 0.68 : 0.7);
     const mouthHalfW = headBounds.w * (pose === "panic" ? 0.18 : 0.2);
-    const mouthCurve = clamp(num(draft.mouthCurve, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1) * headBounds.h * 0.11;
+    const mouthCurve =
+      clamp(num(draft.mouthCurve, FACE_DRAFT_DEFAULT.mouthCurve), -1, 1) * headBounds.h * 0.11;
     const panicOpen = pose === "panic" ? headBounds.h * 0.04 : 0;
 
     return [
@@ -2351,7 +2598,12 @@
   }
 
   function createManagedFaceLayer(blueprint) {
-    return createLayerBase(blueprint.name, blueprint.type, deepClone(blueprint.geometry), blueprint.style);
+    return createLayerBase(
+      blueprint.name,
+      blueprint.type,
+      deepClone(blueprint.geometry),
+      blueprint.style
+    );
   }
 
   function applyManagedFaceToPose(poseId, opts = {}) {
@@ -2469,14 +2721,15 @@
       merged.gradient = {
         type: "linear",
         angle: num(style.gradient.angle, 90),
-        stops: Array.isArray(style.gradient.stops) && style.gradient.stops.length > 1
-          ? style.gradient.stops
-              .map((s) => ({
-                offset: clamp(num(s.offset, 0), 0, 1),
-                color: isColor(s.color) ? s.color : "#ffffff"
-              }))
-              .sort((a, b) => a.offset - b.offset)
-          : merged.gradient.stops
+        stops:
+          Array.isArray(style.gradient.stops) && style.gradient.stops.length > 1
+            ? style.gradient.stops
+                .map((s) => ({
+                  offset: clamp(num(s.offset, 0), 0, 1),
+                  color: isColor(s.color) ? s.color : "#ffffff"
+                }))
+                .sort((a, b) => a.offset - b.offset)
+            : merged.gradient.stops
       };
     }
 
@@ -2570,7 +2823,10 @@
 
   function setZoom(zoomValue, opts = {}) {
     const nextZoom = clamp(zoomValue, 0.25, 4);
-    const anchorCanvas = opts.anchorCanvas || { x: DESIGN_CANVAS_WIDTH / 2, y: DESIGN_CANVAS_HEIGHT / 2 };
+    const anchorCanvas = opts.anchorCanvas || {
+      x: DESIGN_CANVAS_WIDTH / 2,
+      y: DESIGN_CANVAS_HEIGHT / 2
+    };
     const beforeWorld = canvasToWorld(anchorCanvas);
 
     state.view.zoom = nextZoom;
@@ -2586,7 +2842,9 @@
   }
 
   function adjustZoom(multiplier) {
-    setZoom(state.view.zoom * multiplier, { anchorCanvas: { x: DESIGN_CANVAS_WIDTH / 2, y: DESIGN_CANVAS_HEIGHT / 2 } });
+    setZoom(state.view.zoom * multiplier, {
+      anchorCanvas: { x: DESIGN_CANVAS_WIDTH / 2, y: DESIGN_CANVAS_HEIGHT / 2 }
+    });
   }
 
   function fitToModel() {
@@ -2607,7 +2865,11 @@
     const margin = 80;
     const availableW = DESIGN_CANVAS_WIDTH - margin * 2;
     const availableH = DESIGN_CANVAS_HEIGHT - margin * 2;
-    const targetZoom = clamp(Math.min(availableW / Math.max(bounds.w, 1), availableH / Math.max(bounds.h, 1)), 0.25, 4);
+    const targetZoom = clamp(
+      Math.min(availableW / Math.max(bounds.w, 1), availableH / Math.max(bounds.h, 1)),
+      0.25,
+      4
+    );
 
     state.view.zoom = targetZoom;
     state.view.panX = DESIGN_CANVAS_WIDTH * 0.5 - (bounds.x + bounds.w * 0.5) * targetZoom;
@@ -2685,7 +2947,10 @@
       return;
     }
 
-    const resizeHit = (state.activeTool === "select" || state.activeTool === "move") ? getResizeHandleHit(worldPt) : null;
+    const resizeHit =
+      state.activeTool === "select" || state.activeTool === "move"
+        ? getResizeHandleHit(worldPt)
+        : null;
     if (resizeHit) {
       beginResizeInteraction(resizeHit, worldPt, e.shiftKey);
       requestRender();
@@ -2794,7 +3059,8 @@
       const dx = worldPt.x - state.interaction.startWorld.x;
       const dy = worldPt.y - state.interaction.startWorld.y;
       applyMoveFromSnapshot(state.interaction.snapshot, dx, dy);
-      state.interaction.changed = state.interaction.changed || Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
+      state.interaction.changed =
+        state.interaction.changed || Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
       requestRender();
       return;
     }
@@ -2959,7 +3225,8 @@
       layer.geometry.x2 = current.x;
       layer.geometry.y2 = current.y;
       layer.geometry.cx = (start.x + current.x) * 0.5;
-      layer.geometry.cy = (start.y + current.y) * 0.5 - Math.max(20, Math.abs(current.y - start.y) * 0.3);
+      layer.geometry.cy =
+        (start.y + current.y) * 0.5 - Math.max(20, Math.abs(current.y - start.y) * 0.3);
     }
   }
 
@@ -3039,7 +3306,10 @@
       startAngle: Math.atan2(worldPt.y - pivot.y, worldPt.x - pivot.x),
       angleDelta: 0,
       changed: false,
-      snapshot: selectedLayers.map((layer) => ({ id: layer.id, geometry: cloneGeometry(layer.geometry) }))
+      snapshot: selectedLayers.map((layer) => ({
+        id: layer.id,
+        geometry: cloneGeometry(layer.geometry)
+      }))
     };
   }
 
@@ -3067,7 +3337,10 @@
       startWorld: worldPt,
       startBounds: resizeHit.bounds,
       keepAspect,
-      snapshot: selectedLayers.map((layer) => ({ id: layer.id, geometry: cloneGeometry(layer.geometry) })),
+      snapshot: selectedLayers.map((layer) => ({
+        id: layer.id,
+        geometry: cloneGeometry(layer.geometry)
+      })),
       changed: false
     };
   }
@@ -3206,7 +3479,11 @@
       return;
     }
 
-    if (state.activeTool === "polygon" && state.polygonDraft && (e.key === "Backspace" || e.key === "Delete")) {
+    if (
+      state.activeTool === "polygon" &&
+      state.polygonDraft &&
+      (e.key === "Backspace" || e.key === "Delete")
+    ) {
       state.polygonDraft.points.pop();
       requestRender();
     }
@@ -3351,7 +3628,9 @@
 
     const layers = getLayers();
     const before = layers.length;
-    state.document.poses[state.activePose].layers = layers.filter((layer) => !state.selectedIds.has(layer.id));
+    state.document.poses[state.activePose].layers = layers.filter(
+      (layer) => !state.selectedIds.has(layer.id)
+    );
     const removed = before - getLayers().length;
 
     state.selectedIds.clear();
@@ -3429,10 +3708,12 @@
       type: "linear",
       angle: num(gradientConfig.angle, state.styleDraft.gradientAngle),
       stops: Array.isArray(gradientConfig.stops)
-        ? gradientConfig.stops.map((stop) => ({
-            offset: clamp(num(stop.offset, 0), 0, 1),
-            color: isColor(stop.color) ? stop.color : "#ffffff"
-          })).sort((a, b) => a.offset - b.offset)
+        ? gradientConfig.stops
+            .map((stop) => ({
+              offset: clamp(num(stop.offset, 0), 0, 1),
+              color: isColor(stop.color) ? stop.color : "#ffffff"
+            }))
+            .sort((a, b) => a.offset - b.offset)
         : [
             { offset: 0, color: state.styleDraft.gradientStart },
             { offset: 1, color: state.styleDraft.gradientEnd }
@@ -3457,7 +3738,12 @@
     state.styleDraft.strokeWidth = num(style.strokeWidth, state.styleDraft.strokeWidth);
     state.styleDraft.opacity = clamp(num(style.opacity, state.styleDraft.opacity), 0.05, 1);
 
-    if (style.fillMode === "gradient" && style.gradient && Array.isArray(style.gradient.stops) && style.gradient.stops.length >= 2) {
+    if (
+      style.fillMode === "gradient" &&
+      style.gradient &&
+      Array.isArray(style.gradient.stops) &&
+      style.gradient.stops.length >= 2
+    ) {
       state.styleDraft.gradientStart = style.gradient.stops[0].color;
       state.styleDraft.gradientEnd = style.gradient.stops[style.gradient.stops.length - 1].color;
       state.styleDraft.gradientAngle = num(style.gradient.angle, state.styleDraft.gradientAngle);
@@ -3519,7 +3805,9 @@
   }
 
   function getLayerListDisplayOrder() {
-    return getLayers().map((layer) => layer.id).reverse();
+    return getLayers()
+      .map((layer) => layer.id)
+      .reverse();
   }
 
   function requestRender() {
@@ -3555,11 +3843,13 @@
 
     if (!CONSTRAINTS || typeof CONSTRAINTS.validateDesignerDocument !== "function") {
       state.validation = {
-        hardFailures: [{
-          kind: "hard",
-          target: "field:runtime-base-type",
-          message: "Constraint engine unavailable. Cannot verify runtime safety."
-        }],
+        hardFailures: [
+          {
+            kind: "hard",
+            target: "field:runtime-base-type",
+            message: "Constraint engine unavailable. Cannot verify runtime safety."
+          }
+        ],
         visualWarnings: [],
         autoFixes: [],
         canExport: false,
@@ -3793,9 +4083,9 @@
 
   function renderHeightReferences(ctx) {
     const filter = ui.heightFilterInput.value.trim().toLowerCase();
-    const refs = GAME_CHARACTER_HEIGHT_REFERENCES
-      .filter((ref) => !filter || ref.id.includes(filter) || ref.label.toLowerCase().includes(filter))
-      .sort((a, b) => b.heightPx - a.heightPx);
+    const refs = GAME_CHARACTER_HEIGHT_REFERENCES.filter(
+      (ref) => !filter || ref.id.includes(filter) || ref.label.toLowerCase().includes(filter)
+    ).sort((a, b) => b.heightPx - a.heightPx);
 
     if (!refs.length) return;
 
@@ -3827,9 +4117,7 @@
 
   function drawReferenceSilhouettes(ctx, refs) {
     const pick = ["small", "normal", "tall", "giant", "gothmommy", "bouncer"];
-    const selected = pick
-      .map((id) => refs.find((r) => r.id === id))
-      .filter(Boolean);
+    const selected = pick.map((id) => refs.find((r) => r.id === id)).filter(Boolean);
 
     if (!selected.length) return;
 
@@ -3920,15 +4208,19 @@
     const y2 = cy + Math.sin(angle) * radius;
 
     const g = ctx.createLinearGradient(x1, y1, x2, y2);
-    const stops = Array.isArray(gradient.stops) && gradient.stops.length >= 2
-      ? gradient.stops
-      : [
-          { offset: 0, color: "#ffffff" },
-          { offset: 1, color: "#000000" }
-        ];
+    const stops =
+      Array.isArray(gradient.stops) && gradient.stops.length >= 2
+        ? gradient.stops
+        : [
+            { offset: 0, color: "#ffffff" },
+            { offset: 1, color: "#000000" }
+          ];
 
     stops.forEach((stop) => {
-      g.addColorStop(clamp(num(stop.offset, 0), 0, 1), isColor(stop.color) ? stop.color : "#ffffff");
+      g.addColorStop(
+        clamp(num(stop.offset, 0), 0, 1),
+        isColor(stop.color) ? stop.color : "#ffffff"
+      );
     });
 
     return g;
@@ -3974,7 +4266,14 @@
 
     const corners = cornerPointsFromBounds(bounds);
     corners.forEach((corner) => {
-      drawHandleRect(ctx, corner.x, corner.y, HANDLE_SCREEN_SIZE / state.view.zoom, "#f97316", "#0f172a");
+      drawHandleRect(
+        ctx,
+        corner.x,
+        corner.y,
+        HANDLE_SCREEN_SIZE / state.view.zoom,
+        "#f97316",
+        "#0f172a"
+      );
     });
 
     if (state.activeTool === "rotate") {
@@ -4022,7 +4321,10 @@
       li.className = "layer-item";
       if (state.selectedIds.has(layer.id)) li.classList.add("is-selected");
       if (layer.locked) li.classList.add("is-locked");
-      const layerIssue = issueMaps.layerMap[`${state.activePose}:${layer.id}`] || { hard: 0, visual: 0 };
+      const layerIssue = issueMaps.layerMap[`${state.activePose}:${layer.id}`] || {
+        hard: 0,
+        visual: 0
+      };
       if (layerIssue.hard > 0) li.classList.add("has-hard-issue");
       if (layerIssue.visual > 0 && layerIssue.hard === 0) li.classList.add("has-visual-issue");
       li.dataset.layerId = layer.id;
@@ -4211,8 +4513,10 @@
 
     const armAnchors = [];
     if (partBounds.left_arm) armAnchors.push(partBounds.left_arm.y + partBounds.left_arm.h * 0.12);
-    if (partBounds.right_arm) armAnchors.push(partBounds.right_arm.y + partBounds.right_arm.h * 0.12);
-    if (armAnchors.length) return armAnchors.reduce((sum, y) => sum + y, 0) / armAnchors.length + offsetY;
+    if (partBounds.right_arm)
+      armAnchors.push(partBounds.right_arm.y + partBounds.right_arm.h * 0.12);
+    if (armAnchors.length)
+      return armAnchors.reduce((sum, y) => sum + y, 0) / armAnchors.length + offsetY;
 
     return DESIGN_BASELINE_Y - GAME_BASE_H * GAME_TO_EDITOR_SCALE * 0.76 + offsetY;
   }
@@ -4248,7 +4552,11 @@
     }
 
     if (part === "left_arm" || part === "right_arm") {
-      const spread = clamp(num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT), -1, 1);
+      const spread = clamp(
+        num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT),
+        -1,
+        1
+      );
       const spreadRad = spread * LIVE_PREVIEW_PANIC_ARM_SPREAD_MAX_RAD;
       motion.angle = num(baseMotion.angle, 0) + (part === "left_arm" ? -spreadRad : spreadRad);
       motion.flipY = true;
@@ -4265,16 +4573,18 @@
     const bounds = getLayerBounds(layer);
     if (!bounds) return null;
 
-    const spread = clamp(num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT), -1, 1);
+    const spread = clamp(
+      num(state.livePreview.panicArmSpread, LIVE_PREVIEW_PANIC_ARM_SPREAD_DEFAULT),
+      -1,
+      1
+    );
     const spreadRad = spread * LIVE_PREVIEW_PANIC_ARM_SPREAD_MAX_RAD;
     const isLeftArm = part === "left_arm";
 
     return {
       flipY: true,
       angle: isLeftArm ? -spreadRad : spreadRad,
-      pivotX: isLeftArm
-        ? bounds.x + bounds.w * 0.86
-        : bounds.x + bounds.w * 0.14,
+      pivotX: isLeftArm ? bounds.x + bounds.w * 0.86 : bounds.x + bounds.w * 0.14,
       // Shared shoulder bar keeps Y drag behavior truly inverted between normal/panic.
       pivotY: shoulderBarY
     };
@@ -4294,9 +4604,9 @@
         const hasPivotOverride = motion.pivotX !== undefined || motion.pivotY !== undefined;
         const pivotOverride = hasPivotOverride
           ? {
-            x: num(motion.pivotX, bounds.x + bounds.w * 0.5),
-            y: num(motion.pivotY, bounds.y + bounds.h * 0.5)
-          }
+              x: num(motion.pivotX, bounds.x + bounds.w * 0.5),
+              y: num(motion.pivotY, bounds.y + bounds.h * 0.5)
+            }
           : null;
 
         if (sharedBridge && typeof sharedBridge.applyDesignerLayerMotionTransform === "function") {
@@ -4441,7 +4751,8 @@
     }
 
     if (!state.runtimeRenderer) {
-      ui.runtimePreviewStatus.textContent = "Runtime renderer unavailable (missing runtime/npc-render-shared.js).";
+      ui.runtimePreviewStatus.textContent =
+        "Runtime renderer unavailable (missing runtime/npc-render-shared.js).";
       return;
     }
 
@@ -4475,7 +4786,7 @@
       shortDress: !!profile.shortDress,
       walkPhase: tick,
       breathing: Math.sin(tick * 2) * 1,
-      blinkTimer: (Math.sin(tick * 1.9) > 0.93) ? 0.05 : 0.6,
+      blinkTimer: Math.sin(tick * 1.9) > 0.93 ? 0.05 : 0.6,
       isFleeing: pose === "panic",
       openMouth: pose === "panic",
       isKO: pose === "ko",
@@ -4521,9 +4832,10 @@
     const hard = validation?.hardFailures?.length || 0;
     const warnings = validation?.visualWarnings?.length || 0;
     const loopState = state.runtimePreview.isPlaying ? "on" : "off";
-    const modeLabel = payloadMode === "payload"
-      ? "payload parity active (game-exact motion)"
-      : `fallback to legacy preview (${fallbackReason || "payload unavailable"})`;
+    const modeLabel =
+      payloadMode === "payload"
+        ? "payload parity active (game-exact motion)"
+        : `fallback to legacy preview (${fallbackReason || "payload unavailable"})`;
     ui.runtimePreviewStatus.textContent = `Runtime renderer active | ${modeLabel} | pose: ${pose} | loop: ${loopState} | base: ${profile.baseType} | npcType: ${profile.npcType} | hard: ${hard} | warnings: ${warnings}`;
   }
 
@@ -4549,7 +4861,14 @@
       const sw = ref.widthPx * 2.1;
       const y = baselineY - sh;
       ctx.fillStyle = `rgba(148, 163, 184, ${silhouette.alpha})`;
-      fillRoundRect(ctx, silhouette.x - sw * 0.5, y + sh * 0.2, sw, sh * 0.8, Math.max(3, sw * 0.2));
+      fillRoundRect(
+        ctx,
+        silhouette.x - sw * 0.5,
+        y + sh * 0.2,
+        sw,
+        sh * 0.8,
+        Math.max(3, sw * 0.2)
+      );
       ctx.beginPath();
       ctx.ellipse(silhouette.x, y + sh * 0.13, sw * 0.24, sh * 0.13, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -4781,7 +5100,15 @@
     }
 
     if (layer.type === "ellipse") {
-      p.ellipse(g.x + g.w * 0.5, g.y + g.h * 0.5, Math.abs(g.w) * 0.5, Math.abs(g.h) * 0.5, 0, 0, Math.PI * 2);
+      p.ellipse(
+        g.x + g.w * 0.5,
+        g.y + g.h * 0.5,
+        Math.abs(g.w) * 0.5,
+        Math.abs(g.h) * 0.5,
+        0,
+        0,
+        Math.PI * 2
+      );
       return p;
     }
 
@@ -4886,13 +5213,24 @@
   function translateGeometryFromSnapshot(target, source, dx, dy) {
     if (!target || !source) return;
 
-    if (target.x !== undefined && target.y !== undefined && target.w !== undefined && target.h !== undefined) {
+    if (
+      target.x !== undefined &&
+      target.y !== undefined &&
+      target.w !== undefined &&
+      target.h !== undefined
+    ) {
       target.x = source.x + dx;
       target.y = source.y + dy;
       return;
     }
 
-    if (target.x1 !== undefined && target.y1 !== undefined && target.x2 !== undefined && target.y2 !== undefined && target.cx === undefined) {
+    if (
+      target.x1 !== undefined &&
+      target.y1 !== undefined &&
+      target.x2 !== undefined &&
+      target.y2 !== undefined &&
+      target.cx === undefined
+    ) {
       target.x1 = source.x1 + dx;
       target.y1 = source.y1 + dy;
       target.x2 = source.x2 + dx;
@@ -4921,7 +5259,12 @@
 
     if (layer.type === "rect" || layer.type === "ellipse") {
       const p1 = scalePoint({ x: sourceGeometry.x, y: sourceGeometry.y }, anchor, sx, sy);
-      const p2 = scalePoint({ x: sourceGeometry.x + sourceGeometry.w, y: sourceGeometry.y + sourceGeometry.h }, anchor, sx, sy);
+      const p2 = scalePoint(
+        { x: sourceGeometry.x + sourceGeometry.w, y: sourceGeometry.y + sourceGeometry.h },
+        anchor,
+        sx,
+        sy
+      );
       const n = normalizeRectFromPoints(p1, p2);
       g.x = n.x;
       g.y = n.y;
@@ -5015,8 +5358,14 @@
     state.document.validation = {
       summary: deepClone(validation.summary),
       metadata: deepClone(validation.metadata),
-      hardFailures: (validation.hardFailures || []).map((entry) => ({ target: entry.target, message: entry.message })),
-      visualWarnings: (validation.visualWarnings || []).map((entry) => ({ target: entry.target, message: entry.message }))
+      hardFailures: (validation.hardFailures || []).map((entry) => ({
+        target: entry.target,
+        message: entry.message
+      })),
+      visualWarnings: (validation.visualWarnings || []).map((entry) => ({
+        target: entry.target,
+        message: entry.message
+      }))
     };
     persistEditorView();
     stampUpdatedAt();
@@ -5047,7 +5396,9 @@
     markWorkspaceChanged();
     requestRender();
     if (validation.hardFailures.length) {
-      setStatus(`JSON imported with ${validation.hardFailures.length} hard blocker(s). Fix blockers before compact export.`);
+      setStatus(
+        `JSON imported with ${validation.hardFailures.length} hard blocker(s). Fix blockers before compact export.`
+      );
     } else if (validation.visualWarnings.length) {
       setStatus(`JSON imported with ${validation.visualWarnings.length} warning(s).`);
     } else {
@@ -5066,8 +5417,10 @@
       out.meta.id = typeof doc.meta.id === "string" ? doc.meta.id : out.meta.id;
       out.meta.label = typeof doc.meta.label === "string" ? doc.meta.label : out.meta.label;
       out.meta.baseTemplate = template;
-      out.meta.createdAt = typeof doc.meta.createdAt === "string" ? doc.meta.createdAt : out.meta.createdAt;
-      out.meta.updatedAt = typeof doc.meta.updatedAt === "string" ? doc.meta.updatedAt : out.meta.updatedAt;
+      out.meta.createdAt =
+        typeof doc.meta.createdAt === "string" ? doc.meta.createdAt : out.meta.createdAt;
+      out.meta.updatedAt =
+        typeof doc.meta.updatedAt === "string" ? doc.meta.updatedAt : out.meta.updatedAt;
     }
 
     if (doc?.canvas && typeof doc.canvas === "object") {
@@ -5086,10 +5439,7 @@
       out.editor.showSilhouettes = !!doc.editor.showSilhouettes;
     }
 
-    out.runtimeProfile = normalizeRuntimeProfile(
-      doc?.runtimeProfile,
-      out.meta.baseTemplate
-    );
+    out.runtimeProfile = normalizeRuntimeProfile(doc?.runtimeProfile, out.meta.baseTemplate);
 
     if (doc?.validation && typeof doc.validation === "object") {
       out.validation = deepClone(doc.validation);
@@ -5106,7 +5456,9 @@
   }
 
   function normalizeImportedLayer(layer) {
-    const type = ["rect", "ellipse", "line", "curve", "polygon"].includes(layer?.type) ? layer.type : "rect";
+    const type = ["rect", "ellipse", "line", "curve", "polygon"].includes(layer?.type)
+      ? layer.type
+      : "rect";
     const id = typeof layer?.id === "string" ? layer.id : nextLayerId();
 
     const normalized = {
@@ -5153,13 +5505,17 @@
       };
     } else {
       normalized.geometry = {
-        points: Array.isArray(g.points) && g.points.length
-          ? g.points.map((p) => ({ x: num(p.x, DESIGN_CENTER_X), y: num(p.y, DESIGN_BASELINE_Y - 80) }))
-          : [
-              { x: DESIGN_CENTER_X - 30, y: DESIGN_BASELINE_Y - 80 },
-              { x: DESIGN_CENTER_X + 30, y: DESIGN_BASELINE_Y - 80 },
-              { x: DESIGN_CENTER_X, y: DESIGN_BASELINE_Y - 120 }
-            ],
+        points:
+          Array.isArray(g.points) && g.points.length
+            ? g.points.map((p) => ({
+                x: num(p.x, DESIGN_CENTER_X),
+                y: num(p.y, DESIGN_BASELINE_Y - 80)
+              }))
+            : [
+                { x: DESIGN_CENTER_X - 30, y: DESIGN_BASELINE_Y - 80 },
+                { x: DESIGN_CENTER_X + 30, y: DESIGN_BASELINE_Y - 80 },
+                { x: DESIGN_CENTER_X, y: DESIGN_BASELINE_Y - 120 }
+              ],
         closed: g.closed !== false
       };
     }
@@ -5421,7 +5777,8 @@
   }
 
   function safeDiv(numVal, denVal, fallback) {
-    if (!Number.isFinite(numVal) || !Number.isFinite(denVal) || Math.abs(denVal) < 1e-9) return fallback;
+    if (!Number.isFinite(numVal) || !Number.isFinite(denVal) || Math.abs(denVal) < 1e-9)
+      return fallback;
     return numVal / denVal;
   }
 

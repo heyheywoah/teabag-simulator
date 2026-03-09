@@ -1,6 +1,7 @@
 // Teabag Simulator — Sound Definitions
 // 10 game SFX (combo/chainCombo excluded)
 // Used by the inline SFX engine in teabag-simulator.html
+/* exported SOUND_DEFS */
 const SOUND_DEFS = {
   jump: {
     layers: [

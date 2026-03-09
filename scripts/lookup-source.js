@@ -22,7 +22,7 @@ const CORE_FILES = Object.freeze([
   "scripts/city-gen-metrics-baseline.js",
   "scripts/lookup-schematics.js",
   "scripts/lookup-source.js",
-  "scripts/lookup-sections.js",
+  "scripts/lookup-sections.js"
 ]);
 
 function parseArgs(argv) {
@@ -34,7 +34,7 @@ function parseArgs(argv) {
     files: [],
     allCore: false,
     json: false,
-    help: false,
+    help: false
   };
   const positional = [];
 
@@ -88,7 +88,9 @@ function parseArgs(argv) {
 }
 
 function printUsage() {
-  console.log("Usage: node scripts/lookup-source.js [query] [--symbols-only|--text-only] [--file path] [--all-core] [--limit N] [--json]");
+  console.log(
+    "Usage: node scripts/lookup-source.js [query] [--symbols-only|--text-only] [--file path] [--all-core] [--limit N] [--json]"
+  );
 }
 
 function readLines(filePath) {
@@ -109,7 +111,9 @@ function extractSymbols(lines) {
       kind = "class";
     }
     if (!match) {
-      match = raw.match(/^\s*const\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][A-Za-z0-9_$]*\s*=>)/);
+      match = raw.match(
+        /^\s*const\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:function\b|\([^)]*\)\s*=>|[A-Za-z_$][A-Za-z0-9_$]*\s*=>)/
+      );
       kind = "const";
     }
 
@@ -124,7 +128,7 @@ function extractSymbols(lines) {
       kind,
       name,
       line,
-      snippet: raw.trim(),
+      snippet: raw.trim()
     });
   }
 
@@ -153,7 +157,7 @@ function resolveTargetFiles(cfg, rootDir) {
     seen.add(key);
     unique.push({
       rel: path.relative(rootDir, abs).replace(/\\/g, "/"),
-      abs,
+      abs
     });
   }
 
@@ -164,7 +168,9 @@ function searchSymbols(symbols, query, limit) {
   if (!query) return symbols.slice(0, limit);
   const q = query.toLowerCase();
   return symbols
-    .filter((symbol) => `${symbol.name} ${symbol.kind} ${symbol.file || ""}`.toLowerCase().includes(q))
+    .filter((symbol) =>
+      `${symbol.name} ${symbol.kind} ${symbol.file || ""}`.toLowerCase().includes(q)
+    )
     .slice(0, limit);
 }
 
@@ -179,7 +185,7 @@ function searchLines(lines, query, limit) {
     if (!normalized.includes(q)) continue;
     out.push({
       line: i + 1,
-      text: raw.trim(),
+      text: raw.trim()
     });
     if (out.length >= limit) break;
   }
@@ -188,7 +194,7 @@ function searchLines(lines, query, limit) {
 }
 
 function printHuman(payload, cfg) {
-  console.log(`Lookup source: query=\"${cfg.query || "(none)"}\" limit=${cfg.limit}`);
+  console.log(`Lookup source: query="${cfg.query || "(none)"}" limit=${cfg.limit}`);
   if ((payload.symbols || []).length === 0 && (payload.lines || []).length === 0) {
     console.log("No matches found.");
     return;
@@ -257,7 +263,7 @@ function main() {
     limit: cfg.limit,
     files: targets.map((target) => target.rel),
     symbols: symbolMatches,
-    lines: lineMatches,
+    lines: lineMatches
   };
 
   if (cfg.json) {

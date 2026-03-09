@@ -14,7 +14,7 @@ function parseArgs(argv) {
     input: "",
     output: "",
     strictVisualRules: true,
-    autoFixVisualIssues: true,
+    autoFixVisualIssues: true
   };
   let positionalOutput = "";
 
@@ -79,17 +79,18 @@ function normalizeInputDesignerDoc(raw) {
       id: baseId,
       label: baseLabel,
       baseTemplate: template,
-      createdAt: typeof raw?.meta?.createdAt === "string" ? raw.meta.createdAt : new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt:
+        typeof raw?.meta?.createdAt === "string" ? raw.meta.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     },
     poses: {},
-    runtimeProfile: constraints.normalizeRuntimeProfile(raw?.runtimeProfile, template),
+    runtimeProfile: constraints.normalizeRuntimeProfile(raw?.runtimeProfile, template)
   };
 
   for (const poseId of POSE_IDS) {
     const layers = raw?.poses?.[poseId]?.layers;
     out.poses[poseId] = {
-      layers: Array.isArray(layers) ? layers : [],
+      layers: Array.isArray(layers) ? layers : []
     };
   }
 
@@ -111,16 +112,16 @@ function createPayload(doc, validation) {
         metadata: validation.metadata,
         hardFailures: (validation.hardFailures || []).map((entry) => ({
           target: entry.target,
-          message: entry.message,
+          message: entry.message
         })),
         visualWarnings: (validation.visualWarnings || []).map((entry) => ({
           target: entry.target,
-          message: entry.message,
+          message: entry.message
         })),
-        autoFixes: (validation.autoFixes || []).slice(),
-      },
+        autoFixes: (validation.autoFixes || []).slice()
+      }
     },
-    poses: {},
+    poses: {}
   };
 
   for (const poseId of POSE_IDS) {
@@ -131,7 +132,7 @@ function createPayload(doc, validation) {
       type: layer.type,
       visible: layer.visible !== false,
       geometry: layer.geometry,
-      style: layer.style,
+      style: layer.style
     }));
   }
 
@@ -141,7 +142,9 @@ function createPayload(doc, validation) {
 (function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.input) {
-    die("Usage: node scripts/convert-npc-designer-json.js <input.json> [output.json] [--out output.json] [--strict-visual on|off] [--auto-fix on|off]");
+    die(
+      "Usage: node scripts/convert-npc-designer-json.js <input.json> [output.json] [--out output.json] [--strict-visual on|off] [--auto-fix on|off]"
+    );
   }
 
   const inputPath = path.resolve(process.cwd(), args.input);
@@ -154,7 +157,7 @@ function createPayload(doc, validation) {
   const validation = constraints.validateDesignerDocument(doc, {
     strictVisualRules: args.strictVisualRules,
     autoFixVisualIssues: args.autoFixVisualIssues,
-    applyAutoFix: true,
+    applyAutoFix: true
   });
 
   if ((validation.hardFailures || []).length > 0) {
@@ -176,5 +179,7 @@ function createPayload(doc, validation) {
     process.stdout.write(`${output}\n`);
   }
 
-  console.error(`Converted OK: hard=0 warnings=${validation.visualWarnings.length} strict=${args.strictVisualRules} autoFix=${args.autoFixVisualIssues}`);
+  console.error(
+    `Converted OK: hard=0 warnings=${validation.visualWarnings.length} strict=${args.strictVisualRules} autoFix=${args.autoFixVisualIssues}`
+  );
 })();

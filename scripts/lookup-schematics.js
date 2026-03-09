@@ -13,7 +13,7 @@ function parseArgs(argv) {
     type: "all",
     limit: DEFAULT_LIMIT,
     json: false,
-    help: false,
+    help: false
   };
   const positional = [];
 
@@ -53,7 +53,9 @@ function parseArgs(argv) {
 }
 
 function printUsage() {
-  console.log("Usage: node scripts/lookup-schematics.js [query] [--type all|section|task|truth|helper|command] [--limit N] [--json]");
+  console.log(
+    "Usage: node scripts/lookup-schematics.js [query] [--type all|section|task|truth|helper|command] [--limit N] [--json]"
+  );
 }
 
 function readLines(filePath) {
@@ -78,7 +80,7 @@ function getHeadingSlice(lines, headingPattern) {
   }
   return {
     startLine: headingIndex + 1,
-    lines: lines.slice(headingIndex + 1, endIndex),
+    lines: lines.slice(headingIndex + 1, endIndex)
   };
 }
 
@@ -104,7 +106,7 @@ function parsePipeTable(slice, kind, titleCol, detailCol) {
       kind,
       title: cols[titleCol],
       detail: cols[detailCol],
-      sourceLine: slice.startLine + i,
+      sourceLine: slice.startLine + i
     });
   }
 
@@ -123,7 +125,7 @@ function parseHelpers(slice) {
       kind: "helper",
       title: match[1],
       detail: match[2],
-      sourceLine: slice.startLine + i,
+      sourceLine: slice.startLine + i
     });
   }
 
@@ -142,7 +144,7 @@ function parseCommands(slice) {
       kind: "command",
       title: "search",
       detail: match[1],
-      sourceLine: slice.startLine + i,
+      sourceLine: slice.startLine + i
     });
   }
 
@@ -192,7 +194,9 @@ function groupByKind(entries) {
 
 function printHuman(entries, cfg) {
   const { groups, order } = groupByKind(entries);
-  console.log(`Lookup schematics: query=\"${cfg.query || "(none)"}\" type=${cfg.type} limit=${cfg.limit}`);
+  console.log(
+    `Lookup schematics: query="${cfg.query || "(none)"}" type=${cfg.type} limit=${cfg.limit}`
+  );
   if (entries.length === 0) {
     console.log("No matches found.");
     return;
@@ -229,7 +233,13 @@ function main() {
   const matches = filterEntries(index, cfg);
 
   if (cfg.json) {
-    process.stdout.write(JSON.stringify({ query: cfg.query, type: cfg.type, limit: cfg.limit, count: matches.length, matches }, null, 2));
+    process.stdout.write(
+      JSON.stringify(
+        { query: cfg.query, type: cfg.type, limit: cfg.limit, count: matches.length, matches },
+        null,
+        2
+      )
+    );
     process.stdout.write("\n");
     return;
   }

@@ -9,6 +9,7 @@ Canonical docs that stay in repo root:
 ## Planning
 
 - `docs/planning/FEATURE_ROADMAP.md`
+- `docs/planning/TECH_DEBT.md`
 - `docs/planning/BUILDING_GEN_FIX_SLICES.md`
 - `docs/planning/REFACTOR_SLICES.md`
 - `docs/planning/REFACTOR_CHECKLIST.md`

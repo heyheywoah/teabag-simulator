@@ -182,3 +182,88 @@ Exit points:
 - Update README designer feature list with rotate + undo/redo + accordion controls.
 - Run syntax checks and scope guard.
 - Report runtime validation/sound validation status.
+
+---
+
+# 2026-03-10 Multi-Surface Bugfix Sweep
+
+Purpose: fix the confirmed runtime, offline, sound-designer, and NPC-designer regressions without widening scope or rebalancing gameplay.
+
+## Hard Invariants
+
+- No gameplay tuning changes.
+- No new save fields or save-shape migration.
+- No zone pool or spawn-selection edits.
+- Update/render/frame-reset ordering stays intact except for a gallery-mode simulation short-circuit.
+- Sound content in `sfx/sounds.js` remains unchanged.
+
+## Scope
+
+In scope:
+- `teabag-simulator.html`
+- `sw.js`
+- `sound-designer.html`
+- `npc-designer-constraints.js`
+- `SCHEMATICS.md`
+- `docs/planning/REFACTOR_SLICES.md`
+- `docs/planning/REFACTOR_CHECKLIST.md`
+- `docs/superpowers/specs/2026-03-10-bugfix-sweep-design.md`
+- `docs/superpowers/plans/2026-03-10-bugfix-sweep.md`
+- `scripts/regression-bugfixes.test.js`
+
+Out of scope:
+- `README.md`
+- `manifest.json`
+- `index.html`
+- `npc-designer.js`
+- `npc-designer.html`
+- `runtime/npc-render-shared.js`
+- `sfx/sounds.js`
+
+## Entry Points / Exit Points
+
+Entry points:
+- payload registry loader in `teabag-simulator.html`
+- gallery-mode toggle and update dispatcher in `teabag-simulator.html`
+- mobile touch control state in `teabag-simulator.html`
+- NPC spawn pressure logic in `teabag-simulator.html`
+- service worker asset manifest in `sw.js`
+- JS export path in `sound-designer.html`
+- runtime archetype definitions in `npc-designer-constraints.js`
+
+Exit points:
+- gameplay render order remains stable
+- pause/menu/title flow remains stable
+- sound runtime still consumes `SOUND_DEFS`
+- NPC designer runtime base picker remains sourced from `RUNTIME_BASE_DEFS`
+
+## Dependency Edges + Coupling Risks
+
+- Payload URL resolution must stay aligned with `data/npc_payloads/index.json` relative paths and offline cached payload files.
+- Gallery-mode update gating must not break title, pause, or gameplay front-screen rendering rules.
+- Touch crouch state must stay aligned with desktop crouch semantics and on-screen control hints.
+- Spawn-cap accounting must preserve existing visibility heuristics and offscreen spawn placement.
+- Offline cache additions must stay additive and not change fetch strategy behavior.
+- Sound export must preserve slot order and existing default sound shape.
+
+## Mechanical Slice Order
+
+### Slice B1: Planning + regression harness
+- Create the task-specific spec and implementation plan.
+- Write the regression suite with failing coverage for all confirmed bugs.
+
+### Slice B2: Runtime/gameplay fixes
+- Fix payload URL resolution.
+- Freeze update dispatch while gallery mode is active.
+- Recompute touch crouch from held gameplay buttons.
+- Use active NPC counts for spawn-cap gates.
+
+### Slice B3: Tooling/offline fixes
+- Expand the service worker precache manifest with first-load assets.
+- Export fully materialized `SOUND_DEFS` from the sound designer.
+- Restore missing shipped archetypes in `npc-designer-constraints.js`.
+
+### Slice B4: Docs + verification
+- Update `SCHEMATICS.md` because game files changed.
+- Run regression, syntax, lint, format, and runtime smoke checks.
+- Report runtime validation and sound-path validation status in the handoff.

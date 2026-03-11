@@ -116,3 +116,59 @@
 
 - [x] All requested features implemented without unrelated regressions.
 - [x] Mechanics change log prepared for handoff.
+
+---
+
+# 2026-03-10 Multi-Surface Bugfix Sweep Checklist
+
+## Phase 1 Gate (Read-Only First)
+
+- [x] Read `SCHEMATICS.md` before planning/editing.
+- [x] Added a task-specific design doc in `docs/superpowers/specs/2026-03-10-bugfix-sweep-design.md`.
+- [x] Added a task-specific implementation plan in `docs/superpowers/plans/2026-03-10-bugfix-sweep.md`.
+- [x] Updated `docs/planning/REFACTOR_SLICES.md` with this task's scope, invariants, and slice order.
+- [x] Updated `docs/planning/REFACTOR_CHECKLIST.md` before implementation edits.
+
+## Scope Gate
+
+- [x] `git diff --name-only` limited to the expected bugfix files for this task.
+- [x] No save-shape files changed.
+- [x] Out-of-scope gameplay tuning and zone-pool code remains untouched.
+
+## Regression Gate
+
+- [x] `scripts/regression-bugfixes.test.js` exists and covers all confirmed bugs.
+- [x] Regression suite observed failing before production edits.
+- [x] Regression suite passes after implementation.
+
+## Runtime Fix Gate
+
+- [x] Designer payload URLs resolve relative to the payload index path.
+- [x] Gallery mode blocks hidden gameplay/menu simulation.
+- [x] Mobile crouch state clears correctly across pause transitions.
+- [x] Spawn-cap accounting uses active NPCs for both nearby and sprint-ahead gates.
+
+## Tooling / Offline Gate
+
+- [x] Service worker precaches the required first-load assets for offline startup.
+- [x] Sound-designer `Copy JS` exports all slots with defaults applied.
+- [x] NPC designer runtime archetype list includes the missing shipped NPCs.
+
+## Docs Gate
+
+- [x] `SCHEMATICS.md` updated because game files changed.
+- [x] `README.md` not required because this pass is bug-fix only.
+
+## Validation Gate
+
+- [x] `node --check` passes for changed standalone JS files.
+- [x] `node --test scripts/regression-bugfixes.test.js` passes.
+- [x] `npm run lint` passes.
+- [x] `npm run format:check` passes.
+- [x] Runtime validation status reported.
+- [x] Sound-path validation status reported.
+
+## Final PASS/FAIL
+
+- [x] Mechanics change log prepared for handoff.
+- [x] Residual risks documented.

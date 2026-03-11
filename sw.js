@@ -1,12 +1,15 @@
-const CACHE_NAME = 'teabag-sim-v5';
+const CACHE_NAME = 'teabag-sim-v6';
 const ASSETS = [
   './',
   './teabag-simulator.html',
+  './sfx/sounds.js',
   './vendor/gsap.min.js',
   './runtime/npc-render-shared.js',
   './data/npc_payloads/index.json',
   './data/npc_payloads/strict-valid.json',
   './data/npc_payloads/visual-override.json',
+  './sprites/mchat.png',
+  './sprites/busstop.png',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

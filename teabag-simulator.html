@@ -1100,7 +1100,7 @@ function wasPressed(k) {
 
 function jumpPressed() { return isDown('W') || touch.jump; }
 function jumpJustPressed() { return wasPressed('W') || touch.jumpJust; }
-function crouchDown() { return isDown('S') || keys['Space'] || touch.crouch; }
+function crouchDown() { return isDown('S') || keys['Space'] || (gameState === 'playing' && (touch.downHeld || touch.bagHeld)); }
 function sprintDown() { return sprintLocked || touch.sprint; }
 
 // ── Mobile Touch Controls ──
@@ -2544,6 +2544,7 @@ async function loadDesignerPayloadRegistry() {
   DESIGNER_PAYLOAD_REGISTRY.error = null;
   DESIGNER_PAYLOAD_REGISTRY.loadPromise = (async () => {
     try {
+      const payloadIndexURL = new URL(DESIGNER_PAYLOAD_INDEX_PATH, location.href);
       const indexRes = await fetch(DESIGNER_PAYLOAD_INDEX_PATH);
       if (!indexRes.ok) throw new Error(`Index fetch failed with status ${indexRes.status}`);
       const indexJson = await indexRes.json();
@@ -2552,7 +2553,7 @@ async function loadDesignerPayloadRegistry() {
       const payloads = new Map();
       for (const entry of entries) {
         try {
-          const payloadURL = new URL(entry.file, location.href).toString();
+          const payloadURL = new URL(entry.file, payloadIndexURL).toString();
           const payloadRes = await fetch(payloadURL);
           if (!payloadRes.ok) throw new Error(`Payload fetch failed with status ${payloadRes.status}`);
           const payloadJson = await payloadRes.json();
@@ -3591,18 +3592,19 @@ function updateNPCSpawning(p) {
   const st = TUNING.spawn;
   // ── NPC Spawning — always keep NPCs nearby ──
   const activeNPCs = npcs.filter(n => n.state === 'walking' || n.state === 'panicking');
+  const activeNPCCount = activeNPCs.length;
   const screenLeft = cam.x;
   const screenRight = cam.x + W;
   const visibleNPCs = activeNPCs.filter(n => n.x > screenLeft - st.visibleSpawnMargin && n.x < screenRight + st.visibleSpawnMargin);
 
-  if (visibleNPCs.length < MIN_NPCS_ON_SCREEN && npcs.length < MAX_NPCS) {
+  if (visibleNPCs.length < MIN_NPCS_ON_SCREEN && activeNPCCount < MAX_NPCS) {
     // Spawn well off screen so they walk in naturally
     const side = Math.random() > 0.5 ? 1 : -1;
     const spawnX = side > 0 ? screenRight + rand(st.offscreenSpawnMin, st.offscreenSpawnMax) : screenLeft - rand(st.offscreenSpawnMin, st.offscreenSpawnMax);
     spawnNPC(spawnX);
   }
   // Also spawn ahead of a sprinting player (in their facing direction)
-  if (p.isSprinting && npcs.length < MAX_NPCS) {
+  if (p.isSprinting && activeNPCCount < MAX_NPCS) {
     const dir = p.facing;
     const ahead = activeNPCs.filter(n => dir > 0 ? (n.x > p.x && n.x < p.x + st.sprintAheadDistance) : (n.x < p.x && n.x > p.x - st.sprintAheadDistance));
     if (ahead.length < st.sprintAheadMinCount) spawnNPC(p.x + dir * rand(st.sprintSpawnMin, st.sprintSpawnMax));
@@ -3723,6 +3725,7 @@ function updatePlayingState(gameCtx, dt) {
 }
 
 function update(gameCtx, dt) {
+  if (gameCtx.state.galleryMode) return;
   if (updateMenuState(gameCtx, dt)) return;
   if (updatePauseState(gameCtx)) return;
   updatePlayingState(gameCtx, dt);
